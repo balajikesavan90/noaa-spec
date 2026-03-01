@@ -364,7 +364,8 @@ Expanded columns are renamed using the friendly map in
 #### 2b.2 Derived parsing flags and remark fields
 
 - `WND__direction_variable` is `True` when WND direction is `999` and the wind type code is `V` (variable).
-- `REM` (remarks) is split into `REM__type` and `REM__text` when the value begins with a known remark prefix.
+- `REM` (remarks) is parsed as the Part 30 repeated `TYPE(3)+LEN(3)+TEXT(LEN)` structure when valid.
+- `REM__type` and `REM__text` expose the first parsed remark entry for compatibility, while `REM__types` and `REM__texts_json` preserve the full repeated-entry payload losslessly.
 - `QNN` (original observation data) is parsed into `QNN__elements`, `QNN__source_flags`, and `QNN__data_values`, preserving the raw ASCII case/content of source-flag and 6-character data-value tokens.
 - Part 4 short-duration precipitation families use distinct friendly names: `AH*` maps to `precip_5_to_45_min_*_{n}` and `AI*` maps to `precip_60_to_180_min_*_{n}`.
 

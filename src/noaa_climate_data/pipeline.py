@@ -402,7 +402,11 @@ def download_location_data(
     return pd.concat(frames, ignore_index=True)
 
 
-def _extract_time_columns(df: pd.DataFrame) -> pd.DataFrame:
+def _extract_time_columns(
+    df: pd.DataFrame,
+    *,
+    allow_date_parsed_fallback: bool = True,
+) -> pd.DataFrame:
     df = df.copy()
     date_series = pd.to_datetime(df["DATE"], errors="coerce", utc=True)
     time_offsets = None
@@ -432,10 +436,11 @@ def _extract_time_columns(df: pd.DataFrame) -> pd.DataFrame:
         return combined
 
     date_series = _combine_date_and_time(date_series, time_offsets)
-    if "DATE_PARSED" in df.columns:
+    if allow_date_parsed_fallback and "DATE_PARSED" in df.columns:
         fallback = pd.to_datetime(df["DATE_PARSED"], errors="coerce", utc=True)
         fallback = _combine_date_and_time(fallback, time_offsets)
         date_series = date_series.fillna(fallback)
+    if "DATE_PARSED" in df.columns:
         df = df.drop(columns=["DATE_PARSED"])
     df["DATE"] = date_series
     df = df.dropna(subset=["DATE"])
@@ -770,10 +775,13 @@ def process_location_from_raw(
         )
 
     raw = raw.copy()
-    if "DATE" in raw.columns:
+    if not strict_mode and "DATE" in raw.columns:
         raw["DATE_PARSED"] = pd.to_datetime(raw["DATE"], errors="coerce", utc=True)
     cleaned = clean_noaa_dataframe(raw, keep_raw=True, strict_mode=strict_mode)
-    cleaned = _extract_time_columns(cleaned)
+    cleaned = _extract_time_columns(
+        cleaned,
+        allow_date_parsed_fallback=not strict_mode,
+    )
     if location_id is not None:
         cleaned["ID"] = location_id
 

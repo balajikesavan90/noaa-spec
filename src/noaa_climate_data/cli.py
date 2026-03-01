@@ -17,8 +17,10 @@ from .pipeline import (
     aggregate_parquet_placeholder,
     pull_random_station_raw,
     process_location,
+    process_location_from_raw,
 )
 from .pdf_markdown import convert_pdf_to_markdown
+from .research_reports import build_reports_for_station_dir
 
 
 def _parse_args() -> argparse.Namespace:
@@ -308,6 +310,138 @@ def _parse_args() -> argparse.Namespace:
         help="Do not include '## Page N' section headers",
     )
 
+    reports_parser = subparsers.add_parser(
+        "research-reports",
+        help="Generate P3 quality and aggregation reports for a station folder",
+    )
+    reports_parser.add_argument(
+        "station_dir",
+        type=Path,
+        help="Station folder containing LocationData_Raw/Cleaned/Hourly/Monthly/Yearly.csv",
+    )
+    reports_parser.add_argument(
+        "--aggregation-strategy",
+        choices=[
+            "best_hour",
+            "fixed_hour",
+            "hour_day_month_year",
+            "weighted_hours",
+            "daily_min_max_mean",
+        ],
+        default="best_hour",
+        help="Aggregation strategy used when creating hourly/monthly/yearly outputs",
+    )
+    reports_parser.add_argument(
+        "--fixed-hour",
+        type=int,
+        default=None,
+        help="Fixed hour used if aggregation strategy was fixed_hour",
+    )
+    reports_parser.add_argument(
+        "--min-days-per-month",
+        type=int,
+        default=20,
+        help="Minimum days/month threshold used by completeness filters",
+    )
+    reports_parser.add_argument(
+        "--min-months-per-year",
+        type=int,
+        default=12,
+        help="Minimum months/year threshold used by completeness filters",
+    )
+    reports_parser.add_argument(
+        "--access-date",
+        type=str,
+        default=None,
+        help="NOAA data access date (YYYY-MM-DD). Defaults to current UTC date.",
+    )
+    reports_parser.add_argument(
+        "--authors",
+        type=str,
+        default="Balaji Kesavan",
+        help="Citation author string for generated reports",
+    )
+
+    reprocess_parser = subparsers.add_parser(
+        "reprocess-output-dir",
+        help=(
+            "Re-clean all station folders in an output directory from "
+            "LocationData_Raw.csv and optionally generate research reports"
+        ),
+    )
+    reprocess_parser.add_argument(
+        "--output-root",
+        type=Path,
+        default=Path("output"),
+        help="Root directory containing station folders (default: output)",
+    )
+    reprocess_parser.add_argument(
+        "--aggregation-strategy",
+        choices=[
+            "best_hour",
+            "fixed_hour",
+            "hour_day_month_year",
+            "weighted_hours",
+            "daily_min_max_mean",
+        ],
+        default="best_hour",
+        help="Aggregation strategy to use while regenerating outputs",
+    )
+    reprocess_parser.add_argument(
+        "--fixed-hour",
+        type=int,
+        default=None,
+        help="Fixed UTC hour when using fixed_hour aggregation strategy",
+    )
+    reprocess_parser.add_argument(
+        "--min-hours-per-day",
+        type=int,
+        default=18,
+        help="Minimum hours/day required for weighted_hours strategy",
+    )
+    reprocess_parser.add_argument(
+        "--min-days-per-month",
+        type=int,
+        default=20,
+        help="Minimum days/month completeness threshold",
+    )
+    reprocess_parser.add_argument(
+        "--min-months-per-year",
+        type=int,
+        default=12,
+        help="Minimum months/year completeness threshold",
+    )
+    reprocess_parser.add_argument(
+        "--add-unit-conversions",
+        action="store_true",
+        default=False,
+        help="Add imperial/derived unit columns while regenerating outputs",
+    )
+    reprocess_parser.add_argument(
+        "--permissive",
+        action="store_true",
+        default=False,
+        help="Disable strict parsing while regenerating outputs",
+    )
+    reprocess_parser.add_argument(
+        "--no-reports",
+        action="store_true",
+        default=False,
+        help="Skip research report generation after cleaning",
+    )
+    reprocess_parser.add_argument(
+        "--access-date",
+        type=str,
+        default=None,
+        help="NOAA data access date (YYYY-MM-DD) for report citation",
+    )
+    reprocess_parser.add_argument(
+        "--authors",
+        type=str,
+        default="Balaji Kesavan",
+        help="Citation author string for generated reports",
+    )
+
     return parser.parse_args()
 
 
@@ -436,6 +570,101 @@ def main() -> None:
             args.input_pdf,
             output_md=args.output_md,
             include_page_headers=not args.no_page_headers,
+        )
+        return
+
+    if args.command == "research-reports":
+        build_reports_for_station_dir(
+            args.station_dir,
+            aggregation_strategy=args.aggregation_strategy,
+            fixed_hour=args.fixed_hour,
+            min_days_per_month=args.min_days_per_month,
+            min_months_per_year=args.min_months_per_year,
+            access_date=args.access_date,
+            authors=args.authors,
+        )
+        return
+
+    if args.command == "reprocess-output-dir":
+        output_root: Path = args.output_root
+        if not output_root.exists() or not output_root.is_dir():
+            raise FileNotFoundError(f"Output root not found or not a directory: {output_root}")
+
+        station_dirs = sorted(path for path in output_root.iterdir() if path.is_dir())
+        processed = 0
+        skipped = 0
+        failed = 0
+        total = len(station_dirs)
+
+        print(
+            "Starting reprocess-output-dir: "
+            f"output_root={output_root} total_station_dirs={total} "
+            f"reports={'off' if args.no_reports else 'on'}"
+        )
+
+        for idx, station_dir in enumerate(station_dirs, start=1):
+            print(f"[{idx}/{total}] Station {station_dir.name}: begin")
+            raw_csv = station_dir / "LocationData_Raw.csv"
+            if not raw_csv.exists():
+                skipped += 1
+                print(
+                    f"[{idx}/{total}] SKIP {station_dir.name}: "
+                    "missing LocationData_Raw.csv"
+                )
+                continue
+
+            try:
+                print(f"[{idx}/{total}] {station_dir.name}: reading raw CSV")
+                raw = pd.read_csv(raw_csv, low_memory=False)
+                print(
+                    f"[{idx}/{total}] {station_dir.name}: "
+                    f"cleaning + aggregation ({len(raw)} raw rows)"
+                )
+                outputs = process_location_from_raw(
+                    raw,
+                    aggregation_strategy=args.aggregation_strategy,
+                    min_hours_per_day=args.min_hours_per_day,
+                    min_days_per_month=args.min_days_per_month,
+                    min_months_per_year=args.min_months_per_year,
+                    fixed_hour=args.fixed_hour,
+                    add_unit_conversions=args.add_unit_conversions,
+                    strict_mode=not args.permissive,
+                )
+
+                print(f"[{idx}/{total}] {station_dir.name}: writing station CSV outputs")
+                outputs.raw.to_csv(station_dir / "LocationData_Raw.csv", index=False)
+                outputs.cleaned.to_csv(station_dir / "LocationData_Cleaned.csv", index=False)
+                outputs.hourly.to_csv(station_dir / "LocationData_Hourly.csv", index=False)
+                outputs.monthly.to_csv(station_dir / "LocationData_Monthly.csv", index=False)
+                outputs.yearly.to_csv(station_dir / "LocationData_Yearly.csv", index=False)
+
+                if not args.no_reports:
+                    print(f"[{idx}/{total}] {station_dir.name}: generating research reports")
+                    build_reports_for_station_dir(
+                        station_dir,
+                        aggregation_strategy=args.aggregation_strategy,
+                        fixed_hour=args.fixed_hour,
+                        min_days_per_month=args.min_days_per_month,
+                        min_months_per_year=args.min_months_per_year,
+                        access_date=args.access_date,
+                        authors=args.authors,
+                    )
+
+                processed += 1
+                print(
+                    f"[{idx}/{total}] DONE {station_dir.name} | "
+                    f"processed={processed} skipped={skipped} failed={failed}"
+                )
+            except Exception as exc:
+                failed += 1
+                print(
+                    f"[{idx}/{total}] FAIL {station_dir.name}: {exc} | "
+                    f"processed={processed} skipped={skipped} failed={failed}"
+                )
+
+        print(
+            "reprocess-output-dir summary: "
+            f"processed={processed} skipped={skipped} failed={failed} total={total}"
         )
         return
 

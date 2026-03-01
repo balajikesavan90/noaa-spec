@@ -346,6 +346,138 @@ class TestCliCommands:
         assert called["file_name"] == "TEST.csv"
         assert called["station_id"] == "TESTID"
 
+    def test_cli_research_reports_invokes_builder(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        station_dir = tmp_path / "output" / "01234567890"
+        station_dir.mkdir(parents=True)
+
+        called: dict[str, object] = {}
+
+        def fake_build_reports_for_station_dir(
+            station_dir_arg: Path,
+            **kwargs: object,
+        ) -> dict[str, Path]:
+            called["station_dir"] = station_dir_arg
+            called.update(kwargs)
+            return {}
+
+        monkeypatch.setattr(cli, "build_reports_for_station_dir", fake_build_reports_for_station_dir)
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "prog",
+                "research-reports",
+                str(station_dir),
+                "--aggregation-strategy",
+                "fixed_hour",
+                "--fixed-hour",
+                "6",
+                "--min-days-per-month",
+                "18",
+                "--min-months-per-year",
+                "10",
+                "--access-date",
+                "2026-02-28",
+                "--authors",
+                "Test Author",
+            ],
+        )
+        cli.main()
+
+        assert called["station_dir"].resolve() == station_dir.resolve()
+        assert called["aggregation_strategy"] == "fixed_hour"
+        assert called["fixed_hour"] == 6
+        assert called["min_days_per_month"] == 18
+        assert called["min_months_per_year"] == 10
+        assert called["access_date"] == "2026-02-28"
+        assert called["authors"] == "Test Author"
+
+    def test_cli_reprocess_output_dir_runs_clean_and_reports(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        output_root = tmp_path / "output"
+        station_ok = output_root / "01234567890"
+        station_skip = output_root / "NO_RAW"
+        station_ok.mkdir(parents=True)
+        station_skip.mkdir(parents=True)
+
+        pd.DataFrame({"DATE": ["2020-01-01T00:00:00"], "TMP": ["0100,1"]}).to_csv(
+            station_ok / "LocationData_Raw.csv",
+            index=False,
+        )
+
+        sample = pd.DataFrame({"value": [1]})
+        process_called: dict[str, object] = {}
+        report_called: dict[str, object] = {}
+
+        def fake_process_location_from_raw(raw: pd.DataFrame, **kwargs: object) -> LocationDataOutputs:
+            process_called["rows"] = len(raw)
+            process_called.update(kwargs)
+            return LocationDataOutputs(
+                raw=sample,
+                cleaned=sample,
+                hourly=sample,
+                monthly=sample,
+                yearly=sample,
+            )
+
+        def fake_build_reports_for_station_dir(station_dir: Path, **kwargs: object) -> dict[str, Path]:
+            report_called["station_dir"] = station_dir
+            report_called.update(kwargs)
+            return {}
+
+        monkeypatch.setattr(cli, "process_location_from_raw", fake_process_location_from_raw)
+        monkeypatch.setattr(cli, "build_reports_for_station_dir", fake_build_reports_for_station_dir)
+
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "prog",
+                "reprocess-output-dir",
+                "--output-root",
+                str(output_root),
+                "--aggregation-strategy",
+                "fixed_hour",
+                "--fixed-hour",
+                "6",
+                "--min-days-per-month",
+                "18",
+                "--min-months-per-year",
+                "10",
+                "--access-date",
+                "2026-02-28",
+                "--authors",
+                "Test Author",
+            ],
+        )
+        cli.main()
+
+        assert process_called["rows"] == 1
+        assert process_called["aggregation_strategy"] == "fixed_hour"
+        assert process_called["fixed_hour"] == 6
+        assert process_called["min_days_per_month"] == 18
+        assert process_called["min_months_per_year"] == 10
+
+        assert report_called["station_dir"].resolve() == station_ok.resolve()
+        assert report_called["aggregation_strategy"] == "fixed_hour"
+        assert report_called["fixed_hour"] == 6
+        assert report_called["min_days_per_month"] == 18
+        assert report_called["min_months_per_year"] == 10
+        assert report_called["access_date"] == "2026-02-28"
+        assert report_called["authors"] == "Test Author"
+
+        assert (station_ok / "LocationData_Cleaned.csv").exists()
+        assert not (station_skip / "LocationData_Cleaned.csv").exists()
+
     def test_cli_pdf_to_markdown_invokes_converter(
         self,
         tmp_path: Path,

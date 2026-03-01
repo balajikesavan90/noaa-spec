@@ -330,12 +330,13 @@ class TestAggregationStrategies:
             fixed_hour=2,
             min_days_per_month=1,
             min_months_per_year=1,
+            strict_mode=False,
         )
         assert (outputs.hourly["Hour"] == 2).all()
         assert outputs.monthly.iloc[0]["temperature_c"] == pytest.approx(20.0)
         assert outputs.yearly.iloc[0]["temperature_c"] == pytest.approx(20.0)
 
-    def test_fixed_hour_accepts_iso_timestamp_dates(self):
+    def test_fixed_hour_accepts_iso_timestamp_dates_in_non_strict_mode(self):
         raw = _raw_with_hours(
             [
                 ("2020-01-01T01:00:00Z", 10.0),
@@ -347,8 +348,28 @@ class TestAggregationStrategies:
             fixed_hour=1,
             min_days_per_month=1,
             min_months_per_year=1,
+            strict_mode=False,
         )
         assert outputs.monthly.iloc[0]["temperature_c"] == pytest.approx(10.0)
+
+    def test_fixed_hour_rejects_iso_timestamp_dates_in_strict_mode(self):
+        raw = _raw_with_hours(
+            [
+                ("2020-01-01T01:00:00Z", 10.0),
+            ]
+        )
+        outputs = process_location_from_raw(
+            raw,
+            aggregation_strategy="fixed_hour",
+            fixed_hour=1,
+            min_days_per_month=1,
+            min_months_per_year=1,
+            strict_mode=True,
+        )
+        assert outputs.cleaned.empty
+        assert outputs.hourly.empty
+        assert outputs.monthly.empty
+        assert outputs.yearly.empty
 
     def test_fixed_hour_uses_split_date_and_time(self):
         raw = _raw_with_split_date_time(
@@ -411,6 +432,7 @@ class TestExtractTimeColumns:
             aggregation_strategy="hour_day_month_year",
             min_days_per_month=1,
             min_months_per_year=1,
+            strict_mode=False,
         )
         assert len(outputs.hourly) == 3
         assert outputs.monthly.iloc[0]["temperature_c"] == pytest.approx(22.5)
@@ -430,6 +452,7 @@ class TestExtractTimeColumns:
             min_hours_per_day=1,
             min_days_per_month=1,
             min_months_per_year=1,
+            strict_mode=False,
         )
         assert outputs.monthly.iloc[0]["temperature_c"] == pytest.approx(20.0)
         assert outputs.yearly.iloc[0]["temperature_c"] == pytest.approx(20.0)
@@ -447,6 +470,7 @@ class TestExtractTimeColumns:
             aggregation_strategy="daily_min_max_mean",
             min_days_per_month=1,
             min_months_per_year=1,
+            strict_mode=False,
         )
         monthly = outputs.monthly.iloc[0]
         assert monthly["temperature_c__daily_min"] == pytest.approx(20.0)

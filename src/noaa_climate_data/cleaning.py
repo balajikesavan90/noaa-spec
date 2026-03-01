@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 import logging
 import re
 from typing import Iterable
@@ -164,6 +165,45 @@ def _is_eqd_prefix(prefix: str) -> bool:
     return len(prefix) == 3 and prefix[0] in {"Q", "P", "R", "C", "D", "N"} and prefix[1:].isdigit()
 
 
+def _is_numeric_parse_failure(
+    part: str,
+    value: float | None,
+    part_rule: FieldPartRule | None,
+) -> bool:
+    if part_rule is None or part_rule.kind != "numeric":
+        return False
+    return part.strip() != "" and value is None and not _is_missing_value(part, part_rule)
+
+
+def _should_preserve_text_token(
+    prefix: str,
+    idx: int,
+    part_rule: FieldPartRule | None,
+) -> bool:
+    if part_rule is None:
+        return False
+    if _is_eqd_prefix(prefix) and idx == 1:
+        return True
+    if part_rule.kind != "categorical":
+        return False
+    return (
+        (prefix.startswith("AT") and idx == 2)
+        or (prefix.startswith("AW") and idx == 1)
+        or (prefix.startswith("MV") and idx == 1)
+        or (prefix.startswith("MW") and idx == 1)
+    )
+
+
+def _is_crn_missing_qc(
+    prefix: str,
+    part_rule: FieldPartRule | None,
+    part_quality: str | None,
+) -> bool:
+    if part_rule is None or part_rule.kind != "numeric":
+        return False
+    return prefix[:2] in {"CB", "CF", "CG", "CH", "CI", "CN"} and part_quality == "9"
+
+
 def _is_valid_eqd_parameter_code(prefix: str, value: str) -> bool:
     if prefix.startswith("N"):
         if len(value) != 6:
@@ -185,14 +225,59 @@ def _is_valid_eqd_parameter_code(prefix: str, value: str) -> bool:
 def _parse_remark(value: object) -> tuple[str | None, str | None]:
     if value is None or (isinstance(value, float) and pd.isna(value)):
         return None, None
-    text = str(value).strip()
+    raw_text = str(value)
+    text = raw_text.strip()
     if text in {"", "nan", "None"}:
         return None, None
-    prefix = text[:3].upper()
-    if prefix in REM_TYPE_CODES:
-        remainder = text[3:].strip()
-        return prefix, remainder or None
+    structured = _parse_structured_remark(text)
+    if structured is not None:
+        return structured[0], structured[1]
     return None, text
+
+
+def _parse_structured_remark(
+    text: str,
+) -> tuple[str, str, str, str] | None:
+    if len(text) < 6:
+        return None
+    idx = 0
+    remark_types: list[str] = []
+    remark_texts: list[str] = []
+    while idx < len(text):
+        type_end = idx + 3
+        if type_end > len(text):
+            return None
+        remark_type = text[idx:type_end].upper()
+        if remark_type not in REM_TYPE_CODES:
+            return None
+        idx = type_end
+        length_end = idx + 3
+        if length_end > len(text):
+            return None
+        length_token = text[idx:length_end]
+        if not length_token.isdigit():
+            return None
+        text_length = int(length_token)
+        if text_length < 1 or text_length > 999:
+            return None
+        idx = length_end
+        text_end = idx + text_length
+        if text_end > len(text):
+            return None
+        remark_text = text[idx:text_end]
+        if not _is_ascii_text(remark_text):
+            return None
+        remark_types.append(remark_type)
+        remark_texts.append(remark_text)
+        idx = text_end
+    if not remark_types:
+        return None
+    return (
+        remark_types[0],
+        remark_texts[0],
+        ",".join(remark_types),
+        json.dumps(remark_texts),
+    )
 
 
 def _skip_qnn_padding(text: str, idx: int) -> int:
@@ -329,6 +414,7 @@ def _expand_parsed(
     """
     payload: dict[str, object] = {}
     malformed_parts: set[int] = set()
+    missing_by_quality_parts: set[int] = set()
     is_variable_direction = (
         prefix == "WND"
         and len(parsed.parts) >= 3
@@ -458,13 +544,26 @@ def _expand_parsed(
                 continue
         domain_value = enforce_domain(part, part_rule)
         if domain_value is None:
+            if _is_numeric_parse_failure(part, value, part_rule):
+                malformed_parts.add(idx)
             payload[key] = None
+            continue
+        if _should_preserve_text_token(prefix, idx, part_rule):
+            payload[key] = domain_value
             continue
         if is_eqd and idx == 3:
             param_code = domain_value
             if param_code != "" and not _is_valid_eqd_parameter_code(prefix, param_code):
                 payload[key] = None
                 continue
+        if _is_numeric_parse_failure(part, value, part_rule):
+            malformed_parts.add(idx)
+            payload[key] = None
+            continue
+        if _is_crn_missing_qc(prefix, part_rule, part_quality):
+            missing_by_quality_parts.add(idx)
+            payload[key] = None
+            continue
         if value is None:
             payload[key] = domain_value
             continue
@@ -494,7 +593,7 @@ def _expand_parsed(
             continue
         
         # Determine QC signals based on the current state
-        is_sentinel = _is_missing_value(part, part_rule)
+        is_sentinel = _is_missing_value(part, part_rule) or idx in missing_by_quality_parts
         
         # Check quality for this part
         part_quality = _quality_for_part(prefix, idx, parsed.parts) if allow_quality else None
@@ -750,12 +849,16 @@ def clean_value_quality(raw: str, prefix: str, strict_mode: bool = True) -> dict
     
     value: float | None
     raw_part = parsed.parts[0]
+    malformed_token = False
     
     # Check if it's a sentinel/missing value
     is_sentinel = part_rule and _is_missing_value(raw_part, part_rule)
     
     if is_sentinel:
         value = None
+    elif _is_numeric_parse_failure(raw_part, parsed.values[0], part_rule):
+        value = None
+        malformed_token = True
     else:
         domain_value = enforce_domain(raw_part, part_rule)
         if domain_value is None:
@@ -786,7 +889,7 @@ def clean_value_quality(raw: str, prefix: str, strict_mode: bool = True) -> dict
         is_sentinel=bool(is_sentinel),
         bad_quality=bad_quality,
         out_of_range=out_of_range,
-        malformed_token=False,
+        malformed_token=malformed_token,
     )
     
     return {
@@ -1040,6 +1143,21 @@ def _normalize_control_fields(df: pd.DataFrame) -> pd.DataFrame:
             text = text.where(text.isin(allowed_values))
         return text
 
+    def _normalize_fixed_width_ascii_text(
+        series: pd.Series,
+        *,
+        width: int,
+        missing_tokens: set[str] | None = None,
+    ) -> pd.Series:
+        text = series.astype("string")
+        text = text.where(~text.isin({"", "nan", "None", "<NA>"}))
+        text = text.where(text.str.len().eq(width))
+        text = text.where(text.str.fullmatch(rf"[\x20-\x7E]{{{width}}}", na=False))
+        if missing_tokens:
+            text = text.where(~text.isin(missing_tokens))
+        normalized = text.str.rstrip()
+        return normalized.where(normalized.notna() & normalized.ne(""))
+
     def _normalize_date(series: pd.Series) -> pd.Series:
         text = _normalize_text(series)
         match = text.str.fullmatch(r"\d{8}")
@@ -1090,7 +1208,7 @@ def _normalize_control_fields(df: pd.DataFrame) -> pd.DataFrame:
             work["LONGITUDE"],
             width=7,
             scale=1000.0,
-            min_value=-180.0,
+            min_value=-179.999,
             max_value=180.0,
             missing_tokens={"999999"},
         )
@@ -1112,9 +1230,11 @@ def _normalize_control_fields(df: pd.DataFrame) -> pd.DataFrame:
         )
 
     if "CALL_SIGN" in work.columns:
-        series = work["CALL_SIGN"].astype(str).str.strip()
-        series = series.where(~series.isin({"99999", "nan", "None", ""}))
-        work["CALL_SIGN"] = series.where(series.notna())
+        work["CALL_SIGN"] = _normalize_fixed_width_ascii_text(
+            work["CALL_SIGN"],
+            width=5,
+            missing_tokens={"99999"},
+        )
 
     if "SOURCE" in work.columns:
         series = work["SOURCE"].astype(str).str.strip().str.upper()
@@ -1208,12 +1328,30 @@ def clean_noaa_dataframe(
     if "REM" in cleaned.columns:
         remark_types = []
         remark_texts = []
+        remark_type_lists = []
+        remark_text_lists = []
         for value in cleaned["REM"]:
-            remark_type, remark_text = _parse_remark(value)
+            structured = None
+            if value is not None and not (isinstance(value, float) and pd.isna(value)):
+                text = str(value).strip()
+                if text not in {"", "nan", "None"}:
+                    structured = _parse_structured_remark(text)
+            if structured is None:
+                remark_type, remark_text = _parse_remark(value)
+                remark_types.append(remark_type)
+                remark_texts.append(remark_text)
+                remark_type_lists.append(None)
+                remark_text_lists.append(None)
+                continue
+            remark_type, remark_text, remark_types_csv, remark_texts_json = structured
             remark_types.append(remark_type)
             remark_texts.append(remark_text)
+            remark_type_lists.append(remark_types_csv)
+            remark_text_lists.append(remark_texts_json)
         cleaned["REM__type"] = remark_types
         cleaned["REM__text"] = remark_texts
+        cleaned["REM__types"] = remark_type_lists
+        cleaned["REM__texts_json"] = remark_text_lists
         processed_columns.add("REM")
 
     expansion_frames: list[pd.DataFrame] = []

@@ -8,6 +8,7 @@ Covers the three P0 fixes:
 
 from __future__ import annotations
 
+import json
 import re
 
 import pandas as pd
@@ -23,7 +24,19 @@ from noaa_climate_data.cleaning import (
     parse_field,
 )
 from noaa_climate_data.constants import (
+    AUTOMATED_PAST_WEATHER_CODE_DEFINITIONS,
+    AUTOMATED_PRESENT_WEATHER_CODE_DEFINITIONS,
+    DAILY_PRESENT_WEATHER_ABBREVIATION_DEFINITIONS,
+    DAILY_PRESENT_WEATHER_SOURCE_DEFINITIONS,
+    DAILY_PRESENT_WEATHER_TYPE_DEFINITIONS,
+    GEOPOTENTIAL_ISOBARIC_LEVEL_DEFINITIONS,
+    MANUAL_PAST_WEATHER_CODE_DEFINITIONS,
+    MANUAL_PRESENT_WEATHER_CODE_DEFINITIONS,
+    PRESENT_WEATHER_COMPONENT_PRECIPITATION_CODE_DEFINITIONS,
+    PRESENT_WEATHER_VICINITY_CODE_DEFINITIONS,
+    PRESSURE_TENDENCY_CODE_DEFINITIONS,
     SECTION_IDENTIFIER_WIDTH_RULE_IDENTIFIERS,
+    SUMMARY_OF_DAY_PAST_WEATHER_CODE_DEFINITIONS,
     FieldPartRule,
     get_field_rule,
     get_token_width_rules,
@@ -47,6 +60,60 @@ class TestIsMissingValue:
         rule = get_field_rule("TMP").parts[1]
         assert not _is_missing_value("+0250", rule)
         assert not _is_missing_value("-0032", rule)
+
+
+class TestDocumentedDomainValueTables:
+    def test_field_rules_reference_doc_backed_code_tables(self):
+        assert get_field_rule("MD1").parts[1].allowed_values == (
+            set(PRESSURE_TENDENCY_CODE_DEFINITIONS) - {"9"}
+        )
+        assert get_field_rule("ME1").parts[1].allowed_values == (
+            set(GEOPOTENTIAL_ISOBARIC_LEVEL_DEFINITIONS) - {"9"}
+        )
+        assert get_field_rule("AT1").parts[1].allowed_values == set(
+            DAILY_PRESENT_WEATHER_SOURCE_DEFINITIONS
+        )
+        assert get_field_rule("AT1").parts[2].allowed_values == set(
+            DAILY_PRESENT_WEATHER_TYPE_DEFINITIONS
+        )
+        assert get_field_rule("AT1").parts[3].allowed_values == set(
+            DAILY_PRESENT_WEATHER_ABBREVIATION_DEFINITIONS
+        )
+        assert get_field_rule("AU1").parts[3].allowed_values == (
+            set(PRESENT_WEATHER_COMPONENT_PRECIPITATION_CODE_DEFINITIONS) - {"99"}
+        )
+        assert get_field_rule("AW1").parts[1].allowed_values == set(
+            AUTOMATED_PRESENT_WEATHER_CODE_DEFINITIONS
+        )
+        assert get_field_rule("AX1").parts[1].allowed_values == (
+            set(SUMMARY_OF_DAY_PAST_WEATHER_CODE_DEFINITIONS) - {"99"}
+        )
+        assert get_field_rule("MV1").parts[1].allowed_values == (
+            set(PRESENT_WEATHER_VICINITY_CODE_DEFINITIONS) - {"99"}
+        )
+        assert get_field_rule("MW1").parts[1].allowed_values == set(
+            MANUAL_PRESENT_WEATHER_CODE_DEFINITIONS
+        )
+        assert get_field_rule("AY1").parts[1].allowed_values == set(
+            MANUAL_PAST_WEATHER_CODE_DEFINITIONS
+        )
+        assert get_field_rule("AZ1").parts[1].allowed_values == set(
+            AUTOMATED_PAST_WEATHER_CODE_DEFINITIONS
+        )
+
+    def test_selected_domain_value_definitions_match_doc_examples(self):
+        assert "decreasing" in PRESSURE_TENDENCY_CODE_DEFINITIONS["8"]
+        assert GEOPOTENTIAL_ISOBARIC_LEVEL_DEFINITIONS["2"] == "925 hectopascals"
+        assert DAILY_PRESENT_WEATHER_SOURCE_DEFINITIONS["MW"].startswith("sourced from manually")
+        assert "Tornado" in DAILY_PRESENT_WEATHER_TYPE_DEFINITIONS["10"]
+        assert "Freezing rain" in DAILY_PRESENT_WEATHER_ABBREVIATION_DEFINITIONS["FZRA"]
+        assert "Unknown precipitation" in PRESENT_WEATHER_COMPONENT_PRECIPITATION_CODE_DEFINITIONS["09"]
+        assert AUTOMATED_PRESENT_WEATHER_CODE_DEFINITIONS["99"] == "Tornado"
+        assert SUMMARY_OF_DAY_PAST_WEATHER_CODE_DEFINITIONS["11"] == "high or damaging winds"
+        assert PRESENT_WEATHER_VICINITY_CODE_DEFINITIONS["06"] == "Blowing snow in vicinity"
+        assert "duststorm or sandstorm" in MANUAL_PRESENT_WEATHER_CODE_DEFINITIONS["98"]
+        assert "Thunderstorms" in MANUAL_PAST_WEATHER_CODE_DEFINITIONS["9"]
+        assert AUTOMATED_PAST_WEATHER_CODE_DEFINITIONS["7"] == "Snow or ice pellets"
 
     def test_tmp_negative_all_9_not_missing(self):
         rule = get_field_rule("TMP").parts[1]
@@ -1398,16 +1465,22 @@ class TestQualityNullsCorrectPart:
     def test_at_invalid_source_code(self):
         result = clean_value_quality("XX,01,FG  ,1", "AT1")
         assert result["AT1__part1"] is None
-        assert result["AT1__part2"] == pytest.approx(1.0)
+        assert result["AT1__part2"] == "01"
         assert result["AT1__part3"] == "FG"
 
     def test_at_invalid_weather_type(self):
         result = clean_value_quality("AU,99,FG  ,1", "AT1")
         assert result["AT1__part2"] is None
 
+    def test_at_preserves_fixed_width_weather_type_code(self):
+        result = clean_value_quality("AU,01,FG  ,1", "AT1")
+        assert result["AT1__part1"] == "AU"
+        assert result["AT1__part2"] == "01"
+        assert result["AT1__part3"] == "FG"
+
     def test_aw_tornado_code_99(self):
         result = clean_value_quality("99,1", "AW1")
-        assert result["AW1__part1"] == pytest.approx(99.0)
+        assert result["AW1__part1"] == "99"
 
     def test_aw_quality_rejects_8(self):
         result = clean_value_quality("01,8", "AW1")
@@ -1419,12 +1492,17 @@ class TestQualityNullsCorrectPart:
 
     def test_aw_valid_code(self):
         result = clean_value_quality("89,1", "AW1")
-        assert result["AW1__part1"] == pytest.approx(89.0)
+        assert result["AW1__part1"] == "89"
 
     def test_cb_quality_rejects_2(self):
         result = clean_value_quality("05,+000123,2,0", "CB1")
         assert result["CB1__part2"] is None
         assert result["CB1__part3"] is None
+
+    def test_cb_quality_9_nulls_associated_value(self):
+        result = clean_value_quality("05,+00123,9,0", "CB1", strict_mode=True)
+        assert result["CB1__part2"] is None
+        assert result["CB1__part2__qc_status"] == "MISSING"
 
     def test_cb_flag_rejects_alpha(self):
         result = clean_value_quality("05,+000123,1,M", "CB1")
@@ -1440,6 +1518,11 @@ class TestQualityNullsCorrectPart:
         result = clean_value_quality("0123,2,0", "CF1")
         assert result["CF1__part1"] is None
 
+    def test_cf_quality_9_nulls_associated_value(self):
+        result = clean_value_quality("0123,9,0", "CF1", strict_mode=True)
+        assert result["CF1__part1"] is None
+        assert result["CF1__part1__qc_status"] == "MISSING"
+
     def test_cf2_range_enforced(self):
         result = clean_value_quality("9998,1,0", "CF2")
         assert result["CF2__part1"] == pytest.approx(999.8)
@@ -1453,6 +1536,11 @@ class TestQualityNullsCorrectPart:
     def test_cg_quality_rejects_2(self):
         result = clean_value_quality("+000123,2,0", "CG1")
         assert result["CG1__part1"] is None
+
+    def test_cg_quality_9_nulls_associated_value(self):
+        result = clean_value_quality("+00123,9,0", "CG1", strict_mode=True)
+        assert result["CG1__part1"] is None
+        assert result["CG1__part1__qc_status"] == "MISSING"
 
     def test_cg2_range_enforced(self):
         result = clean_value_quality("+99998,1,0", "CG2")
@@ -1469,6 +1557,12 @@ class TestQualityNullsCorrectPart:
         assert result["CH1__part2"] is None
         assert result["CH1__part5"] == pytest.approx(45.6)
 
+    def test_ch_quality_9_nulls_only_associated_measurement(self):
+        result = clean_value_quality("30,+01234,9,0,0456,1,0", "CH1", strict_mode=True)
+        assert result["CH1__part2"] is None
+        assert result["CH1__part2__qc_status"] == "MISSING"
+        assert result["CH1__part5"] == pytest.approx(45.6)
+
     def test_ch2_range_enforced(self):
         result = clean_value_quality("30,+09998,1,0,0456,1,0", "CH2")
         assert result["CH2__part2"] == pytest.approx(999.8)
@@ -1479,6 +1573,12 @@ class TestQualityNullsCorrectPart:
         result = clean_value_quality("00010,1,0,00020,1,0,00030,1,0,00040,2,0", "CI1")
         assert result["CI1__part10"] is None
         assert result["CI1__part11"] is None
+
+    def test_ci_quality_9_nulls_associated_measurement(self):
+        result = clean_value_quality("00010,9,0,00020,1,0,00030,1,0,00040,1,0", "CI1", strict_mode=True)
+        assert result["CI1__part1"] is None
+        assert result["CI1__part1__qc_status"] == "MISSING"
+        assert result["CI1__part10"] == pytest.approx(4.0)
 
     def test_ci1_range_enforced(self):
         result = clean_value_quality("10000,1,0,00020,1,0,00030,1,0,00040,1,0", "CI1")
@@ -1500,6 +1600,12 @@ class TestQualityNullsCorrectPart:
     def test_cn1_datalogger_quality_rejects_2(self):
         result = clean_value_quality("0123,1,0,0456,1,0,0789,2,0", "CN1")
         assert result["CN1__part7"] is None
+
+    def test_cn1_quality_9_nulls_associated_measurement(self):
+        result = clean_value_quality("0123,9,0,0456,1,0,0789,1,0", "CN1", strict_mode=True)
+        assert result["CN1__part1"] is None
+        assert result["CN1__part1__qc_status"] == "MISSING"
+        assert result["CN1__part4"] == pytest.approx(45.6)
 
     def test_cn1_range_enforced(self):
         result = clean_value_quality("9999,1,0,0456,1,0,0789,1,0", "CN1")
@@ -1838,8 +1944,13 @@ class TestQualityNullsCorrectPart:
 
     def test_eqd_q01_reason_code_rejects_8(self):
         result = clean_value_quality("123456,8,APC3", "Q01")
-        assert result["Q01__part1"] == pytest.approx(123456.0)
+        assert result["Q01__part1"] == "123456"
         assert result["Q01__part2"] is None
+
+    def test_eqd_q01_preserves_signed_text_value(self):
+        result = clean_value_quality("+01234,1,APC3", "Q01")
+        assert result["Q01__part1"] == "+01234"
+        assert result["Q01__part2"] == pytest.approx(1.0)
 
     def test_eqd_n01_units_code_rejects_z(self):
         result = clean_value_quality("ABCDEF,Z,ALTP0A", "N01")
@@ -2975,8 +3086,8 @@ class TestCleanDataframeEdgeCases:
         df = pd.DataFrame(
             {
                 "REM": [
-                    "SYN052AAXX 01004",
-                    "METfoo",
+                    "SYN013052AAXX 01004",
+                    "MET005a,b c",
                     "XYZbar",
                     None,
                 ]
@@ -2985,18 +3096,48 @@ class TestCleanDataframeEdgeCases:
         cleaned = clean_noaa_dataframe(df, keep_raw=False)
         assert cleaned.loc[0, "remarks_type_code"] == "SYN"
         assert cleaned.loc[0, "remarks_text"] == "052AAXX 01004"
+        assert cleaned.loc[0, "remarks_type_codes"] == "SYN"
+        assert json.loads(cleaned.loc[0, "remarks_text_blocks_json"]) == ["052AAXX 01004"]
         assert cleaned.loc[1, "remarks_type_code"] == "MET"
-        assert cleaned.loc[1, "remarks_text"] == "foo"
+        assert cleaned.loc[1, "remarks_text"] == "a,b c"
+        assert cleaned.loc[1, "remarks_type_codes"] == "MET"
+        assert json.loads(cleaned.loc[1, "remarks_text_blocks_json"]) == ["a,b c"]
         assert pd.isna(cleaned.loc[2, "remarks_type_code"])
         assert cleaned.loc[2, "remarks_text"] == "XYZbar"
+        assert pd.isna(cleaned.loc[2, "remarks_type_codes"])
+        assert pd.isna(cleaned.loc[2, "remarks_text_blocks_json"])
         assert pd.isna(cleaned.loc[3, "remarks_type_code"])
         assert pd.isna(cleaned.loc[3, "remarks_text"])
+        assert pd.isna(cleaned.loc[3, "remarks_type_codes"])
+        assert pd.isna(cleaned.loc[3, "remarks_text_blocks_json"])
 
     def test_remark_all9_text_preserved(self):
-        df = pd.DataFrame({"REM": ["MET999"]})
+        df = pd.DataFrame({"REM": ["MET003999"]})
         cleaned = clean_noaa_dataframe(df, keep_raw=False)
         assert cleaned.loc[0, "remarks_type_code"] == "MET"
         assert cleaned.loc[0, "remarks_text"] == "999"
+        assert cleaned.loc[0, "remarks_type_codes"] == "MET"
+        assert json.loads(cleaned.loc[0, "remarks_text_blocks_json"]) == ["999"]
+
+    def test_remark_repeated_blocks_are_parsed_losslessly(self):
+        df = pd.DataFrame({"REM": ["MET003fooSOD003bar"]})
+        cleaned = clean_noaa_dataframe(df, keep_raw=False)
+        assert cleaned.loc[0, "remarks_type_code"] == "MET"
+        assert cleaned.loc[0, "remarks_text"] == "foo"
+        assert cleaned.loc[0, "remarks_type_codes"] == "MET,SOD"
+        assert json.loads(cleaned.loc[0, "remarks_text_blocks_json"]) == ["foo", "bar"]
+
+    def test_remark_invalid_length_falls_back_to_raw_text(self):
+        df = pd.DataFrame({"REM": ["METfoo", "MET003fo"]})
+        cleaned = clean_noaa_dataframe(df, keep_raw=False)
+        assert pd.isna(cleaned.loc[0, "remarks_type_code"])
+        assert cleaned.loc[0, "remarks_text"] == "METfoo"
+        assert pd.isna(cleaned.loc[0, "remarks_type_codes"])
+        assert pd.isna(cleaned.loc[0, "remarks_text_blocks_json"])
+        assert pd.isna(cleaned.loc[1, "remarks_type_code"])
+        assert cleaned.loc[1, "remarks_text"] == "MET003fo"
+        assert pd.isna(cleaned.loc[1, "remarks_type_codes"])
+        assert pd.isna(cleaned.loc[1, "remarks_text_blocks_json"])
 
     def test_qnn_parsing(self):
         df = pd.DataFrame(
@@ -3046,6 +3187,35 @@ class TestCleanDataframeEdgeCases:
         assert cleaned.loc[2, "qnn_data_values"] == "AAAAAA"
         assert cleaned.loc[3, "qnn_data_values"] == "A56789"
 
+    def test_qnn_multiblock_ascii_token_boundaries(self):
+        df = pd.DataFrame(
+            {
+                "QNN": [
+                    "QNN Aab!$B[]{} !@#$%^A?<>/=",
+                ]
+            }
+        )
+        cleaned = clean_noaa_dataframe(df, keep_raw=False)
+        assert cleaned.loc[0, "qnn_element_ids"] == "A,B"
+        assert cleaned.loc[0, "qnn_source_flags"] == "ab!$,[]{}"
+        assert cleaned.loc[0, "qnn_data_values"] == "!@#$%^,A?<>/="
+
+    def test_rem_and_qnn_all9_text_payloads_survive_cleanup(self):
+        df = pd.DataFrame(
+            {
+                "REM": ["MET006999999"],
+                "QNN": ["QNN A9999 999999"],
+            }
+        )
+        cleaned = clean_noaa_dataframe(df, keep_raw=False)
+        assert cleaned.loc[0, "remarks_type_code"] == "MET"
+        assert cleaned.loc[0, "remarks_text"] == "999999"
+        assert cleaned.loc[0, "remarks_type_codes"] == "MET"
+        assert json.loads(cleaned.loc[0, "remarks_text_blocks_json"]) == ["999999"]
+        assert cleaned.loc[0, "qnn_element_ids"] == "A"
+        assert cleaned.loc[0, "qnn_source_flags"] == "9999"
+        assert cleaned.loc[0, "qnn_data_values"] == "999999"
+
     def test_ah_ai_friendly_columns_are_disambiguated(self):
         assert to_friendly_column("AH1__part1") == "precip_5_to_45_min_period_minutes_1"
         assert to_friendly_column("AI1__part1") == "precip_60_to_180_min_period_minutes_1"
@@ -3061,8 +3231,11 @@ class TestCleanDataframeEdgeCases:
             }
         )
         cleaned = clean_noaa_dataframe(df, keep_raw=False)
+        assert not cleaned.columns.duplicated().any()
         assert "precip_5_to_45_min_period_minutes_1" in cleaned.columns
         assert "precip_60_to_180_min_period_minutes_1" in cleaned.columns
+        assert cleaned.loc[0, "precip_5_to_45_min_period_minutes_1"] == pytest.approx(15.0)
+        assert cleaned.loc[0, "precip_60_to_180_min_period_minutes_1"] == pytest.approx(60.0)
 
 
 class TestControlAndMandatoryNormalization:
@@ -3072,7 +3245,7 @@ class TestControlAndMandatoryNormalization:
                 "LATITUDE": [99.999, 45.0],
                 "LONGITUDE": [181.0, -120.0],
                 "ELEVATION": [9000.0, 100.0],
-                "CALL_SIGN": ["99999", "KJFK"],
+                "CALL_SIGN": ["99999", "KJFK "],
                 "SOURCE": ["9", "4"],
                 "REPORT_TYPE": ["FM-12", "BOGUS"],
                 "QUALITY_CONTROL": ["V020", "V02"],
@@ -3332,6 +3505,22 @@ class TestTopStrictCoverageGapFixes:
         assert len("KJFK0") == 5
         assert cleaned.loc[0, "CALL_SIGN"] == "KJFK0"
 
+    def test_call_sign_width_5_accepts_space_padded_token(self):
+        cleaned = clean_noaa_dataframe(pd.DataFrame({"CALL_SIGN": ["KJFK "]}), keep_raw=True)
+        assert cleaned.loc[0, "CALL_SIGN"] == "KJFK"
+
+    def test_call_sign_width_5_rejects_short_trimmed_token(self):
+        cleaned = clean_noaa_dataframe(pd.DataFrame({"CALL_SIGN": ["KJFK"]}), keep_raw=True)
+        assert pd.isna(cleaned.loc[0, "CALL_SIGN"])
+
+    def test_call_sign_width_5_rejects_long_token(self):
+        cleaned = clean_noaa_dataframe(pd.DataFrame({"CALL_SIGN": ["KJFK00"]}), keep_raw=True)
+        assert pd.isna(cleaned.loc[0, "CALL_SIGN"])
+
+    def test_call_sign_rejects_non_ascii_token(self):
+        cleaned = clean_noaa_dataframe(pd.DataFrame({"CALL_SIGN": ["åJFK "]}), keep_raw=True)
+        assert pd.isna(cleaned.loc[0, "CALL_SIGN"])
+
     def test_call_sign_valid_domain(self):
         """CALL_SIGN must follow alphanumeric pattern."""
         cleaned = clean_noaa_dataframe(pd.DataFrame({"CALL_SIGN": ["99999"]}), keep_raw=True)
@@ -3399,6 +3588,10 @@ class TestTopStrictCoverageGapFixes:
         """LONGITUDE range must accept MIN: -179999."""
         cleaned = clean_noaa_dataframe(pd.DataFrame({"LONGITUDE": ["-179999"]}), keep_raw=True)
         assert cleaned.loc[0, "LONGITUDE"] == pytest.approx(-179.999)
+
+    def test_longitude_range_rejects_negative_180_decimal(self):
+        cleaned = clean_noaa_dataframe(pd.DataFrame({"LONGITUDE": [-180.0]}), keep_raw=True)
+        assert pd.isna(cleaned.loc[0, "LONGITUDE"])
 
     def test_longitude_range_mid_value(self):
         """LONGITUDE range accepts mid-range values."""
@@ -3827,7 +4020,7 @@ class TestTopStrictCoverageGapFixes:
     def test_at_repeated_width_accepts_padded_weather_tokens(self, prefix: str):
         result = clean_value_quality("AU,01,FG  ,1", prefix, strict_mode=True)
         assert result[f"{prefix}__part1"] == "AU"
-        assert result[f"{prefix}__part2"] == pytest.approx(1.0)
+        assert result[f"{prefix}__part2"] == "01"
         assert result[f"{prefix}__part3"] == "FG"
         assert result[f"{prefix}__part4"] == pytest.approx(1.0)
 
@@ -3840,7 +4033,7 @@ class TestTopStrictCoverageGapFixes:
     def test_at_repeated_domain_rejects_invalid_source_code(self, prefix: str):
         result = clean_value_quality("XX,01,FG  ,1", prefix, strict_mode=True)
         assert result[f"{prefix}__part1"] is None
-        assert result[f"{prefix}__part2"] == pytest.approx(1.0)
+        assert result[f"{prefix}__part2"] == "01"
         assert result[f"{prefix}__part3"] == "FG"
 
     @pytest.mark.parametrize("prefix", ["AT2", "AT3", "AT4", "AT5", "AT6", "AT7"])
@@ -3856,7 +4049,7 @@ class TestTopStrictCoverageGapFixes:
     @pytest.mark.parametrize("prefix", ["AT2", "AT3", "AT4", "AT5", "AT6", "AT7"])
     def test_at_repeated_domain_accepts_valid_weather_type_code(self, prefix: str):
         result = clean_value_quality("AU,22,FG  ,1", prefix, strict_mode=True)
-        assert result[f"{prefix}__part2"] == pytest.approx(22.0)
+        assert result[f"{prefix}__part2"] == "22"
 
     @pytest.mark.parametrize("prefix", ["AT2", "AT3", "AT4", "AT5", "AT6", "AT7"])
     def test_at_repeated_domain_rejects_invalid_weather_abbreviation(self, prefix: str):
@@ -3879,7 +4072,7 @@ class TestTopStrictCoverageGapFixes:
     def test_at_repeated_quality_accepts_allowed_quality_code(self, prefix: str):
         result = clean_value_quality("AU,01,FG  ,M", prefix, strict_mode=True)
         assert result[f"{prefix}__part1"] == "AU"
-        assert result[f"{prefix}__part2"] == pytest.approx(1.0)
+        assert result[f"{prefix}__part2"] == "01"
         assert result[f"{prefix}__part3"] == "FG"
 
     @pytest.mark.parametrize("prefix", ["AU1", "AU2", "AU3", "AU4", "AU5", "AU6", "AU7", "AU8", "AU9"])
@@ -6453,7 +6646,7 @@ class TestA4TokenWidthValidation:
             "MV1",
             strict_mode=True,
         )
-        assert result["MV1__part1"] == pytest.approx(5.0)
+        assert result["MV1__part1"] == "05"
         assert result["MV1__part2"] == pytest.approx(4.0)
 
     def test_mv1_token_width_rejects_space_padded_code(self):
@@ -6472,7 +6665,7 @@ class TestA4TokenWidthValidation:
             "MW1",
             strict_mode=True,
         )
-        assert result["MW1__part1"] == pytest.approx(12.0)
+        assert result["MW1__part1"] == "12"
         assert result["MW1__part2"] == pytest.approx(4.0)
 
     def test_mw1_token_width_rejects_space_padded_code(self):
@@ -6789,6 +6982,13 @@ class TestQCSignalsValueQualityFields:
         assert result["TMP__qc_status"] == "INVALID"
         assert result["TMP__qc_reason"] == "MALFORMED_TOKEN"
 
+    def test_tmp_non_numeric_token_is_malformed(self):
+        result = clean_value_quality("A250,1", "TMP", strict_mode=True)
+        assert result["TMP__value"] is None
+        assert result["TMP__qc_pass"] is False
+        assert result["TMP__qc_status"] == "INVALID"
+        assert result["TMP__qc_reason"] == "MALFORMED_TOKEN"
+
     def test_ma1_in_range_good_quality(self):
         """MA1 (pressure) is multi-part, testing via dataframe parsing."""
         df = pd.DataFrame({
@@ -6837,6 +7037,20 @@ class TestQCSignalsMultipartFields:
         assert result["WND__part1__qc_pass"] is False
         assert result["WND__part1__qc_status"] == "INVALID"
         assert result["WND__part1__qc_reason"] == "MALFORMED_TOKEN"
+
+    def test_wnd_non_numeric_direction_token_is_malformed(self):
+        result = clean_value_quality("A90,1,N,0500,1", "WND", strict_mode=True)
+        assert result["WND__part1"] is None
+        assert result["WND__part1__qc_pass"] is False
+        assert result["WND__part1__qc_reason"] == "MALFORMED_TOKEN"
+        assert result["WND__part4"] == pytest.approx(50.0)
+
+    def test_wnd_non_numeric_speed_token_is_malformed(self):
+        result = clean_value_quality("090,1,N,0A50,1", "WND", strict_mode=True)
+        assert result["WND__part1"] == pytest.approx(90.0)
+        assert result["WND__part4"] is None
+        assert result["WND__part4__qc_pass"] is False
+        assert result["WND__part4__qc_reason"] == "MALFORMED_TOKEN"
 
     def test_ma1_part1_out_of_range(self):
         """MA1 altimeter outside max -> OUT_OF_RANGE."""

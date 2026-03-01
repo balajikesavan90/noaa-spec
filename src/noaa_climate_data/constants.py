@@ -344,6 +344,356 @@ DDHHMM_PATTERN = re.compile(r"^(0[1-9]|[12][0-9]|3[01])([01][0-9]|2[0-3])[0-5][0
 HHMM_PATTERN = re.compile(r"^([01][0-9]|2[0-3])[0-5][0-9]$")
 DAY_PAIR_PATTERN = re.compile(r"^(0[1-9]|[12][0-9]|3[01]){2}$")
 DAY_PAIR_TRIPLE_PATTERN = re.compile(r"^(?:0[1-9]|[12][0-9]|3[01]|99){3}$")
+
+# Doc-backed Domain Value ID tables for the pressure/geopotential/weather code
+# families we actively parse. Keeping these as named tables makes the code-list
+# validation traceable to the source docs instead of embedding anonymous ranges.
+PRESSURE_TENDENCY_CODE_DEFINITIONS = {
+    "0": "Increasing then decreasing; now same or higher than 3 hours ago",
+    "1": "Increasing then steady or increasing more slowly; now higher than 3 hours ago",
+    "2": "Increasing; now higher than 3 hours ago",
+    "3": "Decreasing or steady then increasing, or increasing more rapidly; now higher than 3 hours ago",
+    "4": "Steady; same as 3 hours ago",
+    "5": "Decreasing then increasing; now same or lower than 3 hours ago",
+    "6": "Decreasing then steady or decreasing more slowly; now lower than 3 hours ago",
+    "7": "Decreasing; now lower than 3 hours ago",
+    "8": "Steady or increasing then decreasing, or decreasing more rapidly; now lower than 3 hours ago",
+    "9": "Missing",
+}
+PRESSURE_TENDENCY_CODES = set(PRESSURE_TENDENCY_CODE_DEFINITIONS)
+
+GEOPOTENTIAL_ISOBARIC_LEVEL_DEFINITIONS = {
+    "1": "1000 hectopascals",
+    "2": "925 hectopascals",
+    "3": "850 hectopascals",
+    "4": "700 hectopascals",
+    "5": "500 hectopascals",
+    "9": "Missing",
+}
+GEOPOTENTIAL_ISOBARIC_LEVEL_CODES = set(GEOPOTENTIAL_ISOBARIC_LEVEL_DEFINITIONS)
+
+DAILY_PRESENT_WEATHER_SOURCE_DEFINITIONS = {
+    "AU": "sourced from automated ASOS/AWOS sensors",
+    "AW": "sourced from automated sensors",
+    "MW": "sourced from manually reported present weather",
+}
+DAILY_PRESENT_WEATHER_SOURCE_CODES = set(DAILY_PRESENT_WEATHER_SOURCE_DEFINITIONS)
+
+DAILY_PRESENT_WEATHER_TYPE_DEFINITIONS = {
+    "01": "Fog, ice fog, or freezing fog",
+    "02": "Heavy fog or heavy freezing fog",
+    "03": "Thunder",
+    "04": "Ice pellets, sleet, snow pellets, or small hail",
+    "05": "Hail",
+    "06": "Glaze or rime",
+    "07": "Dust, ash, blowing dust, blowing sand, or blowing obstruction",
+    "08": "Smoke or haze",
+    "09": "Blowing or drifting snow",
+    "10": "Tornado, water spout, or funnel cloud",
+    "11": "High or damaging winds",
+    "12": "Blowing spray",
+    "13": "Mist",
+    "14": "Drizzle",
+    "15": "Freezing drizzle",
+    "16": "Rain",
+    "17": "Freezing rain",
+    "18": "Snow, snow pellets, snow grains, or ice crystals",
+    "19": "Unknown precipitation",
+    "21": "Ground fog",
+    "22": "Ice fog or freezing fog",
+}
+DAILY_PRESENT_WEATHER_TYPE_CODES = set(DAILY_PRESENT_WEATHER_TYPE_DEFINITIONS)
+
+DAILY_PRESENT_WEATHER_ABBREVIATION_DEFINITIONS = {
+    "FG": "Fog, ice fog, or freezing fog",
+    "FG+": "Heavy fog or heavy freezing fog",
+    "TS": "Thunder",
+    "PL": "Ice pellets, sleet, snow pellets, or small hail",
+    "GR": "Hail",
+    "GL": "Glaze or rime",
+    "DU": "Dust, ash, blowing dust, blowing sand, or blowing obstruction",
+    "HZ": "Smoke or haze",
+    "BLSN": "Blowing or drifting snow",
+    "FC": "Tornado, water spout, or funnel cloud",
+    "WIND": "High or damaging winds",
+    "BLPY": "Blowing spray",
+    "BR": "Mist",
+    "DZ": "Drizzle",
+    "FZDZ": "Freezing drizzle",
+    "RA": "Rain",
+    "FZRA": "Freezing rain",
+    "SN": "Snow, snow pellets, snow grains, or ice crystals",
+    "UP": "Unknown precipitation",
+    "MIFG": "Ground fog",
+    "FZFG": "Ice fog or freezing fog",
+}
+DAILY_PRESENT_WEATHER_ABBREVIATIONS = set(DAILY_PRESENT_WEATHER_ABBREVIATION_DEFINITIONS)
+
+PRESENT_WEATHER_COMPONENT_PRECIPITATION_CODE_DEFINITIONS = {
+    "00": "No precipitation",
+    "01": "Drizzle",
+    "02": "Rain",
+    "03": "Snow",
+    "04": "Snow grains",
+    "05": "Ice crystals",
+    "06": "Ice pellets",
+    "07": "Hail",
+    "08": "Small hail and/or snow pellets",
+    "09": "Unknown precipitation",
+    "99": "Missing",
+}
+PRESENT_WEATHER_COMPONENT_PRECIPITATION_CODES = set(
+    PRESENT_WEATHER_COMPONENT_PRECIPITATION_CODE_DEFINITIONS
+)
+
+AUTOMATED_PRESENT_WEATHER_CODE_DEFINITIONS = {
+    "00": "No significant weather observed",
+    "01": "Clouds dissolving or becoming less developed",
+    "02": "State of sky unchanged during the past hour",
+    "03": "Clouds forming or developing during the past hour",
+    "04": "Haze, smoke, or dust in suspension with visibility >= 1 km",
+    "05": "Smoke",
+    "07": "Dust or sand raised by wind at or near the station",
+    "10": "Mist",
+    "11": "Diamond dust",
+    "12": "Distant lightning",
+    "18": "Squalls",
+    "20": "Fog",
+    "21": "Precipitation",
+    "22": "Drizzle or snow grains",
+    "23": "Rain",
+    "24": "Snow",
+    "25": "Freezing drizzle or freezing rain",
+    "26": "Thunderstorm",
+    "27": "Blowing or drifting snow or sand",
+    "28": "Blowing or drifting snow or sand with visibility >= 1 km",
+    "29": "Blowing or drifting snow or sand with visibility < 1 km",
+    "30": "Fog",
+    "31": "Fog or ice fog in patches",
+    "32": "Fog or ice fog, thinning during the past hour",
+    "33": "Fog or ice fog, no appreciable change during the past hour",
+    "34": "Fog or ice fog, thickening during the past hour",
+    "35": "Fog depositing rime",
+    "40": "Precipitation",
+    "41": "Precipitation, slight or moderate",
+    "42": "Precipitation, heavy",
+    "43": "Liquid precipitation, slight or moderate",
+    "44": "Liquid precipitation, heavy",
+    "45": "Solid precipitation, slight or moderate",
+    "46": "Solid precipitation, heavy",
+    "47": "Freezing precipitation, slight or moderate",
+    "48": "Freezing precipitation, heavy",
+    "50": "Drizzle",
+    "51": "Drizzle, not freezing, slight",
+    "52": "Drizzle, not freezing, moderate",
+    "53": "Drizzle, not freezing, heavy",
+    "54": "Drizzle, freezing, slight",
+    "55": "Drizzle, freezing, moderate",
+    "56": "Drizzle, freezing, heavy",
+    "57": "Drizzle and rain, slight",
+    "58": "Drizzle and rain, moderate or heavy",
+    "60": "Rain",
+    "61": "Rain, not freezing, slight",
+    "62": "Rain, not freezing, moderate",
+    "63": "Rain, not freezing, heavy",
+    "64": "Rain, freezing, slight",
+    "65": "Rain, freezing, moderate",
+    "66": "Rain, freezing, heavy",
+    "67": "Rain or drizzle and snow, slight",
+    "68": "Rain or drizzle and snow, moderate or heavy",
+    "70": "Snow",
+    "71": "Snow, slight",
+    "72": "Snow, moderate",
+    "73": "Snow, heavy",
+    "74": "Ice pellets, slight",
+    "75": "Ice pellets, moderate",
+    "76": "Ice pellets, heavy",
+    "77": "Snow grains",
+    "78": "Ice crystals",
+    "80": "Showers or intermittent precipitation",
+    "81": "Rain showers or intermittent rain, slight",
+    "82": "Rain showers or intermittent rain, moderate",
+    "83": "Rain showers or intermittent rain, heavy",
+    "84": "Rain showers or intermittent rain, violent",
+    "85": "Snow showers or intermittent snow, slight",
+    "86": "Snow showers or intermittent snow, moderate",
+    "87": "Snow showers or intermittent snow, heavy",
+    "89": "Hail",
+    "90": "Thunderstorm",
+    "91": "Thunderstorm, slight or moderate, with no precipitation",
+    "92": "Thunderstorm, slight or moderate, with rain showers and/or snow showers",
+    "93": "Thunderstorm, slight or moderate, with hail",
+    "94": "Thunderstorm, heavy, with no precipitation",
+    "95": "Thunderstorm, heavy, with rain showers and/or snow",
+    "96": "Thunderstorm, heavy, with hail",
+    "99": "Tornado",
+}
+AUTOMATED_PRESENT_WEATHER_CODES = set(AUTOMATED_PRESENT_WEATHER_CODE_DEFINITIONS)
+
+SUMMARY_OF_DAY_PAST_WEATHER_CODE_DEFINITIONS = {
+    "00": "none to report",
+    "01": "fog",
+    "02": "fog reducing visibility to 1/4 mile or less",
+    "03": "thunder",
+    "04": "ice pellets",
+    "05": "hail",
+    "06": "glaze or rime",
+    "07": "blowing dust or sand, visibility 1/2 mile or less",
+    "08": "smoke or haze",
+    "09": "blowing snow",
+    "10": "tornado",
+    "11": "high or damaging winds",
+    "99": "missing",
+}
+SUMMARY_OF_DAY_PAST_WEATHER_CODES = set(SUMMARY_OF_DAY_PAST_WEATHER_CODE_DEFINITIONS)
+
+PRESENT_WEATHER_VICINITY_CODE_DEFINITIONS = {
+    "00": "No observation",
+    "01": "Thunderstorm in vicinity",
+    "02": "Showers in vicinity",
+    "03": "Sandstorm in vicinity",
+    "04": "Sand or dust whirls in vicinity",
+    "05": "Duststorm in vicinity",
+    "06": "Blowing snow in vicinity",
+    "07": "Blowing sand in vicinity",
+    "08": "Blowing dust in vicinity",
+    "09": "Fog in vicinity",
+    "99": "Missing",
+}
+PRESENT_WEATHER_VICINITY_CODES = set(PRESENT_WEATHER_VICINITY_CODE_DEFINITIONS)
+
+MANUAL_PRESENT_WEATHER_CODE_DEFINITIONS = {
+    "00": "Cloud development not observed or not observable",
+    "01": "Clouds dissolving or becoming less developed",
+    "02": "State of sky unchanged",
+    "03": "Clouds forming or developing",
+    "04": "Visibility reduced by smoke or volcanic ash",
+    "05": "Haze",
+    "06": "Widespread dust in suspension",
+    "07": "Dust or sand raised by wind at the station",
+    "08": "Dust or sand whirls near the station",
+    "09": "Duststorm or sandstorm within sight or at the station",
+    "10": "Mist",
+    "11": "Patches of shallow fog or ice fog",
+    "12": "Continuous shallow fog or ice fog",
+    "13": "Lightning visible, no thunder heard",
+    "14": "Precipitation within sight, not reaching the surface",
+    "15": "Precipitation within sight, reaching the surface but distant",
+    "16": "Precipitation within sight, reaching the surface near but not at the station",
+    "17": "Thunderstorm, no precipitation at observation time",
+    "18": "Squalls at or within sight of the station",
+    "19": "Funnel cloud or waterspout at or within sight of the station",
+    "20": "Drizzle or snow grains, not as showers",
+    "21": "Rain, not as showers",
+    "22": "Snow, not as showers",
+    "23": "Rain and snow or ice pellets, not as showers",
+    "24": "Freezing drizzle or freezing rain, not as showers",
+    "25": "Rain showers",
+    "26": "Snow showers or rain and snow showers",
+    "27": "Hail or rain and hail showers",
+    "28": "Fog or ice fog",
+    "29": "Thunderstorm with or without precipitation",
+    "30": "Slight or moderate duststorm/sandstorm, decreasing",
+    "31": "Slight or moderate duststorm/sandstorm, no appreciable change",
+    "32": "Slight or moderate duststorm/sandstorm, beginning or increasing",
+    "33": "Severe duststorm/sandstorm, decreasing",
+    "34": "Severe duststorm/sandstorm, no appreciable change",
+    "35": "Severe duststorm/sandstorm, beginning or increasing",
+    "36": "Slight or moderate drifting snow below eye level",
+    "37": "Heavy drifting snow below eye level",
+    "38": "Slight or moderate blowing snow above eye level",
+    "39": "Heavy blowing snow above eye level",
+    "40": "Fog or ice fog at a distance, not at the station during the preceding hour",
+    "41": "Fog or ice fog in patches",
+    "42": "Fog or ice fog, sky visible, thinning",
+    "43": "Fog or ice fog, sky invisible, thinning",
+    "44": "Fog or ice fog, sky visible, no appreciable change",
+    "45": "Fog or ice fog, sky invisible, no appreciable change",
+    "46": "Fog or ice fog, sky visible, thickening",
+    "47": "Fog or ice fog, sky invisible, thickening",
+    "48": "Fog depositing rime, sky visible",
+    "49": "Fog depositing rime, sky invisible",
+    "50": "Drizzle, not freezing, intermittent, slight",
+    "51": "Drizzle, not freezing, continuous, slight",
+    "52": "Drizzle, not freezing, intermittent, moderate",
+    "53": "Drizzle, not freezing, continuous, moderate",
+    "54": "Drizzle, not freezing, intermittent, heavy",
+    "55": "Drizzle, not freezing, continuous, heavy",
+    "56": "Drizzle, freezing, slight",
+    "57": "Drizzle, freezing, moderate or heavy",
+    "58": "Drizzle and rain, slight",
+    "59": "Drizzle and rain, moderate or heavy",
+    "60": "Rain, not freezing, intermittent, slight",
+    "61": "Rain, not freezing, continuous, slight",
+    "62": "Rain, not freezing, intermittent, moderate",
+    "63": "Rain, not freezing, continuous, moderate",
+    "64": "Rain, not freezing, intermittent, heavy",
+    "65": "Rain, not freezing, continuous, heavy",
+    "66": "Rain, freezing, slight",
+    "67": "Rain, freezing, moderate or heavy",
+    "68": "Rain or drizzle and snow, slight",
+    "69": "Rain or drizzle and snow, moderate or heavy",
+    "70": "Intermittent snowfall, slight",
+    "71": "Continuous snowfall, slight",
+    "72": "Intermittent snowfall, moderate",
+    "73": "Continuous snowfall, moderate",
+    "74": "Intermittent snowfall, heavy",
+    "75": "Continuous snowfall, heavy",
+    "76": "Diamond dust",
+    "77": "Snow grains",
+    "78": "Isolated star-like snow crystals",
+    "79": "Ice pellets",
+    "80": "Rain showers, slight",
+    "81": "Rain showers, moderate or heavy",
+    "82": "Rain showers, violent",
+    "83": "Rain and snow showers, slight",
+    "84": "Rain and snow showers, moderate or heavy",
+    "85": "Snow showers, slight",
+    "86": "Snow showers, moderate or heavy",
+    "87": "Snow pellet or small hail showers, slight",
+    "88": "Snow pellet or small hail showers, moderate or heavy",
+    "89": "Hail showers, slight, no thunder",
+    "90": "Hail showers, moderate or heavy, no thunder",
+    "91": "Slight rain with recent thunderstorm but no thunderstorm at observation time",
+    "92": "Moderate or heavy rain with recent thunderstorm but no thunderstorm at observation time",
+    "93": "Slight snow, mixed precipitation, or hail with recent thunderstorm but no thunderstorm at observation time",
+    "94": "Moderate or heavy snow, mixed precipitation, or hail with recent thunderstorm but no thunderstorm at observation time",
+    "95": "Thunderstorm, slight or moderate, no hail, with rain and/or snow",
+    "96": "Thunderstorm, slight or moderate, with hail",
+    "97": "Thunderstorm, heavy, no hail, with rain and/or snow",
+    "98": "Thunderstorm with duststorm or sandstorm",
+    "99": "Thunderstorm, heavy, with hail",
+}
+MANUAL_PRESENT_WEATHER_CODES = set(MANUAL_PRESENT_WEATHER_CODE_DEFINITIONS)
+
+MANUAL_PAST_WEATHER_CODE_DEFINITIONS = {
+    "0": "Cloud covering 1/2 or less of the sky throughout the period",
+    "1": "Cloud covering > 1/2 for part of the period and <= 1/2 for part of the period",
+    "2": "Cloud covering > 1/2 of the sky throughout the period",
+    "3": "Sandstorm, duststorm, or blowing snow",
+    "4": "Fog, ice fog, or thick haze",
+    "5": "Drizzle",
+    "6": "Rain",
+    "7": "Snow, or rain and snow mixed",
+    "8": "Showers",
+    "9": "Thunderstorms with or without precipitation",
+}
+MANUAL_PAST_WEATHER_CODES = set(MANUAL_PAST_WEATHER_CODE_DEFINITIONS)
+
+AUTOMATED_PAST_WEATHER_CODE_DEFINITIONS = {
+    "0": "No significant weather observed",
+    "1": "Visibility reduced",
+    "2": "Blowing phenomena with reduced visibility",
+    "3": "Fog",
+    "4": "Precipitation",
+    "5": "Drizzle",
+    "6": "Rain",
+    "7": "Snow or ice pellets",
+    "8": "Showers or intermittent precipitation",
+    "9": "Thunderstorm",
+}
+AUTOMATED_PAST_WEATHER_CODES = set(AUTOMATED_PAST_WEATHER_CODE_DEFINITIONS)
+
 REM_TYPE_CODES = {"SYN", "AWY", "MET", "SOD", "SOM", "HPD"}
 QNN_ELEMENT_IDENTIFIERS = {
     "A": "ALC",
@@ -953,7 +1303,7 @@ FIELD_RULES: dict[str, FieldRule] = {
                 agg="drop",
                 quality_part=2,
                 missing_values={"9"},
-                allowed_values={"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"},
+                allowed_values=PRESSURE_TENDENCY_CODES - {"9"},
                 token_width=1,
             ),  # pressure tendency code
             2: FieldPartRule(
@@ -2060,65 +2410,21 @@ FIELD_RULE_PREFIXES: dict[str, FieldRule] = {
                 kind="categorical",
                 agg="drop",
                 quality_part=4,
-                allowed_values={"AU", "AW", "MW"},
+                allowed_values=DAILY_PRESENT_WEATHER_SOURCE_CODES,
                 token_width=2,
             ),  # source element
             2: FieldPartRule(
                 kind="categorical",
                 agg="drop",
                 quality_part=4,
-                allowed_values={
-                    "01",
-                    "02",
-                    "03",
-                    "04",
-                    "05",
-                    "06",
-                    "07",
-                    "08",
-                    "09",
-                    "10",
-                    "11",
-                    "12",
-                    "13",
-                    "14",
-                    "15",
-                    "16",
-                    "17",
-                    "18",
-                    "19",
-                    "21",
-                    "22",
-                },
+                allowed_values=DAILY_PRESENT_WEATHER_TYPE_CODES,
                 token_width=2,
             ),  # daily present weather type
             3: FieldPartRule(
                 kind="categorical",
                 agg="drop",
                 quality_part=4,
-                allowed_values={
-                    "FG",
-                    "FG+",
-                    "TS",
-                    "PL",
-                    "GR",
-                    "GL",
-                    "DU",
-                    "HZ",
-                    "BLSN",
-                    "FC",
-                    "WIND",
-                    "BLPY",
-                    "BR",
-                    "DZ",
-                    "FZDZ",
-                    "RA",
-                    "FZRA",
-                    "SN",
-                    "UP",
-                    "MIFG",
-                    "FZFG",
-                },
+                allowed_values=DAILY_PRESENT_WEATHER_ABBREVIATIONS,
                 token_width=4,
             ),  # daily present weather abbreviation
             4: FieldPartRule(
@@ -2153,7 +2459,7 @@ FIELD_RULE_PREFIXES: dict[str, FieldRule] = {
                 agg="drop",
                 missing_values={"99"},
                 quality_part=7,
-                allowed_values={f"{value:02d}" for value in range(0, 10)},
+                allowed_values=PRESENT_WEATHER_COMPONENT_PRECIPITATION_CODES - {"99"},
                 token_width=2,
             ),  # precip code
             4: FieldPartRule(
@@ -2196,23 +2502,7 @@ FIELD_RULE_PREFIXES: dict[str, FieldRule] = {
                 agg="drop",
                 missing_values=set(),
                 quality_part=2,
-                allowed_values={
-                    f"{value:02d}"
-                    for value in (
-                        [0, 1, 2, 3, 4, 5, 7, 10, 11, 12, 18]
-                        + list(range(20, 27))
-                        + list(range(27, 30))
-                        + list(range(30, 36))
-                        + list(range(40, 49))
-                        + list(range(50, 59))
-                        + list(range(60, 69))
-                        + list(range(70, 79))
-                        + list(range(80, 88))
-                        + [89]
-                        + list(range(90, 97))
-                        + [99]
-                    )
-                },
+                allowed_values=AUTOMATED_PRESENT_WEATHER_CODES,
                 token_width=2,
             ),  # automated atmospheric condition code
             2: FieldPartRule(
@@ -3221,7 +3511,7 @@ FIELD_RULE_PREFIXES: dict[str, FieldRule] = {
                 kind="categorical",
                 agg="drop",
                 missing_values={"9"},
-                allowed_values={"1", "2", "3", "4", "5"},
+                allowed_values=GEOPOTENTIAL_ISOBARIC_LEVEL_CODES - {"9"},
                 token_width=1,
             ),
             2: FieldPartRule(
@@ -4506,7 +4796,7 @@ FIELD_RULE_PREFIXES: dict[str, FieldRule] = {
                 agg="drop",
                 missing_values={"99"},
                 quality_part=2,
-                allowed_values={f"{value:02d}" for value in range(0, 10)},
+                allowed_values=PRESENT_WEATHER_VICINITY_CODES - {"99"},
                 token_width=2,
             ),
             2: FieldPartRule(
@@ -4524,7 +4814,7 @@ FIELD_RULE_PREFIXES: dict[str, FieldRule] = {
                 kind="categorical",
                 agg="drop",
                 quality_part=2,
-                allowed_values={f"{value:02d}" for value in range(0, 100)},
+                allowed_values=MANUAL_PRESENT_WEATHER_CODES,
                 token_width=2,
             ),  # present-weather code
             2: FieldPartRule(
@@ -4542,7 +4832,7 @@ FIELD_RULE_PREFIXES: dict[str, FieldRule] = {
                 kind="categorical",
                 agg="drop",
                 quality_part=2,
-                allowed_values={str(value) for value in range(0, 10)},
+                allowed_values=MANUAL_PAST_WEATHER_CODES,
                 token_width=1,
             ),  # past-weather condition code
             2: FieldPartRule(
@@ -4575,7 +4865,7 @@ FIELD_RULE_PREFIXES: dict[str, FieldRule] = {
                 agg="drop",
                 missing_values={"99"},
                 quality_part=2,
-                allowed_values={f"{value:02d}" for value in range(0, 12)},
+                allowed_values=SUMMARY_OF_DAY_PAST_WEATHER_CODES - {"99"},
                 token_width=2,
             ),  # summary-of-day condition code
             2: FieldPartRule(
@@ -4607,7 +4897,7 @@ FIELD_RULE_PREFIXES: dict[str, FieldRule] = {
                 kind="categorical",
                 agg="drop",
                 quality_part=2,
-                allowed_values={str(value) for value in range(0, 10)},
+                allowed_values=AUTOMATED_PAST_WEATHER_CODES,
                 token_width=1,
             ),  # automated past-weather condition code
             2: FieldPartRule(
@@ -5287,6 +5577,8 @@ FRIENDLY_COLUMN_MAP: dict[str, str] = {
     "MD1__part6": "pressure_change_24hr_quality_code",
     "REM__type": "remarks_type_code",
     "REM__text": "remarks_text",
+    "REM__types": "remarks_type_codes",
+    "REM__texts_json": "remarks_text_blocks_json",
     "QNN__elements": "qnn_element_ids",
     "QNN__source_flags": "qnn_source_flags",
     "QNN__data_values": "qnn_data_values",
