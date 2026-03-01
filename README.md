@@ -203,6 +203,24 @@ poetry run python -m noaa_climate_data.cli clean-parquet output/01001099999/Loca
 This writes `LocationData_Cleaned.parquet` alongside the raw parquet and marks
 `data_cleaned=True` in the latest `noaa_file_index/YYYYMMDD/Stations.csv`.
 
+### Convert a PDF to deterministic markdown
+
+```bash
+poetry run python -m noaa_climate_data.cli pdf-to-markdown path/to/input.pdf
+```
+
+Optional output path and formatting:
+
+```bash
+poetry run python -m noaa_climate_data.cli pdf-to-markdown path/to/input.pdf \
+  --output-md path/to/output.md \
+  --no-page-headers
+```
+
+This command uses page-ordered extraction with stable normalization (Unicode NFKC,
+line ending normalization, trimmed trailing whitespace, and collapsed blank-line runs)
+to keep output deterministic across repeated runs in the same environment.
+
 ---
 
 ## Project structure
@@ -531,13 +549,13 @@ Notes:
 
 The pipeline now includes comprehensive specification-compliance tracking via an automated **spec coverage generator** (`tools/spec_coverage/generate_spec_coverage.py`) that:
 
-- Parses all 30 parts of the NOAA ISD format specification document
-- Extracts **3,583 specification rules** covering sentinels, ranges, domains, quality codes, widths, and cardinality constraints
-- Assigns deterministic `rule_id` to each spec rule for stable cross-run tracking
+- Parses the deterministic NOAA markdown source at `isd-format-document-parts/isd-format-document.deterministic.md`
+- Derives compatibility `spec_part` groupings from ordered section anchors in that single source document
+- Extracts roughly 3,500 specification rules covering sentinels, ranges, domains, quality codes, widths, and cardinality constraints
+- Assigns deterministic content-based `rule_id` values while preserving global line provenance in the source markdown
 - Matches extracted rules against implementation in `constants.py` and test coverage in `test_cleaning.py`
 - Generates [SPEC_COVERAGE_REPORT.md](SPEC_COVERAGE_REPORT.md) showing:
-  - **80.8%** of spec rules implemented in code
-  - **67.0%** of spec rules covered by strict tests
+  - implementation and strict-test coverage across the extracted rule inventory
   - Top gaps and actionable priorities for improving coverage
 
 Run the coverage generator:

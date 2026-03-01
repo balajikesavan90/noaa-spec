@@ -8,7 +8,7 @@ NOAA's Integrated Surface Database (ISD) Global Hourly Archive publishes raw obs
 
 2. **Sentinel and scale heterogeneity**: Sentinels are not uniform across the specification. Wind direction uses 3-digit codes (999), temperature uses 5-digit signed tokens (+9999), visibility uses 6-digit values (999999). Signed sentinels (e.g., +9999 for temperature exclusive of valid negatives down to -9999) must be distinguished from unsigned ones. Scale factors (÷10 for many temperature/pressure/wind fields) apply selectively. Zero coverage of these rules causes silent data corruption — missing values leak into numeric summaries and scale misalignment skews all derived metrics.
 
-3. **Multi-identifier families and partial specification**: The format defines ~867 field identifiers grouped into families (control, mandatory, additional meteorological, present weather, network metadata, equipment QC, etc.). The master specification document is split across 30 parts, each covering specific identifier families. Implementation requires tracing rule implications across parts and governing quality-code domains, missing-value sentinels, numeric ranges, and cardinality constraints per identifier. Spec gaps and ambiguities (fields mentioned in summaries but absent from detailed tables; repeated-identifier bounds inconsistently documented) necessitate judgement calls backed by evidence.
+3. **Multi-identifier families and partial specification**: The format defines ~867 field identifiers grouped into families (control, mandatory, additional meteorological, present weather, network metadata, equipment QC, etc.). The working specification source is now a single deterministic markdown export of the NOAA PDF, but the cleaning and coverage systems still need to derive the historical Part 01-30 grouping from ordered section anchors. Implementation requires tracing rule implications across those derived parts and governing quality-code domains, missing-value sentinels, numeric ranges, and cardinality constraints per identifier. Spec gaps and ambiguities (fields mentioned in summaries but absent from detailed tables; repeated-identifier bounds inconsistently documented) necessitate judgement calls backed by evidence.
 
 The primary objective is to **transform raw ISD CSV rows into a deterministically cleaned dataset where every field conforms to its specification rules**: sentinels nullified, scale factors applied, quality codes enforced, and domain values validated — all trackable through an auditable rule inventory tied to specification line ranges and evidence of code/test coverage.
 
@@ -20,14 +20,14 @@ The cleaning pipeline is organized into **specification-driven rule extraction**
 
 ### 1. Specification Parsing & Rule Extraction (`tools/spec_coverage/generate_spec_coverage.py`)
 
-The spec coverage generator parses the 30-part NOAA ISD format document (stored as `.md` files in `isd-format-document-parts/`) and extracts a structured **rule inventory** with deterministic identifiers and provenance. Extraction recognizes four rule types — **range** (min/max numeric bounds), **sentinel** (missing-value indicators), **domain** (allowed code sets), and **width** (fixed-field length) — plus two quality-specific types, **allowed_quality** and **arity** (expected comma-separated part count).
+The spec coverage generator parses the deterministic NOAA markdown source at `isd-format-document-parts/isd-format-document.deterministic.md` and extracts a structured **rule inventory** with deterministic identifiers and provenance. A segmentation pass first derives the legacy Part 02-30 slices from exact anchor lines in document order, then the extractor applies rule heuristics within those slices. Extraction recognizes four rule types — **range** (min/max numeric bounds), **sentinel** (missing-value indicators), **domain** (allowed code sets), and **width** (fixed-field length) — plus two quality-specific types, **allowed_quality** and **arity** (expected comma-separated part count).
 
 Each extracted rule becomes a `SpecRuleRow` with:
-- **rule_id**: Deterministic identifier formed from `spec_file:spec_line_start-spec_line_end::identifier::rule_type::payload_hash`, ensuring deduplication and stable matching across runs.
+- **rule_id**: Deterministic identifier formed from `spec_file::stable_id::identifier::rule_type::payload_hash`, where `stable_id` is content-based and does not depend on line positions.
 - **identifier**: 2–6 character field code (e.g., TMP, WND, GE1, OA1).
 - **identifier_family**: Inferred from identifier prefix (e.g., O→wind, G→solar, K→temperature extremes).
 - **spec_part**: Part number (01–30).
-- **spec_line_start / spec_line_end**: Text line range in the spec document where rule is evidenced.
+- **spec_line_start / spec_line_end**: Global text line range in `isd-format-document.deterministic.md` where rule is evidenced.
 - **rule_type**: One of `range`, `sentinel`, `domain`, `allowed_quality`, `width`, `arity`, `cardinality`.
 - **payload fields**: `min_value`, `max_value`, `sentinel_values`, `allowed_values_or_codes` — normalized numeric tokens or code sets.
 
@@ -80,7 +80,9 @@ The **progress KPI** is **test_covered_strict** only; wildcard-only tests do not
 ## Data Flow & Boundaries
 
 ```
-Spec markdown files (isd-format-document-parts/*.md)
+Deterministic spec markdown (isd-format-document-parts/isd-format-document.deterministic.md)
+    ↓ [Fail-fast segmentation by exact section anchors]
+Derived Part 02-30 slices with global line provenance
     ↓ [Regex extraction + heuristic identifier detection]
 Extracted rules (SpecRuleRow list, ~3,500+ rows)
     ↓ [Rule deduplication via rule_id]
@@ -110,7 +112,7 @@ spec_coverage.csv | SPEC_COVERAGE_REPORT.md
 **Choice**: Extract rules via **handcrafted regex patterns** applied to spec markdown, with deduplication by rule_id, rather than prompting an LLM to "understand" the entire spec and generate field metadata.
 
 **Rationale**:
-- **Auditability**: Every extracted rule is tied to a specific line range in the spec. A user can open `isd-format-document-parts/part-03.md` line 42–56 and verify that the extracted rule for WND is accurate.
+- **Auditability**: Every extracted rule is tied to a global line range in `isd-format-document.deterministic.md`. A user can open the deterministic markdown and verify the exact source snippet directly.
 - **Stability**: Regex extraction is deterministic. Running the generator twice on the same spec produces identical output (same rule_id hash, same deduplication).
 - **Evolutionary**: As the spec document is updated or clarified, extraction rules can be refined incrementally. Versioned spec → versioned rule inventory is explicit and auditable.
 - **Limitation**: Heuristic regex-based extraction will miss rules phrased unexpectedly or misinterpret ambiguous text. Extraction quality depends on spec document consistency and regex coverage (see Limitations).
@@ -164,17 +166,17 @@ spec_coverage.csv | SPEC_COVERAGE_REPORT.md
 
 **Limitation**: Separation introduces complexity. A developer must know whether a rule belongs in constants (declarative) or cleaning (imperative). For most rules (ranges, sentinels, domains), constants suffice. For a few (e.g., cardinality validation for variable-length repeated-identifiers, Part 30 EQD legacy parameter-code handling), cleaning_only logic is warranted. The enforcement_layer field in the coverage report documents these decisions.
 
-### 5. Rule_id Format: Spec Line Ranges + Payload Hash
+### 5. Rule_id Format: Content-Based Identity + Separate Provenance
 
-**Choice**: Generate rule_id as `{spec_file}:{spec_line_start}-{spec_line_end}::{identifier}::{rule_type}::{payload_hash}` (for spec-sourced rules) or `synthetic::{source}::{part|identifier|rule_type|payload_hash|text_hash}` (for implementation-only rules with no spec source).
+**Choice**: Generate rule_id as `{spec_file}::{stable_id}::{identifier}::{rule_type}::{payload_hash}` for spec-sourced rules, where `stable_id` is derived from normalized rule text, identifier, rule_type, and canonical payload JSON.
 
 **Rationale**:
 - **Determinism**: The same extracted rule always gets the same rule_id across runs. Deduplication is stable.
-- **Provenance**: The line range anchors the rule to the spec text. A user can click or grep to the source document.
+- **Line-shift resilience**: Edits that only move the rule within the deterministic markdown do not churn the rule_id.
+- **Provenance**: The source lines remain available in `spec_line_start` and `spec_line_end`, so traceability is preserved without making line position part of identity.
 - **Payload hashing**: The rule_id distinguishes `{TMP, range, min=−999, max=500}` from `{TMP, range, min=−1000, max=500}` so overlapping or corrected rules do not collide.
-- **Synthetic rules**: Rules discovered only in code (constants without spec sourcing, or logic that enforces an implicit constraint) are marked `synthetic::<source>::...` with a deterministic name built from identifier, rule_type, and payload, so they too are deduplicated consistently.
 
-**Limitation**: Payload hashing relies on canonical JSON serialization. Spec changes (e.g., `min: 999` → `min: -999`) change the rule_id. If a rule_id is cited in external tooling or documentation, the citation will break. Mitigation: Use git history (`git log --grep="rule_id"`) to track rule evolution. Avoid hardcoding rule_ids in external systems; instead, reference (spec_part, identifier, rule_type) tuple.
+**Limitation**: Content-based identity still changes if the normalized rule text or canonical payload changes. If a rule_id is cited in external tooling or documentation, the citation can still break after a real spec edit. Mitigation: Use git history (`git log --grep="rule_id"`) to track rule evolution. Avoid hardcoding rule_ids in external systems; instead, reference the `(spec_part, identifier, rule_type)` tuple plus provenance lines when needed.
 
 ---
 
@@ -192,7 +194,7 @@ spec_coverage.csv | SPEC_COVERAGE_REPORT.md
 **Problem**: Spec rules phrased unusually or stored in tables instead of prose are missed.  
 **Example**: A rule stated as "Wind direction is [001–360] or [999]" may not match the MIN_MAX_INLINE_RE pattern if brackets are used instead of "MIN/MAX" keywords.  
 **Impact**: Rule inventory is incomplete. A developer implements the rule in code, but the coverage report shows it as "not extracted" and thus "never tested" (since test evidence is matched only to extracted rules).  
-**Mitigation**: Iteratively improve extractors after reviewing gaps. Cross-reference NEXT_STEPS.md (which documents known un-implemented spec rules) against the rule inventory to identify missed extractions. Add new regex patterns for newly-discovered phrasing patterns.
+**Mitigation**: Iteratively improve extractors after reviewing gaps. Add new regex patterns for newly-discovered phrasing patterns and update the segmentation anchor table if NOAA changes the source document structure.
 
 ### 3. Weak Test Evidence Matching
 
@@ -285,16 +287,16 @@ Open `SPEC_COVERAGE_REPORT.md` and review the top-50 `real_gaps` table. Each row
 - `enforcement_layer`: constants_only, cleaning_only, both, or neither.
 - `implemented`: Boolean; whether code enforces the rule.
 - `test_strict`: Boolean; whether test_covered_strict is TRUE.
-- `notes`: Reason for gap (e.g., `coverage_reason_cleaning=none; unresolved_in_next_steps`).
+- `notes`: Coverage annotations emitted by the generator (for example `coverage_reason_cleaning=none`).
 
-Filter by `implemented=FALSE` to find unimplemented rules. Filter by `enforcement_layer=neither` to find rules with zero enforcement. Consult [NEXT_STEPS.md](../NEXT_STEPS.md) for known checklist items.
+Filter by `implemented=FALSE` to find unimplemented rules. Filter by `enforcement_layer=neither` to find rules with zero enforcement.
 
 ### Trace a Rule to Source Spec
 
-Extract the `rule_id` from the CSV, e.g., `isd-format-document-parts/part-03.md:42-56::WND::range::abc123`.
+Extract the `rule_id` from the CSV, e.g., `isd-format-document.deterministic.md::4c2d8e1f0a6b::WND::range::abc123def4`.
 
-1. Open `isd-format-document-parts/part-03.md`.
-2. Navigate to lines 42–56.
+1. Open `isd-format-document-parts/isd-format-document.deterministic.md`.
+2. Navigate to the row's `spec_line_start` and `spec_line_end` values.
 3. Confirm that the rule text matches the rule_id's assertion.
 
 Example spec excerpt (Part 3, Mandatory Data Section):

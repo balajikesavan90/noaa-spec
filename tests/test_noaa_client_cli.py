@@ -345,3 +345,45 @@ class TestCliCommands:
         assert called["stations_csv"].resolve() == (base_dir / "Stations.csv").resolve()
         assert called["file_name"] == "TEST.csv"
         assert called["station_id"] == "TESTID"
+
+    def test_cli_pdf_to_markdown_invokes_converter(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        pdf_path = tmp_path / "input.pdf"
+        pdf_path.write_text("placeholder")
+        out_path = tmp_path / "out.md"
+
+        called: dict[str, object] = {}
+
+        def fake_convert_pdf_to_markdown(
+            input_pdf: Path,
+            output_md: Path | None = None,
+            include_page_headers: bool = True,
+        ) -> Path:
+            called["input_pdf"] = input_pdf
+            called["output_md"] = output_md
+            called["include_page_headers"] = include_page_headers
+            return out_path
+
+        monkeypatch.setattr(cli, "convert_pdf_to_markdown", fake_convert_pdf_to_markdown)
+
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "prog",
+                "pdf-to-markdown",
+                str(pdf_path),
+                "--output-md",
+                str(out_path),
+                "--no-page-headers",
+            ],
+        )
+        cli.main()
+
+        assert called["input_pdf"].resolve() == pdf_path.resolve()
+        assert called["output_md"].resolve() == out_path.resolve()
+        assert called["include_page_headers"] is False

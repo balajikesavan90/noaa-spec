@@ -120,13 +120,45 @@ EQ_MISSING_RE = re.compile(r"\bMissing\s*=\s*([+\-]?\d+)\b", re.IGNORECASE)
 FLD_LEN_RE = re.compile(r"\bFLD\s+LEN\s*:\s*(\d+)\b", re.IGNORECASE)
 POS_RE = re.compile(r"\bPOS\s*:\s*(\d+)\s*-\s*(\d+)\b", re.IGNORECASE)
 UP_TO_RE = re.compile(r"up\s+to\s+(\d+)", re.IGNORECASE)
-PART_FROM_FILE_RE = re.compile(r"part-(\d{2})-")
-PART_FROM_TEXT_RE = re.compile(r"\bPart\s+(\d{1,2})\b", re.IGNORECASE)
 NUMERIC_TOKEN_RE = re.compile(r"(?<![A-Z0-9_])([+\-]?\d+(?:\.\d+)?)(?![A-Z0-9_])")
 DDHHMM_PATTERN_TEXT = r"^(0[1-9]|[12][0-9]|3[01])([01][0-9]|2[0-3])[0-5][0-9]$"
 HHMM_PATTERN_TEXT = r"^([01][0-9]|2[0-3])[0-5][0-9]$"
 DAY_PAIR_PATTERN_TEXT = r"^(0[1-9]|[12][0-9]|3[01]){2}$"
 DAY_PAIR_TRIPLE_PATTERN_TEXT = r"^(?:0[1-9]|[12][0-9]|3[01]|99){3}$"
+
+SPEC_DOC_NAME = "isd-format-document.deterministic.md"
+SPEC_PART_ANCHORS: list[tuple[str, str]] = [
+    ("02", "Control Data Section"),
+    ("03", "Mandatory Data Section"),
+    ("04", "GEOPHYSICAL-POINT-OBSERVATION additional data identifier"),
+    ("05", "PRESENT-WEATHER-OBSERVATION automated occurrence identifier for ASOS/AWOS data"),
+    ("06", "Subhourly Observed Liquid Precipitation Section: Secondary Sensor identifier"),
+    ("07", "US-NETWORK-METADATA identifier"),
+    ("08", "CRN Control Section identifier"),
+    ("09", "Subhourly Temperature Section identifier"),
+    ("10", "Hourly Temperature Section identifier"),
+    ("11", "Hourly Temperature Extreme Section identifier"),
+    ("12", "Subhourly Wetness Section identifier"),
+    ("13", "Hourly Geonor Vibrating Wire Summary Section identifier"),
+    ("14", "RUNWAY-VISUAL-RANGE-OBSERVATION identifier"),
+    ("15", "SKY-COVER-LAYER identifier"),
+    ("16", "SUNSHINE-OBSERVATION identifier"),
+    ("17", "Solar Irradiance Section identifier"),
+    ("18", "Net Solar Radiation Section identifier"),
+    ("19", "Modeled Solar Irradiance Section identifier"),
+    ("20", "Hourly Solar Angle Section identifier"),
+    ("21", "Hourly Extraterrestrial Radiation Section identifier"),
+    ("22", "HAIL identifier"),
+    ("23", "GROUND-SURFACE-OBSERVATION identifier"),
+    ("24", "EXTREME-AIR-TEMPERATURE identifier"),
+    ("27", "ATMOSPHERIC-PRESSURE-OBSERVATION identifier"),
+    ("28", "PRESENT-WEATHER-IN-VICINITY-OBSERVATION occurrence identifier"),
+    ("29", "SUPPLEMENTARY-WIND-OBSERVATION identifier"),
+    ("25", "SEA-SURFACE-TEMPERATURE-OBSERVATION identifier"),
+    ("26", "SOIL-TEMPERATURE identifier"),
+    ("30", "WAVE-MEASUREMENT identifier"),
+]
+LATE_DOCUMENT_PART_ORDER = ("24", "27", "28", "29", "25", "26", "30")
 
 CONTROL_CONTEXT_MAP = {
     "date of observation": "DATE",
@@ -281,6 +313,15 @@ class SpecRuleRow:
             "test_location": self.test_location,
             "notes": ";".join(sorted(self.notes)),
         }
+
+
+@dataclass(slots=True)
+class SpecPartSegment:
+    spec_part: str
+    anchor_text: str
+    anchor_line: int
+    start_line: int
+    end_line: int
 
 
 @dataclass(slots=True)
@@ -492,14 +533,8 @@ class TestEvidenceIndex:
         return None, "none"
 
 
-@dataclass(slots=True)
-class GapHint:
-    part: str | None
-    identifiers: set[str]
-    families: set[str]
-    rule_types: set[str]
-    text: str
-    source: str
+class SpecSegmentationError(RuntimeError):
+    """Raised when the deterministic spec document cannot be segmented safely."""
 
 
 def normalize_num_token(token: str) -> str:
@@ -646,8 +681,8 @@ def canonical_json(value: object) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
 
 
-def short_sha1(value: str) -> str:
-    return hashlib.sha1(value.encode("utf-8")).hexdigest()[:10]
+def short_sha1(value: str, length: int = 10) -> str:
+    return hashlib.sha1(value.encode("utf-8")).hexdigest()[:length]
 
 
 def parse_pos_range(value: str) -> tuple[int, int] | None:
@@ -718,6 +753,19 @@ def row_payload_hash(row: SpecRuleRow) -> str:
     return short_sha1(canonical_json(payload))
 
 
+def row_stable_id(row: SpecRuleRow) -> str:
+    payload_json = canonical_json(build_row_payload(row))
+    stable_input = "|".join(
+        [
+            normalize_text_line(row.spec_rule_text),
+            row.identifier,
+            row.rule_type,
+            payload_json,
+        ]
+    )
+    return short_sha1(stable_input, length=12)
+
+
 def normalize_row(row: SpecRuleRow) -> None:
     row.identifier = row.identifier.strip().upper()
     row.rule_type = row.rule_type.strip().lower()
@@ -729,15 +777,8 @@ def normalize_row(row: SpecRuleRow) -> None:
     row_kind = row.row_kind.strip().lower() if row.row_kind else ROW_KIND_SPEC
     row.row_kind = row_kind if row_kind in VALID_ROW_KINDS else ROW_KIND_SPEC
 
-    if row.row_kind == ROW_KIND_SYNTHETIC:
-        row.spec_file = "N/A"
-        row.spec_line_start = None
-        row.spec_line_end = None
-        row.spec_evidence = ""
-        return
-
     if not row.spec_file or row.spec_file == "N/A":
-        row.spec_file = row.spec_doc if row.spec_doc.endswith(".md") else f"part-{row.spec_part}.md"
+        row.spec_file = row.spec_doc if row.spec_doc.endswith(".md") else SPEC_DOC_NAME
     if row.spec_line_start is None:
         row.spec_line_start = 1
     if row.spec_line_end is None:
@@ -747,33 +788,8 @@ def normalize_row(row: SpecRuleRow) -> None:
 
 
 def assign_rule_id(row: SpecRuleRow) -> None:
-    if row.row_kind == ROW_KIND_SYNTHETIC:
-        payload = build_row_payload(row)
-        payload_obj = {
-            "identifier": row.identifier,
-            "rule_type": row.rule_type,
-            "payload": payload,
-        }
-        payload_hash = short_sha1(canonical_json(payload_obj))
-        source = row.spec_doc or "unknown_source"
-        text_hash = short_sha1(canonical_json({"spec_rule_text": row.spec_rule_text}))
-        name_or_key = "|".join(
-            [
-                row.spec_part or "00",
-                row.identifier or "UNSPECIFIED",
-                row.rule_type or "unknown",
-                payload_hash,
-                text_hash,
-            ]
-        )
-        row.rule_id = f"synthetic::{source}::{name_or_key}"
-        return
-
     payload_hash = row_payload_hash(row)
-    row.rule_id = (
-        f"{row.spec_file}:{row.spec_line_start}-{row.spec_line_end}"
-        f"::{row.identifier}::{row.rule_type}::{payload_hash}"
-    )
+    row.rule_id = f"{row.spec_file}::{row_stable_id(row)}::{row.identifier}::{row.rule_type}::{payload_hash}"
 
 
 def normalize_and_assign_rule_ids(rows: list[SpecRuleRow]) -> list[SpecRuleRow]:
@@ -1618,360 +1634,440 @@ def add_row(
         )
 
 
-def parse_spec_docs(spec_dir: Path, known_identifiers: set[str], known_families: set[str]) -> list[SpecRuleRow]:
+def segment_spec_doc_lines(raw_lines: list[str]) -> list[SpecPartSegment]:
+    if not raw_lines:
+        raise SpecSegmentationError("Spec document is empty; cannot segment deterministic markdown.")
+
+    normalized_lines = [normalize_text_line(line).strip() for line in raw_lines]
+    anchor_matches: list[tuple[str, str, int]] = []
+    previous_line = 0
+
+    for spec_part, anchor_text in SPEC_PART_ANCHORS:
+        anchor_line: int | None = None
+        for line_no in range(previous_line + 1, len(normalized_lines) + 1):
+            if normalized_lines[line_no - 1] == anchor_text:
+                anchor_line = line_no
+                break
+        if anchor_line is None:
+            raise SpecSegmentationError(f"Missing required anchor for Part {spec_part}: {anchor_text!r}")
+        anchor_matches.append((spec_part, anchor_text, anchor_line))
+        previous_line = anchor_line
+
+    for (_, _, prev_line), (part, _, current_line) in zip(anchor_matches, anchor_matches[1:]):
+        if current_line <= prev_line:
+            raise SpecSegmentationError(
+                f"Non-increasing anchor order while segmenting Part {part}: line {current_line} follows {prev_line}"
+            )
+
+    late_lines = {part: line for part, _, line in anchor_matches if part in LATE_DOCUMENT_PART_ORDER}
+    missing_late_parts = [part for part in LATE_DOCUMENT_PART_ORDER if part not in late_lines]
+    if missing_late_parts:
+        raise SpecSegmentationError(f"Late-document order check missing parts: {', '.join(missing_late_parts)}")
+    late_line_values = [late_lines[part] for part in LATE_DOCUMENT_PART_ORDER]
+    if late_line_values != sorted(late_line_values):
+        order_repr = ", ".join(f"{part}@{late_lines[part]}" for part in LATE_DOCUMENT_PART_ORDER)
+        raise SpecSegmentationError(f"Late-document anchor order is invalid: {order_repr}")
+
+    segments: list[SpecPartSegment] = []
+    for idx, (spec_part, anchor_text, anchor_line) in enumerate(anchor_matches):
+        next_anchor_line = anchor_matches[idx + 1][2] if idx + 1 < len(anchor_matches) else len(raw_lines) + 1
+        end_line = next_anchor_line - 1
+        if end_line < anchor_line:
+            raise SpecSegmentationError(
+                f"Part {spec_part} has an empty or overlapping slice ({anchor_line}-{end_line})"
+            )
+        segments.append(
+            SpecPartSegment(
+                spec_part=spec_part,
+                anchor_text=anchor_text,
+                anchor_line=anchor_line,
+                start_line=anchor_line,
+                end_line=end_line,
+            )
+        )
+
+    return segments
+
+
+def parse_spec_part(
+    spec_part: str,
+    spec_doc: str,
+    spec_file: str,
+    raw_lines: list[str],
+    part_lines: list[str],
+    part_start_line: int,
+    known_identifiers: set[str],
+    known_families: set[str],
+) -> list[SpecRuleRow]:
     rows: list[SpecRuleRow] = []
+    current_identifiers: list[str] = []
+    block_type: str | None = None
+    block_codes: set[str] = set()
+    block_identifiers: list[str] = []
+    block_start_line = 0
+    pending_min_token = ""
+    pending_min_identifiers: list[str] = []
+    pending_min_line = 0
+    part02_active_pos_identifier = ""
+    part02_pending_pos_row_indices: list[int] = []
 
-    files = sorted(spec_dir.glob("part-*.md"), key=lambda p: p.name)
-    for path in files:
-        m = PART_FROM_FILE_RE.search(path.name)
-        if not m:
-            continue
-        spec_part = m.group(1)
-        spec_doc = path.name
-        spec_file = path.name
-        lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
+    def to_global_line(local_line: int) -> int:
+        return part_start_line + local_line - 1
 
-        current_identifiers: list[str] = []
-        block_type: str | None = None
-        block_codes: set[str] = set()
-        block_identifiers: list[str] = []
-        block_start_line = 0
-        pending_min_token = ""
-        pending_min_identifiers: list[str] = []
-        pending_min_line = 0
-        part02_active_pos_identifier = ""
-        part02_pending_pos_row_indices: list[int] = []
-
-        def effective_identifiers() -> list[str]:
-            if current_identifiers:
-                return current_identifiers
-            if spec_part == "02" and part02_active_pos_identifier:
-                return [part02_active_pos_identifier]
+    def effective_identifiers() -> list[str]:
+        if current_identifiers:
             return current_identifiers
+        if spec_part == "02" and part02_active_pos_identifier:
+            return [part02_active_pos_identifier]
+        return current_identifiers
 
-        def evidence(line_start: int, line_end: int) -> str:
-            return build_spec_evidence(lines, line_start, line_end)
+    def evidence(line_start: int, line_end: int) -> str:
+        return build_spec_evidence(raw_lines, line_start, line_end)
 
-        def add_extracted_row(
-            identifiers: list[str],
-            rule_type: str,
-            spec_rule_text: str,
-            min_value: str = "",
-            max_value: str = "",
-            sentinel_values: str = "",
-            allowed_values_or_codes: str = "",
-            line_start: int | None = None,
-            line_end: int | None = None,
-        ) -> None:
-            start_idx = len(rows)
-            row_start = idx if line_start is None else line_start
-            row_end = idx if line_end is None else line_end
-            add_row(
-                rows,
-                spec_part,
-                spec_doc,
-                spec_file,
-                row_start,
-                row_end,
-                evidence(row_start, row_end),
-                identifiers,
-                rule_type,
-                spec_rule_text,
-                min_value=min_value,
-                max_value=max_value,
-                sentinel_values=sentinel_values,
-                allowed_values_or_codes=allowed_values_or_codes,
+    def add_extracted_row(
+        identifiers: list[str],
+        rule_type: str,
+        spec_rule_text: str,
+        min_value: str = "",
+        max_value: str = "",
+        sentinel_values: str = "",
+        allowed_values_or_codes: str = "",
+        line_start: int | None = None,
+        line_end: int | None = None,
+    ) -> None:
+        start_idx = len(rows)
+        row_start = to_global_line(idx if line_start is None else line_start)
+        row_end = to_global_line(idx if line_end is None else line_end)
+        add_row(
+            rows,
+            spec_part,
+            spec_doc,
+            spec_file,
+            row_start,
+            row_end,
+            evidence(row_start, row_end),
+            identifiers,
+            rule_type,
+            spec_rule_text,
+            min_value=min_value,
+            max_value=max_value,
+            sentinel_values=sentinel_values,
+            allowed_values_or_codes=allowed_values_or_codes,
+        )
+        if spec_part == "02" and not current_identifiers and part02_active_pos_identifier:
+            for row_idx in range(start_idx, len(rows)):
+                if rows[row_idx].identifier == part02_active_pos_identifier:
+                    part02_pending_pos_row_indices.append(row_idx)
+
+    def flush_block(force_line: int) -> None:
+        nonlocal block_type, block_codes, block_identifiers, block_start_line
+        if block_type and block_codes and block_identifiers:
+            line_end = max(block_start_line, force_line - 1)
+            add_extracted_row(
+                block_identifiers,
+                block_type,
+                f"Enumerated codes near line {to_global_line(block_start_line)}",
+                allowed_values_or_codes=pipe_join(block_codes),
+                line_start=block_start_line,
+                line_end=line_end,
             )
-            if spec_part == "02" and not current_identifiers and part02_active_pos_identifier:
-                for row_idx in range(start_idx, len(rows)):
-                    if rows[row_idx].identifier == part02_active_pos_identifier:
-                        part02_pending_pos_row_indices.append(row_idx)
+        block_type = None
+        block_codes = set()
+        block_identifiers = []
+        block_start_line = force_line
 
-        def flush_block(force_line: int) -> None:
-            nonlocal block_type, block_codes, block_identifiers, block_start_line
-            if block_type and block_codes and block_identifiers:
-                line_end = max(block_start_line, force_line - 1)
-                add_extracted_row(
-                    block_identifiers,
-                    block_type,
-                    f"Enumerated codes near line {block_start_line}",
-                    allowed_values_or_codes=pipe_join(block_codes),
-                    line_start=block_start_line,
-                    line_end=line_end,
-                )
-            block_type = None
-            block_codes = set()
-            block_identifiers = []
-            block_start_line = force_line
-
-        for idx, raw_line in enumerate(lines, start=1):
-            line = normalize_text_line(raw_line)
-            if not line:
-                flush_block(idx)
-                if pending_min_token and idx - pending_min_line > 2:
-                    pending_min_token = ""
-                    pending_min_identifiers = []
-                    pending_min_line = 0
-                continue
-
-            new_context = infer_context_from_line(
-                spec_part,
-                line,
-                current_identifiers,
-                known_identifiers,
-                known_families,
-            )
-            current_identifiers = new_context
-
-            lower = line.lower()
-            if spec_part == "02" and line.startswith("POS:"):
-                current_identifiers = []
-                part02_pending_pos_row_indices = []
-
-            if spec_part == "02":
-                pos = POS_RE.search(line)
-                if pos:
-                    start_pos = int(pos.group(1))
-                    end_pos = int(pos.group(2))
-                    part02_active_pos_identifier = f"CONTROL_POS_{start_pos}_{end_pos}"
-                for phrase, ident in CONTROL_CONTEXT_MAP.items():
-                    if lower.startswith(phrase):
-                        current_identifiers = [ident]
-                        if part02_pending_pos_row_indices:
-                            for row_idx in part02_pending_pos_row_indices:
-                                if row_idx < 0 or row_idx >= len(rows):
-                                    continue
-                                row = rows[row_idx]
-                                if not row.identifier.startswith("CONTROL_POS_"):
-                                    continue
-                                # Keep POS-derived width rows structural in Part 02.
-                                if row.rule_type == "width":
-                                    continue
-                                row.identifier = ident
-                                row.identifier_family = identifier_family(ident)
-                            part02_pending_pos_row_indices = []
-                        break
-
-            if pending_min_token and idx - pending_min_line > 3:
+    for idx, raw_line in enumerate(part_lines, start=1):
+        line = normalize_text_line(raw_line)
+        if not line:
+            flush_block(idx)
+            if pending_min_token and idx - pending_min_line > 2:
                 pending_min_token = ""
                 pending_min_identifiers = []
                 pending_min_line = 0
+            continue
 
-            if "quality code" in lower:
-                flush_block(idx)
-                block_type = "allowed_quality"
-                block_identifiers = effective_identifiers().copy()
-                block_start_line = idx
-            elif (
-                " code" in lower
-                and "quality code" not in lower
-                and "identifier" not in lower
-                and "table" not in lower
-            ):
-                flush_block(idx)
-                block_type = "domain"
-                block_identifiers = effective_identifiers().copy()
-                block_start_line = idx
-            elif line.startswith("FLD LEN") or line.startswith("POS:"):
-                flush_block(idx)
+        new_context = infer_context_from_line(
+            spec_part,
+            line,
+            current_identifiers,
+            known_identifiers,
+            known_families,
+        )
+        current_identifiers = new_context
 
-            enum_match = re.match(r"^([A-Z0-9]{1,6})\s*=\s*", line)
-            if enum_match and block_type:
-                block_codes.add(enum_match.group(1))
-            elif enum_match and not block_type:
-                # Fallback context-sensitive enumeration.
-                if "quality" in lower:
-                    block_type = "allowed_quality"
-                else:
-                    block_type = "domain"
-                block_identifiers = effective_identifiers().copy()
-                block_codes.add(enum_match.group(1))
-                block_start_line = idx
+        lower = line.lower()
+        if spec_part == "02" and line.startswith("POS:"):
+            current_identifiers = []
+            part02_pending_pos_row_indices = []
 
-            mm = MIN_MAX_INLINE_RE.search(line)
-            min_only = MIN_ONLY_RE.search(line)
-            max_only = MAX_ONLY_RE.search(line)
-
-            if mm:
-                min_token = normalize_num_token(mm.group(1))
-                max_token = normalize_num_token(mm.group(2))
-                add_extracted_row(
-                    effective_identifiers(),
-                    "range",
-                    f"MIN {min_token} MAX {max_token}",
-                    min_value=min_token,
-                    max_value=max_token,
-                )
-                pending_min_token = ""
-                pending_min_identifiers = []
-                pending_min_line = 0
-            elif min_only and max_only:
-                min_token = normalize_num_token(min_only.group(1))
-                max_token = normalize_num_token(max_only.group(1))
-                add_extracted_row(
-                    effective_identifiers(),
-                    "range",
-                    f"MIN {min_token} MAX {max_token}",
-                    min_value=min_token,
-                    max_value=max_token,
-                )
-                pending_min_token = ""
-                pending_min_identifiers = []
-                pending_min_line = 0
-            elif min_only:
-                pending_min_token = normalize_num_token(min_only.group(1))
-                pending_min_identifiers = current_identifiers.copy()
-                pending_min_line = idx
-            elif max_only:
-                max_token = normalize_num_token(max_only.group(1))
-                if pending_min_token and idx - pending_min_line <= 3:
-                    add_extracted_row(
-                        pending_min_identifiers or effective_identifiers(),
-                        "range",
-                        f"MIN {pending_min_token} MAX {max_token}",
-                        min_value=pending_min_token,
-                        max_value=max_token,
-                        line_start=pending_min_line,
-                        line_end=idx,
-                    )
-                pending_min_token = ""
-                pending_min_identifiers = []
-                pending_min_line = 0
-
-            sentinels: set[str] = set()
-            sentinels.update(normalize_num_token(v) for v in MISSING_EQ_RE.findall(line))
-            sentinels.update(normalize_num_token(v) for v in EQ_MISSING_RE.findall(line))
-            if sentinels:
-                add_extracted_row(
-                    effective_identifiers(),
-                    "sentinel",
-                    f"Missing sentinels {pipe_join(sentinels)}",
-                    sentinel_values=pipe_join(sentinels),
-                )
-
-            fld = FLD_LEN_RE.search(line)
-            if fld:
-                width = fld.group(1)
-                width_identifiers = effective_identifiers().copy()
-                if not width_identifiers and width == "3":
-                    width_identifiers = infer_identifiers_from_adjacent_structural_context(
-                        spec_part,
-                        idx,
-                        lines,
-                        known_identifiers,
-                        known_families,
-                    )
-                add_extracted_row(
-                    width_identifiers,
-                    "width",
-                    f"FLD LEN {width}",
-                    allowed_values_or_codes=width,
-                )
-
+        if spec_part == "02":
             pos = POS_RE.search(line)
             if pos:
                 start_pos = int(pos.group(1))
                 end_pos = int(pos.group(2))
-                width = end_pos - start_pos + 1
-                width_identifiers = effective_identifiers().copy()
-                if not width_identifiers and spec_part == "03":
-                    width_identifiers = infer_identifiers_from_adjacent_structural_context(
-                        spec_part,
-                        idx,
-                        lines,
-                        known_identifiers,
-                        known_families,
-                    )
+                part02_active_pos_identifier = f"CONTROL_POS_{start_pos}_{end_pos}"
+            for phrase, ident in CONTROL_CONTEXT_MAP.items():
+                if lower.startswith(phrase):
+                    current_identifiers = [ident]
+                    if part02_pending_pos_row_indices:
+                        for row_idx in part02_pending_pos_row_indices:
+                            if row_idx < 0 or row_idx >= len(rows):
+                                continue
+                            row = rows[row_idx]
+                            if not row.identifier.startswith("CONTROL_POS_"):
+                                continue
+                            if row.rule_type == "width":
+                                continue
+                            row.identifier = ident
+                            row.identifier_family = identifier_family(ident)
+                        part02_pending_pos_row_indices = []
+                    break
+
+        if pending_min_token and idx - pending_min_line > 3:
+            pending_min_token = ""
+            pending_min_identifiers = []
+            pending_min_line = 0
+
+        if "quality code" in lower:
+            flush_block(idx)
+            block_type = "allowed_quality"
+            block_identifiers = effective_identifiers().copy()
+            block_start_line = idx
+        elif (
+            " code" in lower
+            and "quality code" not in lower
+            and "identifier" not in lower
+            and "table" not in lower
+        ):
+            flush_block(idx)
+            block_type = "domain"
+            block_identifiers = effective_identifiers().copy()
+            block_start_line = idx
+        elif line.startswith("FLD LEN") or line.startswith("POS:"):
+            flush_block(idx)
+
+        enum_match = re.match(r"^([A-Z0-9]{1,6})\s*=\s*", line)
+        if enum_match and block_type:
+            block_codes.add(enum_match.group(1))
+        elif enum_match and not block_type:
+            if "quality" in lower:
+                block_type = "allowed_quality"
+            else:
+                block_type = "domain"
+            block_identifiers = effective_identifiers().copy()
+            block_codes.add(enum_match.group(1))
+            block_start_line = idx
+
+        mm = MIN_MAX_INLINE_RE.search(line)
+        min_only = MIN_ONLY_RE.search(line)
+        max_only = MAX_ONLY_RE.search(line)
+
+        if mm:
+            min_token = normalize_num_token(mm.group(1))
+            max_token = normalize_num_token(mm.group(2))
+            add_extracted_row(
+                effective_identifiers(),
+                "range",
+                f"MIN {min_token} MAX {max_token}",
+                min_value=min_token,
+                max_value=max_token,
+            )
+            pending_min_token = ""
+            pending_min_identifiers = []
+            pending_min_line = 0
+        elif min_only and max_only:
+            min_token = normalize_num_token(min_only.group(1))
+            max_token = normalize_num_token(max_only.group(1))
+            add_extracted_row(
+                effective_identifiers(),
+                "range",
+                f"MIN {min_token} MAX {max_token}",
+                min_value=min_token,
+                max_value=max_token,
+            )
+            pending_min_token = ""
+            pending_min_identifiers = []
+            pending_min_line = 0
+        elif min_only:
+            pending_min_token = normalize_num_token(min_only.group(1))
+            pending_min_identifiers = current_identifiers.copy()
+            pending_min_line = idx
+        elif max_only:
+            max_token = normalize_num_token(max_only.group(1))
+            if pending_min_token and idx - pending_min_line <= 3:
                 add_extracted_row(
-                    width_identifiers,
-                    "width",
-                    f"POS {start_pos}-{end_pos} width {width}",
-                    allowed_values_or_codes=str(width),
+                    pending_min_identifiers or effective_identifiers(),
+                    "range",
+                    f"MIN {pending_min_token} MAX {max_token}",
+                    min_value=pending_min_token,
+                    max_value=max_token,
+                    line_start=pending_min_line,
+                    line_end=idx,
+                )
+            pending_min_token = ""
+            pending_min_identifiers = []
+            pending_min_line = 0
+
+        sentinels: set[str] = set()
+        sentinels.update(normalize_num_token(v) for v in MISSING_EQ_RE.findall(line))
+        sentinels.update(normalize_num_token(v) for v in EQ_MISSING_RE.findall(line))
+        if sentinels:
+            add_extracted_row(
+                effective_identifiers(),
+                "sentinel",
+                f"Missing sentinels {pipe_join(sentinels)}",
+                sentinel_values=pipe_join(sentinels),
+            )
+
+        fld = FLD_LEN_RE.search(line)
+        if fld:
+            width = fld.group(1)
+            width_identifiers = effective_identifiers().copy()
+            if not width_identifiers and width == "3":
+                width_identifiers = infer_identifiers_from_adjacent_structural_context(
+                    spec_part,
+                    idx,
+                    part_lines,
+                    known_identifiers,
+                    known_families,
+                )
+            add_extracted_row(
+                width_identifiers,
+                "width",
+                f"FLD LEN {width}",
+                allowed_values_or_codes=width,
+            )
+
+        pos = POS_RE.search(line)
+        if pos:
+            start_pos = int(pos.group(1))
+            end_pos = int(pos.group(2))
+            width = end_pos - start_pos + 1
+            width_identifiers = effective_identifiers().copy()
+            if not width_identifiers and spec_part == "03":
+                width_identifiers = infer_identifiers_from_adjacent_structural_context(
+                    spec_part,
+                    idx,
+                    part_lines,
+                    known_identifiers,
+                    known_families,
+                )
+            add_extracted_row(
+                width_identifiers,
+                "width",
+                f"POS {start_pos}-{end_pos} width {width}",
+                allowed_values_or_codes=str(width),
+            )
+
+        if current_identifiers and "indicator" in lower and ("up to" in lower or "-" in line):
+            up_to_match = UP_TO_RE.search(line)
+            if up_to_match:
+                limit = up_to_match.group(1)
+                global_idx = to_global_line(idx)
+                add_row(
+                    rows,
+                    spec_part,
+                    spec_doc,
+                    spec_file,
+                    global_idx,
+                    global_idx,
+                    evidence(global_idx, global_idx),
+                    current_identifiers,
+                    "cardinality",
+                    short_text(line),
+                    allowed_values_or_codes=f"1-{limit}",
+                )
+            elif len(current_identifiers) > 1:
+                global_idx = to_global_line(idx)
+                add_row(
+                    rows,
+                    spec_part,
+                    spec_doc,
+                    spec_file,
+                    global_idx,
+                    global_idx,
+                    evidence(global_idx, global_idx),
+                    current_identifiers,
+                    "cardinality",
+                    short_text(line),
+                    allowed_values_or_codes=f"1-{len(current_identifiers)}",
                 )
 
-            if current_identifiers and "indicator" in lower and ("up to" in lower or "-" in line):
-                up_to_match = UP_TO_RE.search(line)
-                if up_to_match:
-                    limit = up_to_match.group(1)
-                    add_row(
-                        rows,
-                        spec_part,
-                        spec_doc,
-                        spec_file,
-                        idx,
-                        idx,
-                        evidence(idx, idx),
-                        current_identifiers,
-                        "cardinality",
-                        short_text(line),
-                        allowed_values_or_codes=f"1-{limit}",
-                    )
-                elif len(current_identifiers) > 1:
-                    add_row(
-                        rows,
-                        spec_part,
-                        spec_doc,
-                        spec_file,
-                        idx,
-                        idx,
-                        evidence(idx, idx),
-                        current_identifiers,
-                        "cardinality",
-                        short_text(line),
-                        allowed_values_or_codes=f"1-{len(current_identifiers)}",
-                    )
-
-            if "following item" in lower and current_identifiers:
-                item_count = 0
-                for j in range(idx, len(lines)):
-                    probe = normalize_text_line(lines[j])
-                    if not probe:
-                        if item_count > 0:
-                            break
-                        continue
-                    probe_lower = probe.lower()
-                    if (
-                        probe.startswith("FLD LEN")
-                        or probe.startswith("POS:")
-                        or probe.startswith("---")
-                        or "dom:" in probe_lower
-                        or "scaling factor" in probe_lower
-                        or "min:" in probe_lower
-                        or "max:" in probe_lower
-                    ):
-                        if item_count > 0:
-                            break
-                        continue
-                    if re.match(r"^[A-Z0-9]{1,6}\s*=", probe):
-                        if item_count > 0:
-                            break
-                        continue
-                    if probe.startswith("▀"):
-                        if item_count > 0:
-                            break
-                        continue
-                    if "identifier" in probe_lower and item_count > 0:
+        if "following item" in lower and current_identifiers:
+            item_count = 0
+            for j in range(idx, len(part_lines)):
+                probe = normalize_text_line(part_lines[j])
+                if not probe:
+                    if item_count > 0:
                         break
-                    if any(k in probe_lower for k in ["note:", "units:"]):
-                        continue
-                    item_count += 1
-                if item_count > 0:
-                    add_row(
-                        rows,
-                        spec_part,
-                        spec_doc,
-                        spec_file,
-                        idx,
-                        idx,
-                        evidence(idx, idx),
-                        current_identifiers,
-                        "arity",
-                        short_text(line),
-                        allowed_values_or_codes=str(item_count),
-                    )
+                    continue
+                probe_lower = probe.lower()
+                if (
+                    probe.startswith("FLD LEN")
+                    or probe.startswith("POS:")
+                    or probe.startswith("---")
+                    or "dom:" in probe_lower
+                    or "scaling factor" in probe_lower
+                    or "min:" in probe_lower
+                    or "max:" in probe_lower
+                ):
+                    if item_count > 0:
+                        break
+                    continue
+                if re.match(r"^[A-Z0-9]{1,6}\s*=", probe):
+                    if item_count > 0:
+                        break
+                    continue
+                if probe.startswith("▀"):
+                    if item_count > 0:
+                        break
+                    continue
+                if "identifier" in probe_lower and item_count > 0:
+                    break
+                if any(k in probe_lower for k in ["note:", "units:"]):
+                    continue
+                item_count += 1
+            if item_count > 0:
+                global_idx = to_global_line(idx)
+                add_row(
+                    rows,
+                    spec_part,
+                    spec_doc,
+                    spec_file,
+                    global_idx,
+                    global_idx,
+                    evidence(global_idx, global_idx),
+                    current_identifiers,
+                    "arity",
+                    short_text(line),
+                    allowed_values_or_codes=str(item_count),
+                )
 
-        flush_block(len(lines) + 1)
+    flush_block(len(part_lines) + 1)
+    return rows
 
+
+def parse_spec_doc(spec_path: Path, known_identifiers: set[str], known_families: set[str]) -> list[SpecRuleRow]:
+    spec_doc = spec_path.name
+    spec_file = spec_path.name
+    raw_lines = spec_path.read_text(encoding="utf-8", errors="ignore").splitlines()
+    segments = segment_spec_doc_lines(raw_lines)
+
+    rows: list[SpecRuleRow] = []
+    for segment in segments:
+        part_lines = raw_lines[segment.start_line - 1 : segment.end_line]
+        rows.extend(
+            parse_spec_part(
+                segment.spec_part,
+                spec_doc,
+                spec_file,
+                raw_lines,
+                part_lines,
+                segment.start_line,
+                known_identifiers,
+                known_families,
+            )
+        )
     return rows
 
 
@@ -2023,102 +2119,6 @@ def filter_known_spec_extraction_errors(
     return filtered
 
 
-def parse_alignment_gap_hints(
-    path: Path,
-    known_identifiers: set[str],
-    known_families: set[str],
-) -> list[GapHint]:
-    lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
-    hints: list[GapHint] = []
-
-    def make_hint(text: str, source: str) -> GapHint:
-        ids = infer_identifiers_from_text(text, known_identifiers, known_families)
-        fams = {identifier_family(x) for x in ids}
-        part = infer_part_from_text(text)
-        rule_types = {rt for rt in infer_rule_types_from_text(text) if rt != "unknown"}
-        return GapHint(
-            part=part,
-            identifiers=ids,
-            families=fams,
-            rule_types=rule_types,
-            text=short_text(text, limit=220),
-            source=source,
-        )
-
-    # Numbered misalignment blocks.
-    idx = 0
-    while idx < len(lines):
-        line = lines[idx]
-        if re.match(r"^\d+\.\s+", line.strip()):
-            block = [line.strip()]
-            idx += 1
-            while idx < len(lines):
-                nxt = lines[idx]
-                if re.match(r"^\d+\.\s+", nxt.strip()):
-                    break
-                if nxt.startswith("## "):
-                    break
-                block.append(nxt.strip())
-                idx += 1
-            text = " ".join(v for v in block if v)
-            if "misalignment" in text.lower() or "not enforced" in text.lower() or "gap" in text.lower() or "new" in text.lower():
-                hints.append(make_hint(text, "numbered_block"))
-            continue
-        idx += 1
-
-    # Part table lines with explicit New snapshots.
-    for line_no, line in enumerate(lines, start=1):
-        if line.startswith("| ") and "|" in line and "New" in line:
-            hints.append(make_hint(line, f"part_table:{line_no}"))
-
-    return hints
-
-
-def infer_identifiers_from_text(
-    text: str,
-    known_identifiers: set[str],
-    known_families: set[str],
-) -> set[str]:
-    ids: set[str] = set()
-    normalized = text.replace("\u2013", "-").replace("\u2014", "-")
-
-    for m in IDENTIFIER_RANGE_RE.finditer(normalized):
-        fam_a, num_a, fam_b, num_b = m.groups()
-        width = max(len(num_a), len(num_b))
-        expanded = expand_identifier_range(fam_a, int(num_a), fam_b, int(num_b), width)
-        ids.update(expanded)
-
-    for token in IDENTIFIER_RE.findall(normalized):
-        if token in known_identifiers or token in known_families:
-            ids.add(token)
-
-    for m in re.finditer(r"\b([A-Z]{2,4})/([A-Z]{2,4})\b", normalized):
-        a, b = m.groups()
-        if a in known_families:
-            ids.add(a)
-        if b in known_families:
-            ids.add(b)
-
-    return ids
-
-
-def infer_part_from_text(text: str) -> str | None:
-    m = PART_FROM_TEXT_RE.search(text)
-    if not m:
-        return None
-    return f"{int(m.group(1)):02d}"
-
-
-def parse_unresolved_next_steps(path: Path) -> list[str]:
-    lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
-    unresolved: list[str] = []
-    for line in lines:
-        m = re.match(r"^- \[ \] (.+)$", line.strip())
-        if m:
-            unresolved.append(m.group(1).strip())
-    return unresolved
-
-
 def merge_duplicate_rows(rows: list[SpecRuleRow]) -> list[SpecRuleRow]:
     merged: dict[tuple[str, ...], SpecRuleRow] = {}
     for row in rows:
@@ -2130,133 +2130,6 @@ def merge_duplicate_rows(rows: list[SpecRuleRow]) -> list[SpecRuleRow]:
         existing.notes.update(row.notes)
 
     return sorted(merged.values(), key=lambda r: r.sort_key())
-
-
-def annotate_known_gaps(
-    rows: list[SpecRuleRow],
-    gap_hints: list[GapHint],
-    max_existing_tags_per_hint: int = 10,
-) -> list[SpecRuleRow]:
-    by_part: dict[str, list[int]] = defaultdict(list)
-    for idx, row in enumerate(rows):
-        by_part[row.spec_part].append(idx)
-
-    for hint in gap_hints:
-        hint_rule_types = {rt for rt in hint.rule_types if rt != "unknown"}
-        exact_ids = sorted(hint.identifiers, key=natural_key)
-        family_only = bool(not exact_ids and hint.families)
-        candidates: list[int] = []
-        parts_to_scan = [hint.part] if hint.part else sorted(by_part)
-
-        if exact_ids:
-            for part in parts_to_scan:
-                if part not in by_part:
-                    continue
-                for idx in by_part[part]:
-                    row = rows[idx]
-                    if hint_rule_types and row.rule_type not in hint_rule_types:
-                        continue
-                    if row.identifier not in hint.identifiers:
-                        continue
-                    candidates.append(idx)
-
-        if candidates:
-            candidates = sorted(set(candidates), key=lambda idx: rows[idx].sort_key())
-            tagged = candidates[:max_existing_tags_per_hint]
-            for idx in tagged:
-                rows[idx].notes.add("expected_gap_from_alignment_report")
-            overflow = len(candidates) - len(tagged)
-            if overflow > 0:
-                base_id = exact_ids[0] if exact_ids else "UNSPECIFIED"
-                synthetic_rule = (
-                    sorted(hint_rule_types, key=lambda rt: RULE_TYPE_ORDER.index(rt))[0]
-                    if hint_rule_types
-                    else "unknown"
-                )
-                synthetic = SpecRuleRow(
-                    spec_part=hint.part or "00",
-                    spec_doc="NOAA_CLEANING_ALIGNMENT_REPORT.md",
-                    row_kind="synthetic",
-                    spec_file="N/A",
-                    identifier=base_id,
-                    identifier_family=identifier_family(base_id),
-                    rule_type=synthetic_rule,
-                    spec_rule_text=short_text(f"{hint.text} (overflow matches: {overflow})"),
-                )
-                synthetic.notes.update(
-                    {
-                        "expected_gap_from_alignment_report",
-                        "synthetic_gap_row",
-                        "gap_tag_cap_exceeded",
-                        f"gap_tag_overflow={overflow}",
-                    }
-                )
-                rows.append(synthetic)
-            continue
-
-        synthetic_id = (
-            exact_ids[0]
-            if exact_ids
-            else (sorted(hint.families, key=natural_key)[0] if hint.families else "UNSPECIFIED")
-        )
-        synthetic_rule = (
-            sorted(hint_rule_types, key=lambda rt: RULE_TYPE_ORDER.index(rt))[0]
-            if hint_rule_types
-            else "unknown"
-        )
-        synthetic = SpecRuleRow(
-            spec_part=hint.part or "00",
-            spec_doc="NOAA_CLEANING_ALIGNMENT_REPORT.md",
-            row_kind="synthetic",
-            spec_file="N/A",
-            identifier=synthetic_id,
-            identifier_family=identifier_family(synthetic_id),
-            rule_type=synthetic_rule,
-            spec_rule_text=short_text(hint.text),
-        )
-        synthetic.notes.update({"expected_gap_from_alignment_report", "synthetic_gap_row"})
-        if family_only:
-            synthetic.notes.add("family_only_hint")
-        rows.append(synthetic)
-
-    return rows
-
-
-def annotate_unresolved_next_steps(
-    rows: list[SpecRuleRow],
-    unresolved_items: list[str],
-    known_identifiers: set[str],
-    known_families: set[str],
-) -> list[SpecRuleRow]:
-    by_part: dict[str, list[int]] = defaultdict(list)
-    for idx, row in enumerate(rows):
-        by_part[row.spec_part].append(idx)
-
-    for item in unresolved_items:
-        part = infer_part_from_text(item)
-        ids = infer_identifiers_from_text(item, known_identifiers, known_families)
-        fams = {identifier_family(v) for v in ids}
-        rtypes = {rt for rt in infer_rule_types_from_text(item) if rt != "unknown"}
-
-        candidates: list[int] = []
-        parts_to_scan = [part] if part else sorted(by_part)
-        for part_key in parts_to_scan:
-            if part_key not in by_part:
-                continue
-            for idx in by_part[part_key]:
-                row = rows[idx]
-                if rtypes and row.rule_type not in rtypes:
-                    continue
-                if ids:
-                    if row.identifier not in ids and row.identifier_family not in fams:
-                        continue
-                candidates.append(idx)
-
-        if candidates:
-            for idx in candidates:
-                rows[idx].notes.add("unresolved_in_next_steps")
-
-    return rows
 
 
 def parse_float_safe(value: str) -> float | None:
@@ -2739,27 +2612,14 @@ def note_has(row: SpecRuleRow, token: str) -> bool:
     return token in row.notes
 
 
-def note_value(row: SpecRuleRow, prefix: str) -> str:
-    for note in row.notes:
-        if note.startswith(prefix):
-            return note[len(prefix) :]
-    return ""
-
-
 def row_gap_score(row: SpecRuleRow) -> int:
     score = 0
-    if note_has(row, "expected_gap_from_alignment_report"):
-        score += 100
-    if note_has(row, "unresolved_in_next_steps"):
-        score += 40
     if not row.code_implemented:
         score += 20
     if not row.test_covered_strict:
         score += 10
     if row.rule_type in {"range", "cardinality", "arity", "width"}:
         score += 3
-    if note_has(row, "synthetic_gap_row"):
-        score -= 25
     if note_has(row, "synthetic_unmapped") or row.identifier == "UNSPECIFIED":
         score -= 30
     return score
@@ -2849,15 +2709,12 @@ def ranked_real_gap_table_rows(group: list[SpecRuleRow]) -> list[list[str]]:
 def build_report(
     rows: list[SpecRuleRow],
     report_path: Path,
-    architecture_text: str,
-    cleaning_index: CleaningIndex,
     arity_tests_detected: bool,
 ) -> None:
     extracted_rows = [row for row in rows if row.row_kind in EXTRACTED_ROW_KINDS]
     coverage_rows = [row for row in rows if row.row_kind in METRIC_ROW_KINDS]
     structural_rows_list = [row for row in rows if row.row_kind == ROW_KIND_STRUCTURAL]
     documentation_rows_list = [row for row in rows if row.row_kind == ROW_KIND_DOCUMENTATION]
-    synthetic_rows_list = [row for row in rows if row.row_kind == ROW_KIND_SYNTHETIC]
     total = len(extracted_rows)
     metric_rows = [row for row in coverage_rows if row.rule_type in METRIC_RULE_TYPES]
     total_metric = len(metric_rows)
@@ -2997,42 +2854,6 @@ def build_report(
         count = wildcard_only_by_rule_type.get(rule_type, 0)
         wildcard_rule_rows.append([rule_type, str(count), pct(count, total_metric)])
 
-    known_gap_rows_full = [r for r in rows if "expected_gap_from_alignment_report" in r.notes]
-    known_gap_rows_sorted = sorted(
-        known_gap_rows_full,
-        key=lambda r: (
-            -row_gap_score(r),
-            r.spec_part,
-            r.identifier_family,
-            r.identifier,
-            r.rule_type,
-        ),
-    )
-    known_gap_rows: list[SpecRuleRow] = []
-    seen_known_keys: set[tuple[str, str, str]] = set()
-    for row in known_gap_rows_sorted:
-        key = (row.spec_part, row.identifier, row.rule_type)
-        if key in seen_known_keys:
-            continue
-        seen_known_keys.add(key)
-        known_gap_rows.append(row)
-        if len(known_gap_rows) >= 30:
-            break
-
-    trace_rows: list[list[str]] = []
-    for row in known_gap_rows:
-        trace_rows.append(
-            [
-                row.spec_part,
-                row.identifier,
-                row.rule_type,
-                "TRUE" if row.code_implemented else "FALSE",
-                "TRUE" if row.test_covered_strict else "FALSE",
-                "TRUE" if row.test_covered_any else "FALSE",
-                ";".join(sorted(row.notes)),
-            ]
-        )
-
     match_quality_rows: list[list[str]] = []
     for strength in TEST_MATCH_STRENGTH_ORDER:
         count = match_strength_counter.get(strength, 0)
@@ -3061,14 +2882,10 @@ def build_report(
             rows_out.append(["(none)", "-", "-", "-"])
         return rows_out
 
-    unresolved_count = sum(1 for r in coverage_rows if "unresolved_in_next_steps" in r.notes)
-    arch_unchecked = sum(1 for line in architecture_text.splitlines() if line.strip().startswith("- [ ]"))
     exact_signature_count = tested_match_counter.get("exact_signature", 0)
     exact_assertion_count = tested_match_counter.get("exact_assertion", 0)
     family_assertion_count = tested_match_counter.get("family_assertion", 0)
     wildcard_assertion_count = tested_match_counter.get("wildcard_assertion", 0)
-    synthetic_rows = len(synthetic_rows_list)
-    synthetic_gap_rows = sum(1 for r in synthetic_rows_list if "synthetic_gap_row" in r.notes)
     arity_rows = [r for r in metric_rows if r.rule_type == "arity"]
     arity_tested_strict = sum(1 for r in arity_rows if r.test_covered_strict)
     arity_tested_any = sum(1 for r in arity_rows if r.test_covered_any)
@@ -3087,9 +2904,10 @@ def build_report(
     lines.append("## Overall coverage")
     lines.append("")
     lines.append(f"- Total spec rules extracted: **{total}**")
-    lines.append(f"- Structural rules count: **{len(structural_rows_list)}**")
+    lines.append(
+        f"- Structural rules (control-position rules like `POS 1-4 width 4`): **{len(structural_rows_list)}**"
+    )
     lines.append(f"- Documentation rules count (excluded): **{len(documentation_rows_list)}**")
-    lines.append(f"- Synthetic rows excluded from coverage metrics: **{synthetic_rows}**")
     lines.append(f"- Metric-eligible rules (excluding `unknown`): **{total_metric}**")
     lines.append(f"- Unknown/noisy rows excluded from %: **{unknown_excluded}**")
     lines.append(f"- Rules implemented in code: **{implemented}** ({pct(implemented, total_metric)})")
@@ -3105,9 +2923,6 @@ def build_report(
     )
     lines.append("- Coverage progress is measured with `tested_strict` only.")
     lines.append("- `test_covered` in CSV mirrors `test_covered_any` for backward compatibility.")
-    lines.append(f"- Expected-gap tagged rules: **{len(known_gap_rows_full)}**")
-    lines.append(f"- Rows linked to unresolved `NEXT_STEPS.md` items: **{unresolved_count}**")
-    lines.append(f"- Open checklist items in `ARCHITECTURE_NEXT_STEPS.md`: **{arch_unchecked}**")
     lines.append("")
     lines.append("## Top 50 real gaps (strict)")
     lines.append("")
@@ -3178,9 +2993,16 @@ def build_report(
     lines.append("")
     lines.append("## Rule Identity & Provenance")
     lines.append("")
-    lines.append("- `rule_id` format for spec rows: `{spec_file}:{start}-{end}::{identifier}::{rule_type}::{payload_hash}`.")
-    lines.append("- `rule_id` format for synthetic rows: `synthetic::{source}::{name_or_key}`.")
-    lines.append("- Rows are tracked per spec origin line range; identical payloads at different ranges remain separate rows intentionally.")
+    lines.append(
+        "- `rule_id` format for spec rows: "
+        "`{spec_file}::{stable_id}::{identifier}::{rule_type}::{payload_hash}`."
+    )
+    lines.append(
+        "- `stable_id` is derived from normalized rule text plus canonical payload data, so line-only shifts do not churn IDs."
+    )
+    lines.append(
+        "- Provenance remains in `spec_line_start`/`spec_line_end`, which point to global lines in `isd-format-document.deterministic.md`."
+    )
     lines.append("")
     lines.append("## Enforcement layer breakdown")
     lines.append("")
@@ -3221,8 +3043,6 @@ def build_report(
     lines.append(
         f"- Tested-any rows matched by `wildcard_assertion`: **{wildcard_assertion_count}** ({pct(wildcard_assertion_count, len(tested_any_rows))})"
     )
-    lines.append(f"- Synthetic rows in CSV: **{synthetic_rows}**")
-    lines.append(f"- Synthetic gap rows in CSV: **{synthetic_gap_rows}**")
     lines.append(f"- Unknown rule rows excluded from percentages: **{unknown_excluded}**")
     lines.append(
         f"- Arity rules tested (strict): **{arity_tested_strict}/{len(arity_rows)}** ({pct(arity_tested_strict, len(arity_rows))})"
@@ -3332,22 +3152,10 @@ def build_report(
         )
     )
     lines.append("")
-    lines.append("## Known-gap traceability")
-    lines.append("")
-    lines.append(
-            f"Showing top {len(known_gap_rows)} expected-gap rows (full list is in `spec_coverage.csv`)."
-    )
-    lines.append("")
-    lines.append(
-        format_table(
-            ["Part", "Identifier", "Rule type", "Code impl", "Tested strict", "Tested any", "Notes"],
-            trace_rows,
-        )
-    )
-    lines.append("")
     lines.append("## How to extend")
     lines.append("")
-    lines.append("- Add or tweak regexes in `parse_spec_docs()` for new rule text patterns.")
+    lines.append("- Add or tweak regexes in `parse_spec_doc()` for new rule text patterns.")
+    lines.append("- Update `SPEC_PART_ANCHORS` and `segment_spec_doc_lines()` if the deterministic source layout changes.")
     lines.append("- Extend `infer_rule_types_from_text()` if new rule classes appear.")
     lines.append("- Extend `coverage_in_constants_for_row()` and `coverage_in_cleaning_for_row()` for new enforcement metadata.")
     lines.append("- Extend `parse_tests_evidence()` value-token and assertion-intent hooks for new test styles.")
@@ -3359,10 +3167,7 @@ def build_report(
 def main() -> None:
     repo_root = Path(__file__).resolve().parents[2]
 
-    spec_dir = repo_root / "isd-format-document-parts"
-    alignment_report = repo_root / "NOAA_CLEANING_ALIGNMENT_REPORT.md"
-    next_steps = repo_root / "NEXT_STEPS.md"
-    architecture_next_steps = repo_root / "ARCHITECTURE_NEXT_STEPS.md"
+    spec_path = repo_root / "isd-format-document-parts" / SPEC_DOC_NAME
     constants_path = repo_root / "src" / "noaa_climate_data" / "constants.py"
     cleaning_path = repo_root / "src" / "noaa_climate_data" / "cleaning.py"
     tests_path = repo_root / "tests" / "test_cleaning.py"
@@ -3379,14 +3184,8 @@ def main() -> None:
     known_families.update({"DATE", "TIME", "LATITUDE", "LONGITUDE", "ELEVATION", "CALL_SIGN", "REPORT_TYPE", "QC_PROCESS"})
     known_identifiers.update(known_families)
 
-    rows = parse_spec_docs(spec_dir, known_identifiers, known_families)
+    rows = parse_spec_doc(spec_path, known_identifiers, known_families)
     rows = filter_known_spec_extraction_errors(rows, constants_module)
-
-    gap_hints = parse_alignment_gap_hints(alignment_report, known_identifiers, known_families)
-    rows = annotate_known_gaps(rows, gap_hints)
-
-    unresolved_items = parse_unresolved_next_steps(next_steps)
-    rows = annotate_unresolved_next_steps(rows, unresolved_items, known_identifiers, known_families)
     rows = classify_extracted_row_kinds(rows)
 
     rows = normalize_and_assign_rule_ids(rows)
@@ -3404,8 +3203,7 @@ def main() -> None:
 
     write_csv(csv_output, rows)
 
-    architecture_text = architecture_next_steps.read_text(encoding="utf-8", errors="ignore")
-    build_report(rows, report_output, architecture_text, cleaning_index, test_index.arity_tests_detected)
+    build_report(rows, report_output, test_index.arity_tests_detected)
 
     total = sum(1 for r in rows if r.row_kind in EXTRACTED_ROW_KINDS)
     metric_rows = [r for r in rows if r.row_kind in METRIC_ROW_KINDS and r.rule_type in METRIC_RULE_TYPES]

@@ -8,6 +8,8 @@ from pathlib import Path
 import re
 import sys
 
+import pytest
+
 
 def _load_generator_module(repo_root: Path):
     script_path = repo_root / "tools" / "spec_coverage" / "generate_spec_coverage.py"
@@ -46,7 +48,26 @@ def _stable_sort_key(row: dict[str, str]) -> tuple[object, ...]:
     )
 
 
-def test_rule_ids_differ_by_line_range_and_are_not_merged() -> None:
+def _write_fixture_spec_doc(
+    module,
+    path: Path,
+    part_bodies: dict[str, list[str]] | None = None,
+    preface_lines: list[str] | None = None,
+) -> list[str]:
+    part_bodies = part_bodies or {}
+    lines = list(preface_lines or ["Preface"])
+    for spec_part, anchor in module.SPEC_PART_ANCHORS:
+        lines.append(anchor)
+        lines.extend(part_bodies.get(spec_part, []))
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return lines
+
+
+def _line_numbers(lines: list[str], text: str) -> list[int]:
+    return [idx for idx, line in enumerate(lines, start=1) if line == text]
+
+
+def test_rule_ids_are_line_stable_and_rows_are_not_merged() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     module = _load_generator_module(repo_root)
 
@@ -78,9 +99,8 @@ def test_rule_ids_differ_by_line_range_and_are_not_merged() -> None:
     )
 
     rows = module.normalize_and_assign_rule_ids([row_a, row_b])
-    assert rows[0].rule_id != rows[1].rule_id
-    assert rows[0].rule_id.startswith("part-99-fixture.md:10-10::AB1::range::")
-    assert rows[1].rule_id.startswith("part-99-fixture.md:20-20::AB1::range::")
+    assert rows[0].rule_id == rows[1].rule_id
+    assert re.fullmatch(r"part-99-fixture\.md::[0-9a-f]{12}::AB1::range::[0-9a-f]{10}", rows[0].rule_id)
 
     merged = module.merge_duplicate_rows(rows)
     assert len(merged) == 2, "Rows with identical payload but different line ranges must remain separate"
@@ -329,8 +349,6 @@ def test_report_uses_strict_kpi_and_quarantines_wildcard_only(tmp_path: Path) ->
     module.build_report(
         [strict_row, wildcard_row, none_row],
         report_path,
-        architecture_text="",
-        cleaning_index=module.CleaningIndex(),
         arity_tests_detected=True,
     )
     report_text = report_path.read_text(encoding="utf-8")
@@ -360,13 +378,11 @@ def test_report_metrics_include_structural_and_exclude_documentation(tmp_path: P
     module.build_report(
         [structural_row, documentation_row],
         report_path,
-        architecture_text="",
-        cleaning_index=module.CleaningIndex(),
         arity_tests_detected=True,
     )
     report_text = report_path.read_text(encoding="utf-8")
 
-    assert "Structural rules count: **1**" in report_text
+    assert "Structural rules (control-position rules like `POS 1-4 width 4`): **1**" in report_text
     assert "Documentation rules count (excluded): **1**" in report_text
     assert "Metric-eligible rules (excluding `unknown`): **1**" in report_text
 
@@ -414,8 +430,6 @@ def test_top_50_real_gaps_ranking_priority_is_stable(tmp_path: Path) -> None:
     module.build_report(
         [top_row, second_row, third_row, excluded_unspecified],
         report_path,
-        architecture_text="",
-        cleaning_index=module.CleaningIndex(),
         arity_tests_detected=True,
     )
     report_text = report_path.read_text(encoding="utf-8")
@@ -428,16 +442,95 @@ def test_top_50_real_gaps_ranking_priority_is_stable(tmp_path: Path) -> None:
     assert "UNSPECIFIED" not in "\n".join(data_lines)
 
 
-def test_parse_spec_docs_part02_backfills_pos_identifier_and_assigns_control_pos_fallback(tmp_path: Path) -> None:
+def test_segment_spec_doc_lines_detects_expected_order_on_real_document() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     module = _load_generator_module(repo_root)
 
-    spec_dir = tmp_path / "spec"
-    spec_dir.mkdir()
-    fixture_path = spec_dir / "part-02-control-fixture.md"
-    fixture_path.write_text(
-        "\n".join(
-            [
+    spec_path = repo_root / "isd-format-document-parts" / module.SPEC_DOC_NAME
+    lines = spec_path.read_text(encoding="utf-8").splitlines()
+    segments = module.segment_spec_doc_lines(lines)
+
+    assert [segment.spec_part for segment in segments] == [part for part, _ in module.SPEC_PART_ANCHORS]
+    late_positions = {segment.spec_part: segment.anchor_line for segment in segments}
+    assert [late_positions[part] for part in module.LATE_DOCUMENT_PART_ORDER] == sorted(
+        late_positions[part] for part in module.LATE_DOCUMENT_PART_ORDER
+    )
+
+
+def test_segment_spec_doc_lines_uses_exact_anchor_matching(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    module = _load_generator_module(repo_root)
+
+    spec_path = tmp_path / module.SPEC_DOC_NAME
+    lines = _write_fixture_spec_doc(
+        module,
+        spec_path,
+        preface_lines=["Control Data Section - preface prose"],
+    )
+    segments = module.segment_spec_doc_lines(lines)
+    by_part = {segment.spec_part: segment for segment in segments}
+
+    assert by_part["02"].anchor_line == _line_numbers(lines, "Control Data Section")[0]
+    assert by_part["10"].anchor_line == _line_numbers(lines, "Hourly Temperature Section identifier")[0]
+    assert by_part["10"].anchor_line != _line_numbers(lines, "Subhourly Temperature Section identifier")[0]
+
+
+def test_segment_spec_doc_lines_uses_first_duplicate_after_prior_boundary(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    module = _load_generator_module(repo_root)
+
+    spec_path = tmp_path / module.SPEC_DOC_NAME
+    lines = _write_fixture_spec_doc(
+        module,
+        spec_path,
+        part_bodies={"15": ["SUNSHINE-OBSERVATION identifier"]},
+    )
+    segments = module.segment_spec_doc_lines(lines)
+    by_part = {segment.spec_part: segment for segment in segments}
+
+    sunshine_lines = _line_numbers(lines, "SUNSHINE-OBSERVATION identifier")
+    assert len(sunshine_lines) == 2
+    assert by_part["16"].anchor_line == sunshine_lines[0]
+    assert by_part["16"].end_line < by_part["17"].anchor_line
+
+
+def test_segment_spec_doc_lines_missing_anchor_raises(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    module = _load_generator_module(repo_root)
+
+    spec_path = tmp_path / module.SPEC_DOC_NAME
+    lines = _write_fixture_spec_doc(module, spec_path)
+    lines.remove("Hourly Solar Angle Section identifier")
+
+    with pytest.raises(module.SpecSegmentationError, match="Missing required anchor"):
+        module.segment_spec_doc_lines(lines)
+
+
+def test_segment_spec_doc_lines_out_of_order_anchor_raises(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    module = _load_generator_module(repo_root)
+
+    spec_path = tmp_path / module.SPEC_DOC_NAME
+    lines = _write_fixture_spec_doc(module, spec_path)
+    part_25_idx = lines.index("SEA-SURFACE-TEMPERATURE-OBSERVATION identifier")
+    part_29_idx = lines.index("SUPPLEMENTARY-WIND-OBSERVATION identifier")
+    part_25_anchor = lines.pop(part_25_idx)
+    lines.insert(part_29_idx, part_25_anchor)
+
+    with pytest.raises(module.SpecSegmentationError):
+        module.segment_spec_doc_lines(lines)
+
+
+def test_parse_spec_doc_part02_backfills_pos_identifier_and_assigns_control_pos_fallback(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    module = _load_generator_module(repo_root)
+
+    spec_path = tmp_path / module.SPEC_DOC_NAME
+    lines = _write_fixture_spec_doc(
+        module,
+        spec_path,
+        part_bodies={
+            "02": [
                 "POS: 24-27",
                 "GEOPHYSICAL-POINT-OBSERVATION time",
                 "MIN: 0000 MAX: 2359",
@@ -456,8 +549,7 @@ def test_parse_spec_docs_part02_backfills_pos_identifier_and_assigns_control_pos
                 "MIN: -90000 MAX: +90000",
                 "",
             ]
-        ),
-        encoding="utf-8",
+        },
     )
 
     known_identifiers = {
@@ -474,51 +566,49 @@ def test_parse_spec_docs_part02_backfills_pos_identifier_and_assigns_control_pos
     }
     known_families = {module.identifier_family(value) for value in known_identifiers}
 
-    rows = module.parse_spec_docs(spec_dir, known_identifiers, known_families)
+    rows = module.parse_spec_doc(spec_path, known_identifiers, known_families)
 
-    width_24_27 = [r for r in rows if r.rule_type == "width" and r.spec_line_start == 1]
-    assert width_24_27, "Expected width row for POS: 24-27"
-    assert all(r.identifier == "CONTROL_POS_24_27" for r in width_24_27)
+    pos_24_27_line = _line_numbers(lines, "POS: 24-27")[0]
+    time_range_line = _line_numbers(lines, "MIN: 0000 MAX: 2359")[0]
+    missing_line = _line_numbers(lines, "99999 = Missing")[0]
+    pos_1_4_line = _line_numbers(lines, "POS: 1-4")[0]
+    total_range_line = _line_numbers(lines, "MIN: 0000 MAX: 9999")[0]
+    pos_29_34_line = _line_numbers(lines, "POS: 29-34")[0]
 
-    range_24_27 = [r for r in rows if r.rule_type == "range" and r.spec_line_start == 3]
-    assert range_24_27, "Expected range row for the time block"
-    assert all(r.identifier == "TIME" for r in range_24_27)
+    width_24_27 = [r for r in rows if r.rule_type == "width" and r.spec_line_start == pos_24_27_line]
+    assert width_24_27 and all(r.identifier == "CONTROL_POS_24_27" for r in width_24_27)
 
-    sentinel_rows = [r for r in rows if r.rule_type == "sentinel" and r.spec_line_start == 8]
-    assert sentinel_rows, "Expected sentinel row from 99999 = Missing"
-    assert all(r.identifier == "REPORT_TYPE" for r in sentinel_rows)
+    range_24_27 = [r for r in rows if r.rule_type == "range" and r.spec_line_start == time_range_line]
+    assert range_24_27 and all(r.identifier == "TIME" for r in range_24_27)
+
+    sentinel_rows = [r for r in rows if r.rule_type == "sentinel" and r.spec_line_start == missing_line]
+    assert sentinel_rows and all(r.identifier == "REPORT_TYPE" for r in sentinel_rows)
 
     domain_rows = [r for r in rows if r.rule_type == "domain"]
-    assert domain_rows, "Expected domain row for report type codes"
-    assert all(r.identifier == "REPORT_TYPE" for r in domain_rows)
-    assert all(r.identifier != "AU" for r in domain_rows), "Hyphenated enum line must not hijack context"
+    assert domain_rows and all(r.identifier == "REPORT_TYPE" for r in domain_rows)
+    assert all(r.identifier != "AU" for r in domain_rows)
 
-    control_pos_width_rows = [r for r in rows if r.rule_type == "width" and r.spec_line_start == 10]
-    assert control_pos_width_rows, "Expected width row for POS: 1-4 block"
-    assert all(r.identifier == "CONTROL_POS_1_4" for r in control_pos_width_rows)
-    assert all(r.identifier_family == "CONTROL" for r in control_pos_width_rows)
+    control_pos_width_rows = [r for r in rows if r.rule_type == "width" and r.spec_line_start == pos_1_4_line]
+    assert control_pos_width_rows and all(r.identifier == "CONTROL_POS_1_4" for r in control_pos_width_rows)
+    control_pos_range_rows = [r for r in rows if r.rule_type == "range" and r.spec_line_start == total_range_line]
+    assert control_pos_range_rows and all(r.identifier == "CONTROL_POS_1_4" for r in control_pos_range_rows)
 
-    control_pos_range_rows = [r for r in rows if r.rule_type == "range" and r.spec_line_start == 12]
-    assert control_pos_range_rows, "Expected range row for POS: 1-4 block"
-    assert all(r.identifier == "CONTROL_POS_1_4" for r in control_pos_range_rows)
-    assert all(r.identifier_family == "CONTROL" for r in control_pos_range_rows)
-
-    control_pos_29_34_width_rows = [r for r in rows if r.rule_type == "width" and r.spec_line_start == 14]
-    assert control_pos_29_34_width_rows, "Expected width row for POS: 29-34 block"
-    assert all(r.identifier == "CONTROL_POS_29_34" for r in control_pos_29_34_width_rows)
-    assert all(r.identifier_family == "CONTROL" for r in control_pos_29_34_width_rows)
+    control_pos_29_34_width_rows = [r for r in rows if r.rule_type == "width" and r.spec_line_start == pos_29_34_line]
+    assert control_pos_29_34_width_rows and all(
+        r.identifier == "CONTROL_POS_29_34" for r in control_pos_29_34_width_rows
+    )
 
 
-def test_parse_spec_docs_part03_reanchors_context_between_mandatory_sections(tmp_path: Path) -> None:
+def test_parse_spec_doc_part03_reanchors_context_between_mandatory_sections(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     module = _load_generator_module(repo_root)
 
-    spec_dir = tmp_path / "spec"
-    spec_dir.mkdir()
-    fixture_path = spec_dir / "part-03-mandatory-fixture.md"
-    fixture_path.write_text(
-        "\n".join(
-            [
+    spec_path = tmp_path / module.SPEC_DOC_NAME
+    _write_fixture_spec_doc(
+        module,
+        spec_path,
+        part_bodies={
+            "03": [
                 "POS: 60-63",
                 "WIND-OBSERVATION direction angle",
                 "MIN: 001 MAX: 360",
@@ -550,14 +640,13 @@ def test_parse_spec_docs_part03_reanchors_context_between_mandatory_sections(tmp
                 "99999 = Missing.",
                 "",
             ]
-        ),
-        encoding="utf-8",
+        },
     )
 
     known_identifiers = {"WND", "CIG", "VIS", "TMP", "DEW", "SLP"}
     known_families = {module.identifier_family(value) for value in known_identifiers}
 
-    rows = module.parse_spec_docs(spec_dir, known_identifiers, known_families)
+    rows = module.parse_spec_doc(spec_path, known_identifiers, known_families)
 
     def _range_rows(min_value: str, max_value: str):
         return [
@@ -577,73 +666,88 @@ def test_parse_spec_docs_part03_reanchors_context_between_mandatory_sections(tmp
     assert tmps and all(r.identifier == "TMP" for r in tmps)
     assert dews and all(r.identifier == "DEW" for r in dews)
     assert slps and all(r.identifier == "SLP" for r in slps)
-    assert not any(
-        r.identifier == "WND"
-        for r in cigs + viss + tmps + dews + slps
-    )
+    assert not any(r.identifier == "WND" for r in cigs + viss + tmps + dews + slps)
 
 
-def test_parse_spec_docs_maps_fld_len_three_header_context_rows(tmp_path: Path) -> None:
+def test_parse_spec_doc_maps_fld_len_three_header_context_rows(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     module = _load_generator_module(repo_root)
 
-    spec_dir = tmp_path / "spec"
-    spec_dir.mkdir()
-
+    spec_path = tmp_path / module.SPEC_DOC_NAME
     mapping_items = sorted(module.SECTION_IDENTIFIER_CONTEXT_MAP.items())
-    expected_by_file: dict[str, str] = {}
-    for idx, ((part, phrase), identifier) in enumerate(mapping_items, start=1):
-        file_name = f"part-{part}-section-width-fixture-{idx:02d}.md"
-        (spec_dir / file_name).write_text(
-            "\n".join(
-                [
-                    "FLD LEN: 3",
-                    phrase,
-                ]
-            ),
-            encoding="utf-8",
-        )
-        expected_by_file[file_name] = identifier
+    part_bodies: dict[str, list[str]] = {}
+    phrase_to_identifier = {phrase: identifier for (_, phrase), identifier in mapping_items}
+    for (part, phrase), identifier in mapping_items:
+        part_bodies.setdefault(part, []).extend(["FLD LEN: 3", phrase])
 
-    known_identifiers = set(expected_by_file.values())
+    lines = _write_fixture_spec_doc(module, spec_path, part_bodies=part_bodies)
+    expected_by_start_line = {
+        idx: phrase_to_identifier[lines[idx].lower()]
+        for idx, value in enumerate(lines, start=1)
+        if value == "FLD LEN: 3" and idx < len(lines) and lines[idx].lower() in phrase_to_identifier
+    }
+    known_identifiers = set(expected_by_start_line.values())
     known_families = {module.identifier_family(value) for value in known_identifiers}
 
-    rows = module.parse_spec_docs(spec_dir, known_identifiers, known_families)
-    width_rows = [row for row in rows if row.rule_type == "width" and row.spec_line_start == 1]
+    rows = module.parse_spec_doc(spec_path, known_identifiers, known_families)
+    width_rows = [row for row in rows if row.rule_type == "width" and row.allowed_values_or_codes == "3"]
 
-    assert len(width_rows) == len(mapping_items)
+    matched_starts = {row.spec_line_start for row in width_rows if row.spec_line_start in expected_by_start_line}
+    assert matched_starts == set(expected_by_start_line)
     for row in width_rows:
-        assert row.identifier == expected_by_file[row.spec_file]
+        if row.spec_line_start not in expected_by_start_line:
+            continue
+        assert row.identifier == expected_by_start_line[row.spec_line_start]
         assert row.identifier != "UNSPECIFIED"
-        assert row.allowed_values_or_codes == "3"
 
 
-def test_parse_spec_docs_part03_pos_width_uses_next_context_for_wnd(tmp_path: Path) -> None:
+def test_parse_spec_doc_part03_pos_width_uses_next_context_for_wnd(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     module = _load_generator_module(repo_root)
 
-    spec_dir = tmp_path / "spec"
-    spec_dir.mkdir()
-    fixture_path = spec_dir / "part-03-mandatory-pos-width-fixture.md"
-    fixture_path.write_text(
-        "\n".join(
-            [
-                "POS: 61-63",
-                "WIND-OBSERVATION direction angle",
-            ]
-        ),
-        encoding="utf-8",
+    spec_path = tmp_path / module.SPEC_DOC_NAME
+    lines = _write_fixture_spec_doc(
+        module,
+        spec_path,
+        part_bodies={"03": ["POS: 61-63", "WIND-OBSERVATION direction angle"]},
     )
 
     known_identifiers = {"WND"}
     known_families = {module.identifier_family(value) for value in known_identifiers}
 
-    rows = module.parse_spec_docs(spec_dir, known_identifiers, known_families)
-    width_rows = [row for row in rows if row.rule_type == "width" and row.spec_line_start == 1]
+    rows = module.parse_spec_doc(spec_path, known_identifiers, known_families)
+    width_line = _line_numbers(lines, "POS: 61-63")[0]
+    width_rows = [row for row in rows if row.rule_type == "width" and row.spec_line_start == width_line]
 
     assert width_rows
     assert all(row.identifier == "WND" for row in width_rows)
     assert all(row.allowed_values_or_codes == "3" for row in width_rows)
+
+
+def test_parse_spec_doc_rule_ids_survive_blank_line_shifts(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    module = _load_generator_module(repo_root)
+
+    spec_path = tmp_path / module.SPEC_DOC_NAME
+    part_bodies = {
+        "02": [
+            "POS: 24-27",
+            "GEOPHYSICAL-POINT-OBSERVATION time",
+            "MIN: 0000 MAX: 2359",
+        ]
+    }
+    _write_fixture_spec_doc(module, spec_path, part_bodies=part_bodies, preface_lines=["Preface"])
+    known_identifiers = {"TIME"}
+    known_families = {module.identifier_family(value) for value in known_identifiers}
+    rows_a = module.normalize_and_assign_rule_ids(module.parse_spec_doc(spec_path, known_identifiers, known_families))
+    range_a = next(row for row in rows_a if row.identifier == "TIME" and row.rule_type == "range")
+
+    _write_fixture_spec_doc(module, spec_path, part_bodies=part_bodies, preface_lines=["Preface", "", "", ""])
+    rows_b = module.normalize_and_assign_rule_ids(module.parse_spec_doc(spec_path, known_identifiers, known_families))
+    range_b = next(row for row in rows_b if row.identifier == "TIME" and row.rule_type == "range")
+
+    assert range_a.rule_id == range_b.rule_id
+    assert range_a.spec_line_start != range_b.spec_line_start
 
 
 def test_constants_coverage_matches_control_pos_identifier_rules() -> None:
@@ -1029,9 +1133,13 @@ def test_spec_coverage_generator_smoke() -> None:
     assert "Implementation gaps (strict): Not implemented + not tested_strict" in report_text
     assert "Missing tests (strict): Implemented + not tested_strict" in report_text
     assert "Wildcard-only coverage (not counted toward progress)" in report_text
-    assert "identical payloads at different ranges remain separate" in report_text
+    assert "line-only shifts do not churn IDs" in report_text
     assert "Progress KPI (`tested_strict`)" in report_text
     assert "Weak coverage (`tested_any`, includes wildcard)" in report_text
+    assert "NOAA_CLEANING_ALIGNMENT_REPORT.md" not in report_text
+    assert "NEXT_STEPS.md" not in report_text
+    assert "ARCHITECTURE_NEXT_STEPS.md" not in report_text
+    assert "Known-gap traceability" not in report_text
 
     metric_rows = [
         row
@@ -1064,11 +1172,11 @@ def test_spec_coverage_generator_smoke() -> None:
     assert [row["rule_id"] for row in rows] == [row["rule_id"] for row in sorted(rows, key=_stable_sort_key)]
 
     synthetic_rows = [row for row in rows if row.get("row_kind") == "synthetic"]
-    assert synthetic_rows, "Expected synthetic rows to be present"
+    assert not synthetic_rows, "Synthetic rows should not be emitted"
 
     for row in rows:
         assert row["rule_id"], "rule_id must be populated"
-        assert row["row_kind"] in {"spec_rule", "structural_rule", "documentation_rule", "synthetic"}
+        assert row["row_kind"] in {"spec_rule", "structural_rule", "documentation_rule"}
         assert row["implemented_in_constants"] in {"TRUE", "FALSE"}
         assert row["implemented_in_cleaning"] in {"TRUE", "FALSE"}
         assert row["implementation_confidence"] in {"high", "medium", "low"}
@@ -1092,17 +1200,14 @@ def test_spec_coverage_generator_smoke() -> None:
         if row["test_match_strength"] == "none":
             assert row["test_covered_any"] == "FALSE"
             assert row["test_covered_strict"] == "FALSE"
-        if row["row_kind"] in {"spec_rule", "structural_rule", "documentation_rule"}:
-            assert row["rule_id"].count("::") >= 3
-            assert row["spec_file"] not in {"", "N/A"}
-            assert row["spec_line_start"].isdigit()
-            assert row["spec_line_end"].isdigit()
-        else:
-            assert row["rule_id"].startswith("synthetic::")
-            assert row["spec_file"] == "N/A"
-            assert row["spec_line_start"] == ""
-            assert row["spec_line_end"] == ""
-            assert row["spec_evidence"] == ""
+        assert re.fullmatch(
+            r"isd-format-document\.deterministic\.md::[0-9a-f]{12}::.+::[a-z_]+::[0-9a-f]{10}",
+            row["rule_id"],
+        )
+        assert row["spec_file"] == "isd-format-document.deterministic.md"
+        assert row["spec_doc"] == "isd-format-document.deterministic.md"
+        assert row["spec_line_start"].isdigit()
+        assert row["spec_line_end"].isdigit()
 
         expected_implemented = (
             row["implemented_in_constants"] == "TRUE" or row["implemented_in_cleaning"] == "TRUE"
@@ -1189,24 +1294,6 @@ def test_spec_coverage_generator_smoke() -> None:
         cleaning_only_share <= 0.5
     ), f"Cleaning-only implementation share too high ({cleaning_only_share:.2%}); likely overmatching"
 
-    expected_gap_rows = [
-        row
-        for row in rows
-        if "expected_gap_from_alignment_report" in (row.get("notes", "") or "")
-    ]
-
-    uncovered_expected_gap_rows = [
-        row
-        for row in expected_gap_rows
-        if row.get("code_implemented") == "FALSE" or row.get("test_covered_strict") == "FALSE"
-    ]
-
-    if uncovered_expected_gap_rows:
-        assert any(
-            "unresolved_in_next_steps" in (row.get("notes", "") or "")
-            for row in uncovered_expected_gap_rows
-        ), "Remaining uncovered expected gaps should stay linked to NEXT_STEPS context"
-
     total_match = re.search(r"Total spec rules extracted: \*\*(\d+)\*\*", report_text)
     assert total_match, "Expected total extracted rule count in report"
     report_total = int(total_match.group(1))
@@ -1223,7 +1310,7 @@ def test_spec_coverage_generator_smoke() -> None:
         for row in rows
         if row.get("row_kind") in {"spec_rule", "structural_rule"} and row.get("rule_type") != "unknown"
     )
-    assert report_metric_total == expected_metric_total, "Synthetic rows must be excluded from metric denominator"
+    assert report_metric_total == expected_metric_total, "Documentation rows must be excluded from metric denominator"
 
     first_run_rule_ids = [row["rule_id"] for row in rows]
     module.main()

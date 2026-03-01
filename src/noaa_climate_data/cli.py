@@ -18,6 +18,7 @@ from .pipeline import (
     pull_random_station_raw,
     process_location,
 )
+from .pdf_markdown import convert_pdf_to_markdown
 
 
 def _parse_args() -> argparse.Namespace:
@@ -289,6 +290,24 @@ def _parse_args() -> argparse.Namespace:
     )
     aggregate_parser.add_argument("cleaned_parquet", type=Path)
 
+    pdf_parser = subparsers.add_parser(
+        "pdf-to-markdown",
+        help="Convert a PDF into deterministic markdown",
+    )
+    pdf_parser.add_argument("input_pdf", type=Path, help="Input PDF path")
+    pdf_parser.add_argument(
+        "--output-md",
+        type=Path,
+        default=None,
+        help="Output markdown path (default: input basename with .md)",
+    )
+    pdf_parser.add_argument(
+        "--no-page-headers",
+        action="store_true",
+        default=False,
+        help="Do not include '## Page N' section headers",
+    )
+
     return parser.parse_args()
 
 
@@ -410,6 +429,14 @@ def main() -> None:
 
     if args.command == "aggregate-parquet":
         aggregate_parquet_placeholder(args.cleaned_parquet)
+        return
+
+    if args.command == "pdf-to-markdown":
+        convert_pdf_to_markdown(
+            args.input_pdf,
+            output_md=args.output_md,
+            include_page_headers=not args.no_page_headers,
+        )
         return
 
 
