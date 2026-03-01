@@ -4998,6 +4998,16 @@ class TestControlRecordLengthValidation:
         assert pd.isna(result.loc[0, "__parse_error"])
         assert result.loc[0, "temperature_c"] == pytest.approx(1.0)
 
+    def test_max_record_length_passes(self):
+        valid_raw = self._build_raw_line(2739)
+        df = pd.DataFrame({"raw_line": [valid_raw], "TMP": ["+0010,1"]})
+
+        result = clean_noaa_dataframe(df, strict_mode=True)
+
+        assert len(valid_raw) == 2844
+        assert pd.isna(result.loc[0, "__parse_error"])
+        assert result.loc[0, "temperature_c"] == pytest.approx(1.0)
+
     def test_short_record_rejected_before_identifier_parsing(self):
         valid_raw = self._build_raw_line(4)
         short_raw = valid_raw[:-1]
@@ -5047,6 +5057,16 @@ class TestControlRecordLengthValidation:
         assert result.loc[0, "__parse_error"] == "control_header_short"
         assert "temperature_c" not in result.columns
 
+    def test_short_mandatory_section_rejected(self):
+        mandatory_short_raw = self._build_raw_line(0)[:104]
+        df = pd.DataFrame({"raw_line": [mandatory_short_raw], "TMP": ["+0010,1"]})
+
+        result = clean_noaa_dataframe(df, strict_mode=True)
+
+        assert len(mandatory_short_raw) == 104
+        assert result.loc[0, "__parse_error"] == "mandatory_section_short"
+        assert "temperature_c" not in result.columns
+
     def test_invalid_control_width_rejected(self):
         valid_raw = self._build_raw_line(4)
         # LATITUDE requires [+-]\\d{5}; this replacement makes it invalid width/pattern.
@@ -5077,6 +5097,26 @@ class TestControlRecordLengthValidation:
         result = clean_noaa_dataframe(df, strict_mode=True)
 
         assert result.loc[0, "__parse_error"] == "control_header_invalid_sentinel"
+        assert "temperature_c" not in result.columns
+
+    def test_record_above_max_length_rejected(self):
+        oversized_raw = self._build_raw_line(2740)
+        df = pd.DataFrame({"raw_line": [oversized_raw], "TMP": ["+0010,1"]})
+
+        result = clean_noaa_dataframe(df, strict_mode=True)
+
+        assert len(oversized_raw) == 2845
+        assert result.loc[0, "__parse_error"] == "record_length_exceeds_max"
+        assert "temperature_c" not in result.columns
+
+    def test_block_above_max_length_rejected(self):
+        oversized_block_raw = self._build_raw_line(8100)
+        df = pd.DataFrame({"raw_line": [oversized_block_raw], "TMP": ["+0010,1"]})
+
+        result = clean_noaa_dataframe(df, strict_mode=True)
+
+        assert len(oversized_block_raw) == 8205
+        assert result.loc[0, "__parse_error"] == "block_length_exceeds_max"
         assert "temperature_c" not in result.columns
 
 

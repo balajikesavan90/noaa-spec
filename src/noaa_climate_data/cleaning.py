@@ -937,20 +937,28 @@ def _cleanup_rule_missing_text(value: object, column: str) -> object:
     return value
 
 
-def _record_length_mismatch(raw_line: object) -> bool:
-    """Validate Part 02 TOTAL-VARIABLE-CHARACTERS against full record length."""
+def _record_structure_error(raw_line: object) -> str | None:
+    """Validate fixed record structure and overall record/block size limits."""
     if raw_line is None or (isinstance(raw_line, float) and pd.isna(raw_line)):
-        return False
+        return None
     text = str(raw_line).rstrip("\r\n")
-    if len(text) < 4:
-        return True
+    actual_length = len(text)
+    if actual_length > 8192:
+        return "block_length_exceeds_max"
+    if actual_length > 2844:
+        return "record_length_exceeds_max"
+    if actual_length < 105:
+        return "mandatory_section_short"
+    if actual_length < 4:
+        return "record_length_mismatch"
     try:
         total_variable_characters = int(text[0:4])
     except ValueError:
-        return True
+        return "record_length_mismatch"
     expected_length = 105 + total_variable_characters
-    actual_length = len(text)
-    return actual_length != expected_length
+    if actual_length != expected_length:
+        return "record_length_mismatch"
+    return None
 
 
 def _is_ascii_text(value: str) -> bool:
@@ -1308,14 +1316,16 @@ def clean_noaa_dataframe(
                     f"[PARSE_STRICT] Rejected {int(error_count)} record(s): {error_name}"
                 )
 
-        mismatch_mask = cleaned[raw_line_col].apply(_record_length_mismatch)
-        if mismatch_mask.any():
-            rejected_mask = rejected_mask | mismatch_mask
-            no_prior_error = mismatch_mask & cleaned["__parse_error"].isna()
-            cleaned.loc[no_prior_error, "__parse_error"] = "record_length_mismatch"
-            logger.warning(
-                f"[PARSE_STRICT] Rejected {int(mismatch_mask.sum())} record(s): record_length_mismatch"
-            )
+        structure_error = cleaned[raw_line_col].apply(_record_structure_error)
+        structure_error_mask = structure_error.notna()
+        if structure_error_mask.any():
+            rejected_mask = rejected_mask | structure_error_mask
+            no_prior_error = structure_error_mask & cleaned["__parse_error"].isna()
+            cleaned.loc[no_prior_error, "__parse_error"] = structure_error[no_prior_error]
+            for error_name, error_count in structure_error[no_prior_error].value_counts().items():
+                logger.warning(
+                    f"[PARSE_STRICT] Rejected {int(error_count)} record(s): {error_name}"
+                )
 
     if "ADD" in cleaned.columns:
         add_series = cleaned["ADD"].astype(str).str.strip().str.upper()
