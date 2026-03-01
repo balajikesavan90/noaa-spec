@@ -405,8 +405,36 @@ def download_location_data(
 def _extract_time_columns(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     date_series = pd.to_datetime(df["DATE"], errors="coerce", utc=True)
+    time_offsets = None
+    if "TIME" in df.columns:
+        time_series = df["TIME"].astype("string")
+        valid_times = time_series.str.fullmatch(r"\d{4}")
+        hours = pd.to_numeric(time_series.str.slice(0, 2), errors="coerce")
+        minutes = pd.to_numeric(time_series.str.slice(2, 4), errors="coerce")
+        valid_times = valid_times & hours.between(0, 23) & minutes.between(0, 59)
+        time_offsets = (
+            pd.to_timedelta(hours.fillna(0), unit="h")
+            + pd.to_timedelta(minutes.fillna(0), unit="m")
+        ).where(valid_times)
+
+    def _combine_date_and_time(
+        timestamps: pd.Series,
+        offsets: pd.Series | None,
+    ) -> pd.Series:
+        if offsets is None:
+            return timestamps
+        date_only = timestamps.notna() & (timestamps.dt.floor("D") == timestamps)
+        combine_mask = date_only & offsets.notna()
+        combined = timestamps.copy()
+        combined.loc[combine_mask] = (
+            timestamps.loc[combine_mask].dt.floor("D") + offsets.loc[combine_mask]
+        )
+        return combined
+
+    date_series = _combine_date_and_time(date_series, time_offsets)
     if "DATE_PARSED" in df.columns:
         fallback = pd.to_datetime(df["DATE_PARSED"], errors="coerce", utc=True)
+        fallback = _combine_date_and_time(fallback, time_offsets)
         date_series = date_series.fillna(fallback)
         df = df.drop(columns=["DATE_PARSED"])
     df["DATE"] = date_series

@@ -26,6 +26,7 @@ from noaa_climate_data.pipeline import (
     _classify_columns,
     _coerce_numeric,
     _daily_min_max_mean,
+    _extract_time_columns,
     process_location_from_raw,
 )
 
@@ -165,6 +166,16 @@ def _raw_with_hours(rows: list[tuple[str, float]]) -> pd.DataFrame:
         {
             "DATE": [row[0] for row in rows],
             "TMP": [_tmp_raw(row[1]) for row in rows],
+        }
+    )
+
+
+def _raw_with_split_date_time(rows: list[tuple[str, str, float]]) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "DATE": [row[0] for row in rows],
+            "TIME": [row[1] for row in rows],
+            "TMP": [_tmp_raw(row[2]) for row in rows],
         }
     )
 
@@ -338,6 +349,54 @@ class TestAggregationStrategies:
             min_months_per_year=1,
         )
         assert outputs.monthly.iloc[0]["temperature_c"] == pytest.approx(10.0)
+
+    def test_fixed_hour_uses_split_date_and_time(self):
+        raw = _raw_with_split_date_time(
+            [
+                ("20240101", "0100", 10.0),
+                ("20240101", "2300", 20.0),
+            ]
+        )
+        outputs = process_location_from_raw(
+            raw,
+            aggregation_strategy="fixed_hour",
+            fixed_hour=23,
+            min_days_per_month=1,
+            min_months_per_year=1,
+        )
+        assert (outputs.hourly["Hour"] == 23).all()
+        assert outputs.monthly.iloc[0]["temperature_c"] == pytest.approx(20.0)
+
+
+class TestExtractTimeColumns:
+    def test_combines_date_only_and_time(self):
+        df = pd.DataFrame({"DATE": ["20240101", "20240101"], "TIME": ["2359", "0000"]})
+        result = _extract_time_columns(df)
+        assert result["Hour"].tolist() == [23, 0]
+        assert result.loc[0, "DATE"] == pd.Timestamp("2024-01-01T23:59:00Z")
+        assert result.loc[1, "DATE"] == pd.Timestamp("2024-01-01T00:00:00Z")
+
+    def test_prefers_timestamp_date_over_time(self):
+        df = pd.DataFrame(
+            {"DATE": ["2020-01-01T01:00:00Z"], "TIME": ["2359"]}
+        )
+        result = _extract_time_columns(df)
+        assert result.loc[0, "Hour"] == 1
+        assert result.loc[0, "DATE"] == pd.Timestamp("2020-01-01T01:00:00Z")
+
+    def test_uses_date_parsed_fallback_with_time(self):
+        df = pd.DataFrame(
+            {"DATE": ["bad-date"], "DATE_PARSED": ["2024-01-01"], "TIME": ["2359"]}
+        )
+        result = _extract_time_columns(df)
+        assert result.loc[0, "Hour"] == 23
+        assert result.loc[0, "DATE"] == pd.Timestamp("2024-01-01T23:59:00Z")
+
+    def test_invalid_time_preserves_existing_date_fallback(self):
+        df = pd.DataFrame({"DATE": ["20240101"], "TIME": ["2460"]})
+        result = _extract_time_columns(df)
+        assert result.loc[0, "Hour"] == 0
+        assert result.loc[0, "DATE"] == pd.Timestamp("2024-01-01T00:00:00Z")
 
     def test_hour_day_month_year_rollup(self):
         raw = _raw_with_hours(

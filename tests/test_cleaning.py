@@ -27,6 +27,7 @@ from noaa_climate_data.constants import (
     FieldPartRule,
     get_field_rule,
     get_token_width_rules,
+    is_valid_identifier,
     to_friendly_column,
     to_internal_column,
 )
@@ -2991,6 +2992,12 @@ class TestCleanDataframeEdgeCases:
         assert pd.isna(cleaned.loc[3, "remarks_type_code"])
         assert pd.isna(cleaned.loc[3, "remarks_text"])
 
+    def test_remark_all9_text_preserved(self):
+        df = pd.DataFrame({"REM": ["MET999"]})
+        cleaned = clean_noaa_dataframe(df, keep_raw=False)
+        assert cleaned.loc[0, "remarks_type_code"] == "MET"
+        assert cleaned.loc[0, "remarks_text"] == "999"
+
     def test_qnn_parsing(self):
         df = pd.DataFrame(
             {
@@ -3019,6 +3026,43 @@ class TestCleanDataframeEdgeCases:
         assert pd.isna(cleaned.loc[4, "qnn_element_ids"])
         assert pd.isna(cleaned.loc[4, "qnn_source_flags"])
         assert pd.isna(cleaned.loc[4, "qnn_data_values"])
+
+    def test_qnn_preserves_ascii_and_all9_payloads(self):
+        df = pd.DataFrame(
+            {
+                "QNN": [
+                    "QNN Aab!$ AbCd12",
+                    "QNN A1234 999999",
+                    "QNN A1234 AAAAAA",
+                    "QNN A1234 A56789",
+                ]
+            }
+        )
+        cleaned = clean_noaa_dataframe(df, keep_raw=False)
+        assert cleaned.loc[0, "qnn_element_ids"] == "A"
+        assert cleaned.loc[0, "qnn_source_flags"] == "ab!$"
+        assert cleaned.loc[0, "qnn_data_values"] == "AbCd12"
+        assert cleaned.loc[1, "qnn_data_values"] == "999999"
+        assert cleaned.loc[2, "qnn_data_values"] == "AAAAAA"
+        assert cleaned.loc[3, "qnn_data_values"] == "A56789"
+
+    def test_ah_ai_friendly_columns_are_disambiguated(self):
+        assert to_friendly_column("AH1__part1") == "precip_5_to_45_min_period_minutes_1"
+        assert to_friendly_column("AI1__part1") == "precip_60_to_180_min_period_minutes_1"
+        assert to_internal_column("precip_5_to_45_min_period_minutes_1") == "AH1__part1"
+        assert to_internal_column("precip_60_to_180_min_period_minutes_1") == "AI1__part1"
+        assert to_internal_column("precip_short_duration_period_minutes_1") == "AH1__part1"
+
+    def test_ah_ai_cleaned_outputs_are_distinct(self):
+        df = pd.DataFrame(
+            {
+                "AH1": ["015,0123,1,051010,1"],
+                "AI1": ["060,0456,1,051010,1"],
+            }
+        )
+        cleaned = clean_noaa_dataframe(df, keep_raw=False)
+        assert "precip_5_to_45_min_period_minutes_1" in cleaned.columns
+        assert "precip_60_to_180_min_period_minutes_1" in cleaned.columns
 
 
 class TestControlAndMandatoryNormalization:
@@ -4985,6 +5029,13 @@ class TestA2MalformedIdentifierFormat:
         
         # Should log warning
         assert "[PARSE_STRICT]" in caplog.text and "Q01A" in caplog.text
+
+    def test_eqd_helper_lookup_rejects_Q01A(self, caplog):
+        assert get_field_rule("Q01A") is None
+        assert is_valid_identifier("Q01A") is False
+        result = clean_value_quality("001234,1", "Q01A", strict_mode=True)
+        assert result == {}
+        assert "invalid EQD identifier format" in caplog.text
 
     def test_eqd_malformed_suffix_N001(self, caplog):
         """N001 rejected (3 digits instead of 2)."""

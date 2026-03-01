@@ -5101,46 +5101,19 @@ def is_valid_eqd_identifier(prefix: str) -> bool | None:
         False if malformed (e.g., Q0, Q100, Q01A, N001 - wrong format)
         None if not an EQD identifier pattern
     """
-    # EQD identifiers are exactly: single letter [QPRCDN] + 2 digits
-    # Don't confuse with repeated identifiers like CN2, CO1, CR1 which are 2 letters + 1 digit
-    
-    # Not an EQD pattern if doesn't start with EQD prefix
+    # EQD identifiers are exactly: single letter [QPRCDN] + 2 digits.
+    # Do not confuse repeated identifiers like CN2/CO1/CR1, where the second
+    # character is a letter rather than the first EQD suffix digit.
     if not prefix or prefix[0] not in "QPRCDN":
         return None
-    
-    # Reject single-digit suffixes (Q0-Q9, N0-N9, C0-C9, etc.)
-    if len(prefix) == 2:
-        if prefix[1].isdigit():
-            return False
-        # Not EQD pattern (probably a repeated identifier prefix like CN, CO, CR)
+    if len(prefix) == 1:
         return None
-    
-    # Must be exactly 3 chars for valid EQD: letter + 2 digits
-    if len(prefix) == 3:
-        # Check if second char is a letter (like CN2, CO1) - not EQD
-        if not prefix[1].isdigit():
-            return None
-        
-        # Must match pattern: letter + 2 digits
-        match = re.fullmatch(r"([QPRCDN])(\d{2})", prefix)
-        if not match:
-            # Starts with EQD prefix but format is wrong (e.g., Q1A)
-            return False
-        
-        idx = int(match.group(2))
-        # Reject 00 suffix
-        return idx != 0
-    
-    # More than 3 characters - check if it looks like malformed EQD
-    if len(prefix) > 3:
-        # If it's single letter + all digits, it's malformed EQD (too many digits)
-        if prefix[1:].isdigit():
-            return False  # e.g., Q100, N001
-        # Otherwise not an EQD pattern at all
+    if not prefix[1].isdigit():
         return None
-    
-    # Single character - not EQD
-    return None
+    if len(prefix) != 3 or not prefix[2].isdigit():
+        return False
+    idx = int(prefix[1:])
+    return idx != 0
 
 
 def is_valid_identifier(identifier: str) -> bool:
@@ -5517,16 +5490,16 @@ _FRIENDLY_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^AE(?P<idx>\d+)__part8$"), "precip_days_ge_100_quality_code_{idx}"),
     (re.compile(r"^AG(?P<idx>\d+)__part1$"), "precip_estimated_discrepancy_code_{idx}"),
     (re.compile(r"^AG(?P<idx>\d+)__part2$"), "precip_estimated_depth_mm_{idx}"),
-    (re.compile(r"^AH(?P<idx>\d+)__part1$"), "precip_short_duration_period_minutes_{idx}"),
-    (re.compile(r"^AH(?P<idx>\d+)__part2$"), "precip_short_duration_amount_mm_{idx}"),
-    (re.compile(r"^AH(?P<idx>\d+)__part3$"), "precip_short_duration_condition_code_{idx}"),
-    (re.compile(r"^AH(?P<idx>\d+)__part4$"), "precip_short_duration_end_datetime_{idx}"),
-    (re.compile(r"^AH(?P<idx>\d+)__part5$"), "precip_short_duration_quality_code_{idx}"),
-    (re.compile(r"^AI(?P<idx>\d+)__part1$"), "precip_short_duration_period_minutes_{idx}"),
-    (re.compile(r"^AI(?P<idx>\d+)__part2$"), "precip_short_duration_amount_mm_{idx}"),
-    (re.compile(r"^AI(?P<idx>\d+)__part3$"), "precip_short_duration_condition_code_{idx}"),
-    (re.compile(r"^AI(?P<idx>\d+)__part4$"), "precip_short_duration_end_datetime_{idx}"),
-    (re.compile(r"^AI(?P<idx>\d+)__part5$"), "precip_short_duration_quality_code_{idx}"),
+    (re.compile(r"^AH(?P<idx>\d+)__part1$"), "precip_5_to_45_min_period_minutes_{idx}"),
+    (re.compile(r"^AH(?P<idx>\d+)__part2$"), "precip_5_to_45_min_amount_mm_{idx}"),
+    (re.compile(r"^AH(?P<idx>\d+)__part3$"), "precip_5_to_45_min_condition_code_{idx}"),
+    (re.compile(r"^AH(?P<idx>\d+)__part4$"), "precip_5_to_45_min_end_datetime_{idx}"),
+    (re.compile(r"^AH(?P<idx>\d+)__part5$"), "precip_5_to_45_min_quality_code_{idx}"),
+    (re.compile(r"^AI(?P<idx>\d+)__part1$"), "precip_60_to_180_min_period_minutes_{idx}"),
+    (re.compile(r"^AI(?P<idx>\d+)__part2$"), "precip_60_to_180_min_amount_mm_{idx}"),
+    (re.compile(r"^AI(?P<idx>\d+)__part3$"), "precip_60_to_180_min_condition_code_{idx}"),
+    (re.compile(r"^AI(?P<idx>\d+)__part4$"), "precip_60_to_180_min_end_datetime_{idx}"),
+    (re.compile(r"^AI(?P<idx>\d+)__part5$"), "precip_60_to_180_min_quality_code_{idx}"),
     (re.compile(r"^AK(?P<idx>\d+)__part1$"), "snow_depth_monthly_max_{idx}"),
     (re.compile(r"^AK(?P<idx>\d+)__part2$"), "snow_depth_monthly_max_condition_code_{idx}"),
     (re.compile(r"^AK(?P<idx>\d+)__part3$"), "snow_depth_monthly_max_dates_{idx}"),
@@ -5878,6 +5851,17 @@ _INTERNAL_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^precip_days_ge_100_quality_code_(?P<idx>\d+)$"), "AE{idx}__part8"),
     (re.compile(r"^precip_estimated_discrepancy_code_(?P<idx>\d+)$"), "AG{idx}__part1"),
     (re.compile(r"^precip_estimated_depth_mm_(?P<idx>\d+)$"), "AG{idx}__part2"),
+    (re.compile(r"^precip_5_to_45_min_period_minutes_(?P<idx>\d+)$"), "AH{idx}__part1"),
+    (re.compile(r"^precip_5_to_45_min_amount_mm_(?P<idx>\d+)$"), "AH{idx}__part2"),
+    (re.compile(r"^precip_5_to_45_min_condition_code_(?P<idx>\d+)$"), "AH{idx}__part3"),
+    (re.compile(r"^precip_5_to_45_min_end_datetime_(?P<idx>\d+)$"), "AH{idx}__part4"),
+    (re.compile(r"^precip_5_to_45_min_quality_code_(?P<idx>\d+)$"), "AH{idx}__part5"),
+    (re.compile(r"^precip_60_to_180_min_period_minutes_(?P<idx>\d+)$"), "AI{idx}__part1"),
+    (re.compile(r"^precip_60_to_180_min_amount_mm_(?P<idx>\d+)$"), "AI{idx}__part2"),
+    (re.compile(r"^precip_60_to_180_min_condition_code_(?P<idx>\d+)$"), "AI{idx}__part3"),
+    (re.compile(r"^precip_60_to_180_min_end_datetime_(?P<idx>\d+)$"), "AI{idx}__part4"),
+    (re.compile(r"^precip_60_to_180_min_quality_code_(?P<idx>\d+)$"), "AI{idx}__part5"),
+    # Legacy ambiguous short-duration aliases continue to resolve to AH*.
     (re.compile(r"^precip_short_duration_period_minutes_(?P<idx>\d+)$"), "AH{idx}__part1"),
     (re.compile(r"^precip_short_duration_amount_mm_(?P<idx>\d+)$"), "AH{idx}__part2"),
     (re.compile(r"^precip_short_duration_condition_code_(?P<idx>\d+)$"), "AH{idx}__part3"),

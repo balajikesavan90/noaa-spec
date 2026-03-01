@@ -10,6 +10,29 @@ Compared `isd-format-document-parts/part-01-*.md` through `part-30-*.md` against
 - `src/noaa_climate_data/constants.py`
 - `tests/test_cleaning.py`
 
+## Recheck Summary (2026-03-01)
+
+This report is now materially stale. A recheck against the current repository shows that most of the unresolved February 14 findings have been fixed in code and tests.
+
+- Current baseline: `poetry run pytest -q` passes (`2120 passed, 18 skipped`).
+- Current generated coverage: `SPEC_COVERAGE_REPORT.md` reports `3536/3536` strict rules implemented and test-covered.
+- Confirmed fixed since this report:
+  - Part 4 range/date enforcement outside `AH/AI`.
+  - Part 17/18/20/21 solar and radiation numeric range enforcement (`GM/GN/GO/GQ/GR`).
+  - Part 23/26 ground-surface and soil-temperature numeric range enforcement (`IA/IB/IC/ST1`).
+  - Part 6 CRN numeric range enforcement (`CI1`, `CN1-CN4`).
+  - Strict malformed identifier rejection in the main strict parse path for cases such as `CO02`, `OA01`, `RH0001`, `Q100`, and `N001`.
+  - REM priority parsing before generic comma expansion.
+
+Status update (2026-03-01, post-fix): the four remaining issues from the March 1 recheck have now been resolved in code and regression tests:
+
+- Part 30 `QNN` parsing now preserves raw ASCII/case for source-flag and data-value tokens, and valid all-9 `REM`/`QNN` text payloads are no longer erased by blanket object-column nulling.
+- `AH*` and `AI*` friendly-column mappings are now distinct, with legacy ambiguous aliases kept only as reverse-mapping compatibility aliases for `AH*`.
+- Pipeline hour extraction now combines split `DATE` + `TIME` inputs while preserving existing timestamp-in-`DATE` behavior.
+- Helper-level EQD lookup now rejects malformed identifiers such as `Q01A` instead of allowing prefix fallback.
+
+Unless re-listed above, treat the unresolved items in the older sections below as historical and superseded by this recheck.
+
 ## Part-by-Part Alignment and Misalignment
 
 | Part | Alignment snapshot | Misalignment snapshot |

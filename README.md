@@ -365,7 +365,8 @@ Expanded columns are renamed using the friendly map in
 
 - `WND__direction_variable` is `True` when WND direction is `999` and the wind type code is `V` (variable).
 - `REM` (remarks) is split into `REM__type` and `REM__text` when the value begins with a known remark prefix.
-- `QNN` (original observation data) is parsed into `QNN__elements`, `QNN__source_flags`, and `QNN__data_values`.
+- `QNN` (original observation data) is parsed into `QNN__elements`, `QNN__source_flags`, and `QNN__data_values`, preserving the raw ASCII case/content of source-flag and 6-character data-value tokens.
+- Part 4 short-duration precipitation families use distinct friendly names: `AH*` maps to `precip_5_to_45_min_*_{n}` and `AI*` maps to `precip_60_to_180_min_*_{n}`.
 
 #### 2c. Missing-value sentinel detection
 
@@ -453,6 +454,8 @@ than source-of-record observations.
 #### 3a. Time extraction
 
 - `DATE` is parsed as UTC; rows with invalid dates are dropped.
+- When `DATE` is date-only and `TIME` is a valid NOAA `HHMM` token, the pipeline combines them before deriving `Hour`.
+- When `DATE` already contains a full timestamp with a non-midnight time component, that timestamp remains authoritative even if `TIME` is also present.
 - Derived columns: `Year`, `MonthNum`, `Day` (date only), `Hour`.
 
 #### 3b. Field-appropriate aggregation functions

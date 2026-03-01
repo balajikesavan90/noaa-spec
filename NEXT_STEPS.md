@@ -1,6 +1,18 @@
 # Next steps: ISD alignment checklist
 
-## P0: Implementation vs official ISD docs
+## Status split (why open items still exist)
+
+### Spec-rule compliance (complete)
+
+- `SPEC_COVERAGE_REPORT.md` currently reports **100% implemented** and **100% strict-tested** coverage for extracted ISD rule types (`range`, `sentinel`, `allowed_quality`, `domain`, `cardinality`, `width`, `arity`).
+- Treat that report as the completion gate for **rule-level spec coverage**.
+
+### Post-spec semantic/architecture work (still open)
+
+- Remaining unchecked items below are primarily **semantic fidelity**, **pipeline behavior**, and **regression hardening** tasks that are intentionally broader than the spec-coverage KPI.
+- Architecture/productization backlog is tracked separately in `ARCHITECTURE_NEXT_STEPS.md`.
+
+## P0: Spec-rule implementation vs official ISD docs
 
 - [x] Enforce per-field allowed-quality sets for 2-part value/quality fields (e.g., GJ/GK/GL/MV/MW) instead of the generic `QUALITY_FLAGS` gate.
 - [x] Apply field-specific sentinel detection (including leading-zero normalization) for 2-part value/quality fields to match ISD/README rules.
@@ -107,11 +119,16 @@
 - [x] Enforce Parts 9/10/11/13 numeric bounds for `CT*`/`CU*`/`CV*`/`CX*` value components (temperature/standard deviation/precipitation/frequency limits), not only quality and sentinel checks.
 - [x] Extend exact repeated-identifier bound enforcement beyond Parts 7/29/30 to other fixed-cardinality families (e.g., `AH/AI/AL/AO`, `AT/AU/AW/AX/AZ`, `GA/GD/GG`, `MV/MW`).
 - [x] Enforce exact identifier token format (field-length + suffix shape) for already-gated Part 7/29/30 and EQD families: reject malformed IDs that currently pass via prefix fallback (e.g., `CO02`, `OA01`, `RH0001`, `Q100`, `Q01A`, `N001`). **(A2)** Enhanced `is_valid_eqd_identifier()` and `is_valid_repeated_identifier()` in [constants.py](src/noaa_climate_data/constants.py) to reject wrong-length suffixes; added `is_valid_identifier()` combining function. Validation logs `[PARSE_STRICT]` warnings in [cleaning.py](src/noaa_climate_data/cleaning.py). Tests in [test_cleaning.py::TestA2MalformedIdentifierFormat](tests/test_cleaning.py).
-- [ ] Disambiguate Part 4 `AH*` vs `AI*` friendly-column naming: both currently map to identical `precip_short_duration_*` names, producing duplicate columns and obscuring NOAA’s distinct 5-45 minute (`AH`) vs 60-180 minute (`AI`) semantics.
+
+### P0 open items: post-spec semantic fidelity / pipeline behavior
+
+- These are intentionally kept open because they target parser/pipeline semantics and data-fidelity edge cases that are not fully represented by the spec-coverage KPI rows.
+
+- [x] Disambiguate Part 4 `AH*` vs `AI*` friendly-column naming: generated outputs now use distinct `precip_5_to_45_min_*` and `precip_60_to_180_min_*` aliases, while legacy ambiguous `precip_short_duration_*` reverse aliases remain mapped to `AH*` for compatibility.
 - [x] Fix `REM` parsing order so comma-bearing remark text does not get consumed by generic comma expansion before typed REM parsing (especially when `keep_raw=False`). **REM priority parsing implemented:** [cleaning.py](src/noaa_climate_data/cleaning.py) now processes REM column before generic expansion loop (lines 531-546).
-- [ ] Rework Part 30 `QNN` parsing to preserve raw ASCII payload semantics (no blanket uppercasing/whitespace stripping), allow spec-compliant 4-char source/flag tokens beyond alphanumeric-only checks, and avoid greedy tokenization that can misread data values beginning with `A`-`Y` as extra element blocks.
-- [ ] Limit generic all-9 post-clean nulling to fields where NOAA defines all-9 sentinels; current blanket object-column pass can erase valid Part 30 text payloads (e.g., `REM__text='999'`, `QNN__data_values='999999'`).
-- [ ] Use Part 2 control `DATE` + `TIME` together when deriving timestamps/hours; current `_extract_time_columns` ignores `TIME` for split-field inputs, collapsing observations into hour `00`.
+- [x] Rework Part 30 `QNN` parsing to preserve raw ASCII payload semantics, allow non-alphanumeric printable source/flag tokens, and avoid greedy tokenization that can misread data values beginning with `A`-`Y` as extra element blocks.
+- [x] Limit generic all-9 post-clean nulling to schema-governed parsed fields only; valid free-text Part 30 payloads such as `REM__text='999'` and `QNN__data_values='999999'` are now preserved.
+- [x] Use Part 2 control `DATE` + `TIME` together when deriving timestamps/hours, while preserving existing timestamp-in-`DATE` compatibility for non-strict pipeline inputs.
 - [ ] Enforce exact Part 2 longitude domain bounds from scaled values: accept `-179.999..+180.000` and reject `-180.000` (current normalization uses `-180.0..180.0`).
 - [ ] Prevent pipeline fallback from bypassing Part 2 `DATE` format rules: `process_location_from_raw` currently pre-parses raw `DATE` and `_extract_time_columns` backfills rejected non-`YYYYMMDD` values via `DATE_PARSED`.
 - [ ] Enforce Part 2 `CALL_SIGN` structural constraints for `POS 52-56` (5-character ASCII field; `99999` missing) instead of accepting arbitrary non-empty string lengths.
@@ -173,13 +190,13 @@
 - [x] Update README sentinel list to include GE1 vertical datum missing sentinel (`999999`) and convective cloud missing sentinel (`9`).
 - [x] Expand README field reference / parsed group list to cover newly supported sections (CRN/network metadata, marine, solar/sunshine, runway visual range, soil/ground/pressure extensions).
 
-## P3: Supporting docs, validation, and tests
+## P3: Supporting docs, validation, and tests (post-spec hardening)
 
 - [x] Populate missing ISD docs in-repo (Parts 10/11/16/17/18/19/21/22/24/25) to verify KA*/SA1 scaling/sentinels and solar/sunshine/hail sections.
 - [x] Add tests for new groups to ensure sentinel removal and quality filtering are applied consistently.
 - [x] Add exact-ID tests for under-covered sections (GM1/GN1/GO1, GH1, GD*, CO3-CO9, Q01-Q99/P01-P99/R01-R99/C01-C99/D01-D99/N01-N99).
 - [ ] Capture Domain Value ID tables for code validation (e.g., pressure tendency, geopotential levels, weather codes) if used in parsing.
-- [ ] Enforce numeric MIN/MAX ranges from the ISD spec (beyond current CIG/VIS clamping), or document why range checks are intentionally skipped.
+- [x] Enforce numeric MIN/MAX ranges from the ISD spec (beyond current CIG/VIS clamping), or document why range checks are intentionally skipped. **Verified (2026-02-28):** `SPEC_COVERAGE_REPORT.md` reports `range` coverage at `361/361` implemented and strict-tested, with no strict implementation/test gaps.
 - [ ] Consider enforcing record/section length constraints (control=60, mandatory=45, max record 2844, max block 8192) if parser validates structure.
 - [ ] Parse and validate REM remark length quantity (Part 30) instead of only splitting type/text.
 - [ ] Parse repeated REM remark entries in a single REM section (typed remark + length + text blocks), not just a single prefix/text split.

@@ -38,6 +38,7 @@ from .constants import (
     is_valid_repeated_identifier,
     is_valid_section_identifier_token,
     to_friendly_column,
+    to_internal_column,
 )
 
 
@@ -194,41 +195,84 @@ def _parse_remark(value: object) -> tuple[str | None, str | None]:
     return None, text
 
 
+def _skip_qnn_padding(text: str, idx: int) -> int:
+    while idx < len(text) and text[idx].isspace():
+        idx += 1
+    return idx
+
+
+def _is_qnn_token_char(char: str) -> bool:
+    return char != "," and not char.isspace() and 32 <= ord(char) <= 126
+
+
+def _read_qnn_token(text: str, idx: int, width: int) -> tuple[str, int] | None:
+    idx = _skip_qnn_padding(text, idx)
+    end = idx + width
+    if end > len(text):
+        return None
+    token = text[idx:end]
+    if any(not _is_qnn_token_char(char) for char in token):
+        return None
+    return token, end
+
+
+def _parse_qnn_blocks(
+    payload: str,
+    block_count: int,
+) -> tuple[list[str], list[str], int] | None:
+    idx = 0
+    element_ids: list[str] = []
+    source_flags: list[str] = []
+    for _ in range(block_count):
+        element_token = _read_qnn_token(payload, idx, 1)
+        if element_token is None:
+            return None
+        element, idx = element_token
+        if element not in QNN_ELEMENT_IDENTIFIERS:
+            return None
+        flag_token = _read_qnn_token(payload, idx, 4)
+        if flag_token is None:
+            return None
+        flags, idx = flag_token
+        element_ids.append(element)
+        source_flags.append(flags)
+    return element_ids, source_flags, idx
+
+
+def _parse_qnn_data_values(payload: str, idx: int, count: int) -> list[str] | None:
+    data_values: list[str] = []
+    for _ in range(count):
+        data_token = _read_qnn_token(payload, idx, 6)
+        if data_token is None:
+            return None
+        data_value, idx = data_token
+        data_values.append(data_value)
+    if _skip_qnn_padding(payload, idx) != len(payload):
+        return None
+    return data_values
+
+
 def _parse_qnn(value: object) -> tuple[str | None, str | None, str | None]:
     if value is None or (isinstance(value, float) and pd.isna(value)):
         return None, None, None
     text = str(value).strip()
     if text in {"", "nan", "None"}:
         return None, None, None
-    if not text.upper().startswith("QNN"):
+    if text[:3].upper() != "QNN":
         return None, None, None
-    payload = re.sub(r"\s+", "", text[3:].upper())
-    if payload == "":
+    payload = text[3:]
+    if payload.strip() == "":
         return None, None, None
-    element_ids: list[str] = []
-    source_flags: list[str] = []
-    idx = 0
-    while idx + 5 <= len(payload):
-        element = payload[idx]
-        if element not in QNN_ELEMENT_IDENTIFIERS:
-            break
-        flags = payload[idx + 1 : idx + 5]
-        if len(flags) != 4 or not flags.isalnum():
+    block_count = 1
+    while True:
+        parsed_blocks = _parse_qnn_blocks(payload, block_count)
+        if parsed_blocks is None:
             return None, None, None
-        element_ids.append(element)
-        source_flags.append(flags)
-        idx += 5
-    if not element_ids:
-        return None, None, None
-    remainder = payload[idx:]
-    if remainder == "":
-        return ",".join(element_ids), ",".join(source_flags), None
-    if len(remainder) % 6 != 0:
-        return None, None, None
-    data_values = [remainder[i : i + 6] for i in range(0, len(remainder), 6)]
-    if len(data_values) != len(element_ids):
-        return None, None, None
-    return ",".join(element_ids), ",".join(source_flags), ",".join(data_values)
+        element_ids, source_flags, idx = parsed_blocks
+        data_values = _parse_qnn_data_values(payload, idx, block_count)
+        if data_values is not None:
+            return ",".join(element_ids), ",".join(source_flags), ",".join(data_values)
+        block_count += 1
 
 
 def _to_float(value: str) -> float | None:
@@ -761,6 +805,35 @@ def _should_parse_column(values: Iterable[str]) -> bool:
     return False
 
 
+def _part_rule_for_parsed_column(column: str) -> FieldPartRule | None:
+    internal = to_internal_column(column)
+    if "__" not in internal:
+        return None
+    prefix, suffix = internal.split("__", 1)
+    rule = get_field_rule(prefix)
+    if rule is None:
+        return None
+    if suffix == "value":
+        return rule.parts.get(1)
+    if not suffix.startswith("part"):
+        return None
+    part_idx = suffix[4:]
+    if not part_idx.isdigit():
+        return None
+    return rule.parts.get(int(part_idx))
+
+
+def _cleanup_rule_missing_text(value: object, column: str) -> object:
+    if not isinstance(value, str):
+        return value
+    part_rule = _part_rule_for_parsed_column(column)
+    if part_rule is None or part_rule.missing_values is None:
+        return value
+    if _is_missing_value(value, part_rule):
+        return None
+    return value
+
+
 def _record_length_mismatch(raw_line: object) -> bool:
     """Validate Part 02 TOTAL-VARIABLE-CHARACTERS against full record length."""
     if raw_line is None or (isinstance(raw_line, float) and pd.isna(raw_line)):
@@ -1215,11 +1288,7 @@ def clean_noaa_dataframe(
         series = cleaned[column]
         if not pd.api.types.is_object_dtype(series) and not pd.api.types.is_string_dtype(series):
             continue
-        cleaned[column] = series.apply(
-            lambda value: None
-            if isinstance(value, str) and _is_missing_numeric(value)
-            else value
-        )
+        cleaned[column] = series.apply(lambda value: _cleanup_rule_missing_text(value, column))
 
     cleaned = _normalize_control_fields(cleaned)
 
