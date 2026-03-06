@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from functools import lru_cache
 
 BASE_URL = "https://www.ncei.noaa.gov/data/global-hourly/access"
 
@@ -5443,6 +5444,7 @@ def is_valid_identifier(identifier: str) -> bool:
     return rule is not None
 
 
+@lru_cache(maxsize=4096)
 def get_field_rule(prefix: str) -> FieldRule | None:
     prefix = _IDENTIFIER_ALIASES.get(prefix, prefix)
     if prefix in FIELD_RULES:

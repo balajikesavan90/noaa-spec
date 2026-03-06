@@ -1,22 +1,22 @@
 {
   "station": {
     "station_id": "01116099999",
-    "station_name": null
+    "station_name": "STOKKA, NO"
   },
   "metadata": {
     "report_type": "data_quality",
-    "generated_at_utc": "2026-03-01T04:48:07Z",
-    "data_access_date": "2026-03-01",
+    "generated_at_utc": "2026-03-03T02:58:28Z",
+    "data_access_date": "2026-03-03",
     "version": "0.1.0"
   },
   "row_counts": {
     "raw_rows": 283587,
-    "cleaned_rows": 0,
-    "dropped_rows": 283587,
-    "dropped_fraction": 1.0,
+    "cleaned_rows": 283587,
+    "dropped_rows": 0,
+    "dropped_fraction": 0.0,
     "drop_reason_estimates": {
       "invalid_or_missing_date": 0,
-      "unclassified_other": 283587
+      "unclassified_other": 0
     }
   },
   "coverage_completeness": {
@@ -26,14 +26,14 @@
       "months": 296
     },
     "cleaned": {
-      "hours": 0,
-      "days": 0,
-      "months": 0
+      "hours": 169108,
+      "days": 8949,
+      "months": 296
     },
     "retained_fraction": {
-      "hours": 0.0,
-      "days": 0.0,
-      "months": 0.0
+      "hours": 1.0,
+      "days": 1.0,
+      "months": 1.0
     }
   },
   "sentinel_replacement_counts": [
@@ -179,7 +179,7 @@
     },
     {
       "column": "wind_type_code",
-      "sentinel_replacements": 460
+      "sentinel_replacements": 457
     },
     {
       "column": "cloud_layer_base_height_m_1",
@@ -359,6 +359,133 @@
       "scale": 0.1
     }
   ],
-  "notable_data_gaps": [],
-  "citation": "Balaji Kesavan. (2026). noaa-climate-data (Version 0.1.0). NOAA ISD Global Hourly data processed for station 01116099999. Retrieved 2026-03-01 from https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database"
+  "notable_data_gaps": [
+    {
+      "column": "SA1",
+      "longest_missing_observations": 272311,
+      "gap_start_utc": "2002-07-11T15:50:00+00:00",
+      "gap_end_utc": "2025-08-24T21:20:00+00:00",
+      "gap_duration_hours": 202685.5
+    },
+    {
+      "column": "UA1",
+      "longest_missing_observations": 272311,
+      "gap_start_utc": "2002-07-11T15:50:00+00:00",
+      "gap_end_utc": "2025-08-24T21:20:00+00:00",
+      "gap_duration_hours": 202685.5
+    },
+    {
+      "column": "UG1",
+      "longest_missing_observations": 272311,
+      "gap_start_utc": "2002-07-11T15:50:00+00:00",
+      "gap_end_utc": "2025-08-24T21:20:00+00:00",
+      "gap_duration_hours": 202685.5
+    },
+    {
+      "column": "AY1",
+      "longest_missing_observations": 245054,
+      "gap_start_utc": "2007-02-27T01:00:00+00:00",
+      "gap_end_utc": "2025-08-24T21:20:00+00:00",
+      "gap_duration_hours": 162092.33
+    },
+    {
+      "column": "AY2",
+      "longest_missing_observations": 245054,
+      "gap_start_utc": "2007-02-27T01:00:00+00:00",
+      "gap_end_utc": "2025-08-24T21:20:00+00:00",
+      "gap_duration_hours": 162092.33
+    },
+    {
+      "column": "MW3",
+      "longest_missing_observations": 166828,
+      "gap_start_utc": "2013-02-25T13:20:00+00:00",
+      "gap_end_utc": "2023-06-12T19:20:00+00:00",
+      "gap_duration_hours": 90222.0
+    },
+    {
+      "column": "MD1",
+      "longest_missing_observations": 38520,
+      "gap_start_utc": "2001-01-01T10:20:00+00:00",
+      "gap_end_utc": "2007-02-26T14:50:00+00:00",
+      "gap_duration_hours": 53932.5
+    },
+    {
+      "column": "KA1",
+      "longest_missing_observations": 17749,
+      "gap_start_utc": "2007-01-18T15:50:00+00:00",
+      "gap_end_utc": "2010-02-22T11:50:00+00:00",
+      "gap_duration_hours": 27140.0
+    },
+    {
+      "column": "GA4",
+      "longest_missing_observations": 8451,
+      "gap_start_utc": "2015-03-05T06:00:00+00:00",
+      "gap_end_utc": "2015-08-12T09:00:00+00:00",
+      "gap_duration_hours": 3843.0
+    },
+    {
+      "column": "MW2",
+      "longest_missing_observations": 5473,
+      "gap_start_utc": "2017-05-31T14:50:00+00:00",
+      "gap_end_utc": "2017-09-18T03:20:00+00:00",
+      "gap_duration_hours": 2628.5
+    },
+    {
+      "column": "EQD",
+      "longest_missing_observations": 2642,
+      "gap_start_utc": "2011-02-14T14:50:00+00:00",
+      "gap_end_utc": "2011-07-24T19:50:00+00:00",
+      "gap_duration_hours": 3845.0
+    },
+    {
+      "column": "GF1",
+      "longest_missing_observations": 2070,
+      "gap_start_utc": "2013-05-23T10:50:00+00:00",
+      "gap_end_utc": "2013-07-25T06:50:00+00:00",
+      "gap_duration_hours": 1508.0
+    },
+    {
+      "column": "OC1",
+      "longest_missing_observations": 1715,
+      "gap_start_utc": "2015-06-16T09:50:00+00:00",
+      "gap_end_utc": "2015-07-18T08:00:00+00:00",
+      "gap_duration_hours": 766.17
+    },
+    {
+      "column": "MW1",
+      "longest_missing_observations": 1206,
+      "gap_start_utc": "2014-01-08T07:00:00+00:00",
+      "gap_end_utc": "2014-01-30T13:00:00+00:00",
+      "gap_duration_hours": 534.0
+    },
+    {
+      "column": "GA3",
+      "longest_missing_observations": 1132,
+      "gap_start_utc": "2014-01-10T08:00:00+00:00",
+      "gap_end_utc": "2014-01-31T08:00:00+00:00",
+      "gap_duration_hours": 504.0
+    },
+    {
+      "column": "GA2",
+      "longest_missing_observations": 948,
+      "gap_start_utc": "2014-01-10T14:00:00+00:00",
+      "gap_end_utc": "2014-01-28T09:00:00+00:00",
+      "gap_duration_hours": 427.0
+    },
+    {
+      "column": "GA1",
+      "longest_missing_observations": 575,
+      "gap_start_utc": "2014-01-17T14:00:00+00:00",
+      "gap_end_utc": "2014-01-28T09:00:00+00:00",
+      "gap_duration_hours": 259.0
+    },
+    {
+      "column": "MA1",
+      "longest_missing_observations": 16,
+      "gap_start_utc": "2016-10-15T18:00:00+00:00",
+      "gap_end_utc": "2016-10-16T10:00:00+00:00",
+      "gap_duration_hours": 16.0
+    }
+  ],
+  "citation": "Balaji Kesavan. (2026). noaa-climate-data (Version 0.1.0). NOAA ISD Global Hourly data processed for station 01116099999. Retrieved 2026-03-03 from https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database"
 }

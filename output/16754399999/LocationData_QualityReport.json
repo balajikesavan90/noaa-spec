@@ -1,0 +1,409 @@
+{
+  "station": {
+    "station_id": "16754399999",
+    "station_name": "KARPATHOS, GR"
+  },
+  "metadata": {
+    "report_type": "data_quality",
+    "generated_at_utc": "2026-03-03T03:26:42Z",
+    "data_access_date": "2026-03-03",
+    "version": "0.1.0"
+  },
+  "row_counts": {
+    "raw_rows": 267254,
+    "cleaned_rows": 267254,
+    "dropped_rows": 0,
+    "dropped_fraction": 0.0,
+    "drop_reason_estimates": {
+      "invalid_or_missing_date": 0,
+      "unclassified_other": 0
+    }
+  },
+  "coverage_completeness": {
+    "raw": {
+      "hours": 170487,
+      "days": 8978,
+      "months": 296
+    },
+    "cleaned": {
+      "hours": 170487,
+      "days": 8978,
+      "months": 296
+    },
+    "retained_fraction": {
+      "hours": 1.0,
+      "days": 1.0,
+      "months": 1.0
+    }
+  },
+  "sentinel_replacement_counts": [
+    {
+      "column": "sea_level_pressure_hpa",
+      "sentinel_replacements": 267254
+    },
+    {
+      "column": "station_pressure_hpa",
+      "sentinel_replacements": 266924
+    },
+    {
+      "column": "ceiling_determination_code",
+      "sentinel_replacements": 228422
+    },
+    {
+      "column": "ceiling_height_m",
+      "sentinel_replacements": 181257
+    },
+    {
+      "column": "visibility_variability_code",
+      "sentinel_replacements": 180935
+    },
+    {
+      "column": "cloud_opaque_coverage",
+      "sentinel_replacements": 150065
+    },
+    {
+      "column": "cloud_low_genus_code",
+      "sentinel_replacements": 150065
+    },
+    {
+      "column": "cloud_mid_genus_code",
+      "sentinel_replacements": 150065
+    },
+    {
+      "column": "cloud_high_genus_code",
+      "sentinel_replacements": 150065
+    },
+    {
+      "column": "cloud_layer_type_code_1",
+      "sentinel_replacements": 143207
+    },
+    {
+      "column": "cloud_total_coverage",
+      "sentinel_replacements": 83861
+    },
+    {
+      "column": "convective_cloud_code",
+      "sentinel_replacements": 81601
+    },
+    {
+      "column": "cloud_base_height_upper_m",
+      "sentinel_replacements": 81601
+    },
+    {
+      "column": "cloud_base_height_lower_m",
+      "sentinel_replacements": 81601
+    },
+    {
+      "column": "visibility_m",
+      "sentinel_replacements": 75150
+    },
+    {
+      "column": "cloud_lowest_coverage",
+      "sentinel_replacements": 66204
+    },
+    {
+      "column": "cloud_lowest_base_height_m",
+      "sentinel_replacements": 66200
+    },
+    {
+      "column": "cloud_layer_type_code_2",
+      "sentinel_replacements": 40101
+    },
+    {
+      "column": "wind_direction_deg",
+      "sentinel_replacements": 14409
+    },
+    {
+      "column": "cloud_layer_type_code_3",
+      "sentinel_replacements": 9177
+    },
+    {
+      "column": "dew_point_c",
+      "sentinel_replacements": 701
+    },
+    {
+      "column": "temperature_c",
+      "sentinel_replacements": 635
+    },
+    {
+      "column": "wind_speed_ms",
+      "sentinel_replacements": 428
+    },
+    {
+      "column": "wind_type_code",
+      "sentinel_replacements": 403
+    },
+    {
+      "column": "cloud_layer_type_code_4",
+      "sentinel_replacements": 370
+    },
+    {
+      "column": "altimeter_setting_hpa",
+      "sentinel_replacements": 9
+    },
+    {
+      "column": "extreme_temp_period_hours_1",
+      "sentinel_replacements": 7
+    },
+    {
+      "column": "cloud_layer_type_code_5",
+      "sentinel_replacements": 6
+    },
+    {
+      "column": "sea_surface_temperature_c",
+      "sentinel_replacements": 4
+    },
+    {
+      "column": "wave_period_seconds",
+      "sentinel_replacements": 4
+    },
+    {
+      "column": "wave_height_m",
+      "sentinel_replacements": 4
+    },
+    {
+      "column": "sea_state_code",
+      "sentinel_replacements": 4
+    },
+    {
+      "column": "swell_period_seconds",
+      "sentinel_replacements": 4
+    },
+    {
+      "column": "swell_direction_deg",
+      "sentinel_replacements": 4
+    },
+    {
+      "column": "cloud_layer_coverage_1",
+      "sentinel_replacements": 1
+    },
+    {
+      "column": "cloud_layer_base_height_m_1",
+      "sentinel_replacements": 1
+    },
+    {
+      "column": "cloud_layer_coverage_2",
+      "sentinel_replacements": 1
+    },
+    {
+      "column": "cloud_layer_base_height_m_2",
+      "sentinel_replacements": 1
+    },
+    {
+      "column": "extreme_temp_c_1",
+      "sentinel_replacements": 1
+    },
+    {
+      "column": "present_weather_code_1",
+      "sentinel_replacements": 1
+    },
+    {
+      "column": "present_weather_code_3",
+      "sentinel_replacements": 1
+    }
+  ],
+  "quality_flag_filtering_counts": [],
+  "applied_scale_factors": [
+    {
+      "field": "DEW",
+      "part": 1,
+      "column": "dew_point_c",
+      "scale": 0.1
+    },
+    {
+      "field": "KA1",
+      "part": 1,
+      "column": "extreme_temp_period_hours_1",
+      "scale": 0.1
+    },
+    {
+      "field": "KA1",
+      "part": 3,
+      "column": "extreme_temp_c_1",
+      "scale": 0.1
+    },
+    {
+      "field": "MA1",
+      "part": 1,
+      "column": "altimeter_setting_hpa",
+      "scale": 0.1
+    },
+    {
+      "field": "MA1",
+      "part": 3,
+      "column": "station_pressure_hpa",
+      "scale": 0.1
+    },
+    {
+      "field": "OC1",
+      "part": 1,
+      "column": "wind_gust_ms",
+      "scale": 0.1
+    },
+    {
+      "field": "SA1",
+      "part": 1,
+      "column": "sea_surface_temperature_c",
+      "scale": 0.1
+    },
+    {
+      "field": "SLP",
+      "part": 1,
+      "column": "sea_level_pressure_hpa",
+      "scale": 0.1
+    },
+    {
+      "field": "TMP",
+      "part": 1,
+      "column": "temperature_c",
+      "scale": 0.1
+    },
+    {
+      "field": "UA1",
+      "part": 3,
+      "column": "wave_height_m",
+      "scale": 0.1
+    },
+    {
+      "field": "UG1",
+      "part": 2,
+      "column": "swell_height_m",
+      "scale": 0.1
+    },
+    {
+      "field": "WND",
+      "part": 4,
+      "column": "wind_speed_ms",
+      "scale": 0.1
+    }
+  ],
+  "notable_data_gaps": [
+    {
+      "column": "SA1",
+      "longest_missing_observations": 254428,
+      "gap_start_utc": "2002-07-29T16:00:00+00:00",
+      "gap_end_utc": "2025-08-24T21:20:00+00:00",
+      "gap_duration_hours": 202253.33
+    },
+    {
+      "column": "UA1",
+      "longest_missing_observations": 254428,
+      "gap_start_utc": "2002-07-29T16:00:00+00:00",
+      "gap_end_utc": "2025-08-24T21:20:00+00:00",
+      "gap_duration_hours": 202253.33
+    },
+    {
+      "column": "UG1",
+      "longest_missing_observations": 254428,
+      "gap_start_utc": "2002-07-29T16:00:00+00:00",
+      "gap_end_utc": "2025-08-24T21:20:00+00:00",
+      "gap_duration_hours": 202253.33
+    },
+    {
+      "column": "KA1",
+      "longest_missing_observations": 236611,
+      "gap_start_utc": "2004-11-06T19:00:00+00:00",
+      "gap_end_utc": "2025-08-24T21:20:00+00:00",
+      "gap_duration_hours": 182306.33
+    },
+    {
+      "column": "GA5",
+      "longest_missing_observations": 221193,
+      "gap_start_utc": "2007-10-23T14:00:00+00:00",
+      "gap_end_utc": "2025-08-24T21:20:00+00:00",
+      "gap_duration_hours": 156367.33
+    },
+    {
+      "column": "MW3",
+      "longest_missing_observations": 189814,
+      "gap_start_utc": "2012-01-07T08:20:00+00:00",
+      "gap_end_utc": "2025-08-24T21:20:00+00:00",
+      "gap_duration_hours": 119485.0
+    },
+    {
+      "column": "GA4",
+      "longest_missing_observations": 123336,
+      "gap_start_utc": "2017-11-04T12:50:00+00:00",
+      "gap_end_utc": "2025-08-24T21:20:00+00:00",
+      "gap_duration_hours": 68408.5
+    },
+    {
+      "column": "AW1",
+      "longest_missing_observations": 93177,
+      "gap_start_utc": "2001-01-01T00:00:00+00:00",
+      "gap_end_utc": "2014-09-19T20:20:00+00:00",
+      "gap_duration_hours": 120236.33
+    },
+    {
+      "column": "GE1",
+      "longest_missing_observations": 91000,
+      "gap_start_utc": "2001-01-01T00:00:00+00:00",
+      "gap_end_utc": "2014-04-30T03:50:00+00:00",
+      "gap_duration_hours": 116811.83
+    },
+    {
+      "column": "MW2",
+      "longest_missing_observations": 60228,
+      "gap_start_utc": "2013-04-03T12:50:00+00:00",
+      "gap_end_utc": "2017-12-23T09:20:00+00:00",
+      "gap_duration_hours": 41396.5
+    },
+    {
+      "column": "EQD",
+      "longest_missing_observations": 13757,
+      "gap_start_utc": "2019-12-14T13:50:00+00:00",
+      "gap_end_utc": "2020-10-20T11:20:00+00:00",
+      "gap_duration_hours": 7461.5
+    },
+    {
+      "column": "GA3",
+      "longest_missing_observations": 12589,
+      "gap_start_utc": "2021-01-27T09:20:00+00:00",
+      "gap_end_utc": "2021-12-03T11:20:00+00:00",
+      "gap_duration_hours": 7442.0
+    },
+    {
+      "column": "MW1",
+      "longest_missing_observations": 6054,
+      "gap_start_utc": "2017-05-30T11:20:00+00:00",
+      "gap_end_utc": "2017-10-06T13:20:00+00:00",
+      "gap_duration_hours": 3098.0
+    },
+    {
+      "column": "OC1",
+      "longest_missing_observations": 5346,
+      "gap_start_utc": "2001-05-12T15:00:00+00:00",
+      "gap_end_utc": "2002-01-02T14:00:00+00:00",
+      "gap_duration_hours": 5639.0
+    },
+    {
+      "column": "GA2",
+      "longest_missing_observations": 5177,
+      "gap_start_utc": "2020-06-23T12:20:00+00:00",
+      "gap_end_utc": "2020-10-13T15:20:00+00:00",
+      "gap_duration_hours": 2691.0
+    },
+    {
+      "column": "GF1",
+      "longest_missing_observations": 1539,
+      "gap_start_utc": "2013-05-31T04:20:00+00:00",
+      "gap_end_utc": "2013-09-10T03:50:00+00:00",
+      "gap_duration_hours": 2447.5
+    },
+    {
+      "column": "GA1",
+      "longest_missing_observations": 514,
+      "gap_start_utc": "2023-07-09T06:50:00+00:00",
+      "gap_end_utc": "2023-07-20T03:30:00+00:00",
+      "gap_duration_hours": 260.67
+    },
+    {
+      "column": "MA1",
+      "longest_missing_observations": 15,
+      "gap_start_utc": "2004-01-02T16:00:00+00:00",
+      "gap_end_utc": "2004-01-03T07:00:00+00:00",
+      "gap_duration_hours": 15.0
+    }
+  ],
+  "citation": "Balaji Kesavan. (2026). noaa-climate-data (Version 0.1.0). NOAA ISD Global Hourly data processed for station 16754399999. Retrieved 2026-03-03 from https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database"
+}

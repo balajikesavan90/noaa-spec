@@ -477,6 +477,10 @@ class TestCliCommands:
 
         assert (station_ok / "LocationData_Cleaned.csv").exists()
         assert not (station_skip / "LocationData_Cleaned.csv").exists()
+        mapping_path = output_root / "NOAA Demo Data" / "station_metadata_mapping.csv"
+        assert mapping_path.exists()
+        mapping_df = pd.read_csv(mapping_path)
+        assert {"station_id", "station_slug", "station_name", "LATITUDE", "LONGITUDE", "ELEVATION"}.issubset(mapping_df.columns)
 
     def test_cli_pdf_to_markdown_invokes_converter(
         self,

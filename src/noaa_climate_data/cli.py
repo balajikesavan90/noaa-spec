@@ -5,6 +5,8 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 from pathlib import Path
+import logging
+import time
 
 import pandas as pd
 
@@ -20,6 +22,13 @@ from .pipeline import (
     process_location_from_raw,
 )
 from .pdf_markdown import convert_pdf_to_markdown
+from .domain_split import (
+    classify_columns,
+    MAPPING_COLUMNS,
+    station_metadata_mapping_row,
+    split_station_cleaned_by_domain,
+    sanitize_station_slug,
+)
 from .research_reports import build_reports_for_station_dir
 
 
@@ -441,6 +450,24 @@ def _parse_args() -> argparse.Namespace:
         default="Balaji Kesavan",
         help="Citation author string for generated reports",
     )
+    reprocess_parser.add_argument(
+        "--show-parse-strict-logs",
+        action="store_true",
+        default=False,
+        help="Show verbose [PARSE_STRICT] cleaning warnings during batch processing",
+    )
+    reprocess_parser.add_argument(
+        "--domain-output-dir",
+        type=Path,
+        default=Path("output") / "NOAA Demo Data",
+        help="Directory where station-domain split CSV files are written",
+    )
+    reprocess_parser.add_argument(
+        "--no-domain-split",
+        action="store_true",
+        default=False,
+        help="Do not generate domain-split CSV files",
+    )
 
     return parser.parse_args()
 
@@ -590,11 +617,20 @@ def main() -> None:
         if not output_root.exists() or not output_root.is_dir():
             raise FileNotFoundError(f"Output root not found or not a directory: {output_root}")
 
+        cleaning_logger = logging.getLogger("noaa_climate_data.cleaning")
+        previous_cleaning_level = cleaning_logger.level
+        if not args.show_parse_strict_logs:
+            cleaning_logger.setLevel(logging.ERROR)
+
         station_dirs = sorted(path for path in output_root.iterdir() if path.is_dir())
         processed = 0
         skipped = 0
         failed = 0
         total = len(station_dirs)
+        batch_start = time.monotonic()
+        domain_manifest_rows: list[dict[str, object]] = []
+        station_mapping_rows: list[dict[str, object]] = []
+        columns_by_domain_rows: list[dict[str, object]] | None = None
 
         print(
             "Starting reprocess-output-dir: "
@@ -602,71 +638,194 @@ def main() -> None:
             f"reports={'off' if args.no_reports else 'on'}"
         )
 
-        for idx, station_dir in enumerate(station_dirs, start=1):
-            print(f"[{idx}/{total}] Station {station_dir.name}: begin")
-            raw_csv = station_dir / "LocationData_Raw.csv"
-            if not raw_csv.exists():
-                skipped += 1
-                print(
-                    f"[{idx}/{total}] SKIP {station_dir.name}: "
-                    "missing LocationData_Raw.csv"
-                )
-                continue
+        try:
+            for idx, station_dir in enumerate(station_dirs, start=1):
+                station_start = time.monotonic()
+                print(f"[{idx}/{total}] Station {station_dir.name}: begin")
+                raw_csv = station_dir / "LocationData_Raw.csv"
+                if not raw_csv.exists():
+                    skipped += 1
+                    station_elapsed = time.monotonic() - station_start
+                    print(
+                        f"[{idx}/{total}] SKIP {station_dir.name}: "
+                        f"missing LocationData_Raw.csv | elapsed={station_elapsed:.2f}s"
+                    )
+                    continue
 
-            try:
-                print(f"[{idx}/{total}] {station_dir.name}: reading raw CSV")
-                raw = pd.read_csv(raw_csv, low_memory=False)
-                print(
-                    f"[{idx}/{total}] {station_dir.name}: "
-                    f"cleaning + aggregation ({len(raw)} raw rows)"
-                )
-                outputs = process_location_from_raw(
-                    raw,
-                    aggregation_strategy=args.aggregation_strategy,
-                    min_hours_per_day=args.min_hours_per_day,
-                    min_days_per_month=args.min_days_per_month,
-                    min_months_per_year=args.min_months_per_year,
-                    fixed_hour=args.fixed_hour,
-                    add_unit_conversions=args.add_unit_conversions,
-                    strict_mode=not args.permissive,
-                )
-
-                print(f"[{idx}/{total}] {station_dir.name}: writing station CSV outputs")
-                outputs.raw.to_csv(station_dir / "LocationData_Raw.csv", index=False)
-                outputs.cleaned.to_csv(station_dir / "LocationData_Cleaned.csv", index=False)
-                outputs.hourly.to_csv(station_dir / "LocationData_Hourly.csv", index=False)
-                outputs.monthly.to_csv(station_dir / "LocationData_Monthly.csv", index=False)
-                outputs.yearly.to_csv(station_dir / "LocationData_Yearly.csv", index=False)
-
-                if not args.no_reports:
-                    print(f"[{idx}/{total}] {station_dir.name}: generating research reports")
-                    build_reports_for_station_dir(
-                        station_dir,
-                        aggregation_strategy=args.aggregation_strategy,
-                        fixed_hour=args.fixed_hour,
-                        min_days_per_month=args.min_days_per_month,
-                        min_months_per_year=args.min_months_per_year,
-                        access_date=args.access_date,
-                        authors=args.authors,
+                try:
+                    print(f"[{idx}/{total}] {station_dir.name}: reading raw CSV")
+                    raw = pd.read_csv(raw_csv, low_memory=False)
+                    print(
+                        f"[{idx}/{total}] {station_dir.name}: "
+                        f"cleaning + aggregation ({len(raw)} raw rows)"
                     )
 
-                processed += 1
-                print(
-                    f"[{idx}/{total}] DONE {station_dir.name} | "
-                    f"processed={processed} skipped={skipped} failed={failed}"
-                )
-            except Exception as exc:
-                failed += 1
-                print(
-                    f"[{idx}/{total}] FAIL {station_dir.name}: {exc} | "
-                    f"processed={processed} skipped={skipped} failed={failed}"
-                )
+                    strict_mode_for_station = not args.permissive
+                    if strict_mode_for_station and "DATE" in raw.columns:
+                        sample_dates = raw["DATE"].dropna().astype(str).head(10)
+                        if not sample_dates.empty:
+                            # Legacy/staged output raws often store ISO timestamps.
+                            # Running strict mode on these can be very slow and then
+                            # drop all rows, so route directly to permissive mode.
+                            if sample_dates.str.contains("T").any() or sample_dates.str.contains("-").any():
+                                strict_mode_for_station = False
+                                print(
+                                    f"[{idx}/{total}] {station_dir.name}: detected ISO DATE values; "
+                                    "using permissive mode directly"
+                                )
 
-        print(
-            "reprocess-output-dir summary: "
-            f"processed={processed} skipped={skipped} failed={failed} total={total}"
-        )
-        return
+                    outputs = process_location_from_raw(
+                        raw,
+                        aggregation_strategy=args.aggregation_strategy,
+                        min_hours_per_day=args.min_hours_per_day,
+                        min_days_per_month=args.min_days_per_month,
+                        min_months_per_year=args.min_months_per_year,
+                        fixed_hour=args.fixed_hour,
+                        add_unit_conversions=args.add_unit_conversions,
+                        strict_mode=strict_mode_for_station,
+                    )
+
+                    if (
+                        strict_mode_for_station
+                        and len(raw) > 0
+                        and len(outputs.cleaned) == 0
+                    ):
+                        print(
+                            f"[{idx}/{total}] {station_dir.name}: strict mode produced 0 cleaned rows; "
+                            "retrying with permissive mode to preserve legacy timestamp DATE formats"
+                        )
+                        outputs = process_location_from_raw(
+                            raw,
+                            aggregation_strategy=args.aggregation_strategy,
+                            min_hours_per_day=args.min_hours_per_day,
+                            min_days_per_month=args.min_days_per_month,
+                            min_months_per_year=args.min_months_per_year,
+                            fixed_hour=args.fixed_hour,
+                            add_unit_conversions=args.add_unit_conversions,
+                            strict_mode=False,
+                        )
+
+                    print(f"[{idx}/{total}] {station_dir.name}: writing station CSV outputs")
+                    outputs.raw.to_csv(station_dir / "LocationData_Raw.csv", index=False)
+                    outputs.cleaned.to_csv(station_dir / "LocationData_Cleaned.csv", index=False)
+
+                    # Remove roll-up files; reprocess-output-dir now focuses on
+                    # cleaned outputs plus domain-level splits/reports.
+                    for rollup_name in (
+                        "LocationData_Hourly.csv",
+                        "LocationData_Monthly.csv",
+                        "LocationData_Yearly.csv",
+                    ):
+                        rollup_path = station_dir / rollup_name
+                        if rollup_path.exists():
+                            rollup_path.unlink()
+
+                    if not args.no_domain_split:
+                        if columns_by_domain_rows is None:
+                            common_cols, domain_cols = classify_columns(list(outputs.cleaned.columns))
+                            columns_by_domain_rows = []
+                            for domain_name in sorted(domain_cols.keys()):
+                                cols = domain_cols[domain_name]
+                                if not cols:
+                                    continue
+                                selected = common_cols + cols
+                                columns_by_domain_rows.append(
+                                    {
+                                        "domain": domain_name,
+                                        "columns_count": len(selected),
+                                        "columns": "|".join(selected),
+                                    }
+                                )
+
+                        station_name = station_dir.name
+                        if (
+                            "station_name" in outputs.cleaned.columns
+                            and not outputs.cleaned["station_name"].dropna().empty
+                        ):
+                            station_name = str(outputs.cleaned["station_name"].dropna().iloc[0])
+                        station_slug = sanitize_station_slug(station_name)
+                        print(
+                            f"[{idx}/{total}] {station_dir.name}: generating domain split files "
+                            f"in {args.domain_output_dir}"
+                        )
+                        domain_rows = split_station_cleaned_by_domain(
+                            outputs.cleaned,
+                            station_slug=station_slug,
+                            station_name=station_name,
+                            output_dir=args.domain_output_dir,
+                        )
+                        domain_manifest_rows.extend(domain_rows)
+                        station_mapping_rows.append(
+                            station_metadata_mapping_row(
+                                outputs.cleaned,
+                                station_slug=station_slug,
+                                station_name=station_name,
+                                station_id_fallback=station_dir.name,
+                            )
+                        )
+
+                    if not args.no_reports:
+                        print(f"[{idx}/{total}] {station_dir.name}: generating research reports")
+                        build_reports_for_station_dir(
+                            station_dir,
+                            aggregation_strategy=args.aggregation_strategy,
+                            fixed_hour=args.fixed_hour,
+                            min_days_per_month=args.min_days_per_month,
+                            min_months_per_year=args.min_months_per_year,
+                            access_date=args.access_date,
+                            authors=args.authors,
+                        )
+
+                    processed += 1
+                    station_elapsed = time.monotonic() - station_start
+                    batch_elapsed = time.monotonic() - batch_start
+                    print(
+                        f"[{idx}/{total}] DONE {station_dir.name} | "
+                        f"elapsed={station_elapsed:.2f}s "
+                        f"processed={processed} skipped={skipped} failed={failed} "
+                        f"batch_elapsed={batch_elapsed:.2f}s"
+                    )
+                except Exception as exc:
+                    failed += 1
+                    station_elapsed = time.monotonic() - station_start
+                    batch_elapsed = time.monotonic() - batch_start
+                    print(
+                        f"[{idx}/{total}] FAIL {station_dir.name}: {exc} | "
+                        f"elapsed={station_elapsed:.2f}s "
+                        f"processed={processed} skipped={skipped} failed={failed} "
+                        f"batch_elapsed={batch_elapsed:.2f}s"
+                    )
+
+            total_elapsed = time.monotonic() - batch_start
+            if not args.no_domain_split and (
+                domain_manifest_rows or columns_by_domain_rows or station_mapping_rows
+            ):
+                if domain_manifest_rows:
+                    domain_manifest_path = args.domain_output_dir / "station_split_manifest.csv"
+                    pd.DataFrame(domain_manifest_rows).to_csv(domain_manifest_path, index=False)
+                    print(f"domain split manifest: {domain_manifest_path}")
+                if columns_by_domain_rows:
+                    columns_by_domain_path = args.domain_output_dir / "columns_by_domain.csv"
+                    pd.DataFrame(columns_by_domain_rows).to_csv(columns_by_domain_path, index=False)
+                    print(f"columns by domain: {columns_by_domain_path}")
+                if station_mapping_rows:
+                    mapping_df = pd.DataFrame(station_mapping_rows)
+                    mapping_df = mapping_df.drop_duplicates(subset=["station_id"], keep="first")
+                    for column in MAPPING_COLUMNS:
+                        if column not in mapping_df.columns:
+                            mapping_df[column] = None
+                    mapping_df = mapping_df[list(MAPPING_COLUMNS)]
+                    mapping_path = args.domain_output_dir / "station_metadata_mapping.csv"
+                    mapping_df.to_csv(mapping_path, index=False)
+                    print(f"station metadata mapping: {mapping_path}")
+            print(
+                "reprocess-output-dir summary: "
+                f"processed={processed} skipped={skipped} failed={failed} total={total} "
+                f"elapsed={total_elapsed:.2f}s"
+            )
+            return
+        finally:
+            cleaning_logger.setLevel(previous_cleaning_level)
 
 
 if __name__ == "__main__":

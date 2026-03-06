@@ -413,8 +413,15 @@ def generate_aggregation_report(
         best_hour = _best_hour(cleaned)
 
     selected = hourly.copy()
-    after_months = _filter_full_months(selected, min_days=min_days_per_month)
-    after_years = _filter_full_years(after_months, min_months=min_months_per_year)
+    if {"Year", "MonthNum", "Day"}.issubset(selected.columns):
+        after_months = _filter_full_months(selected, min_days=min_days_per_month)
+        if {"Year", "MonthNum"}.issubset(after_months.columns):
+            after_years = _filter_full_years(after_months, min_months=min_months_per_year)
+        else:
+            after_years = after_months.copy()
+    else:
+        after_months = selected.copy()
+        after_years = selected.copy()
 
     agg_rows = _aggregation_function_rows(cleaned)
     dropped = [row["column"] for row in agg_rows if row["aggregation"] == "drop"]
@@ -596,7 +603,7 @@ def build_reports_for_station_dir(
     monthly_path = station_dir / "LocationData_Monthly.csv"
     yearly_path = station_dir / "LocationData_Yearly.csv"
 
-    required = [raw_path, cleaned_path, hourly_path, monthly_path, yearly_path]
+    required = [raw_path, cleaned_path]
     missing = [path for path in required if not path.exists()]
     if missing:
         raise FileNotFoundError(
@@ -605,9 +612,9 @@ def build_reports_for_station_dir(
 
     raw = pd.read_csv(raw_path, low_memory=False)
     cleaned = pd.read_csv(cleaned_path, low_memory=False)
-    hourly = pd.read_csv(hourly_path, low_memory=False)
-    monthly = pd.read_csv(monthly_path, low_memory=False)
-    yearly = pd.read_csv(yearly_path, low_memory=False)
+    hourly = pd.read_csv(hourly_path, low_memory=False) if hourly_path.exists() else pd.DataFrame()
+    monthly = pd.read_csv(monthly_path, low_memory=False) if monthly_path.exists() else pd.DataFrame()
+    yearly = pd.read_csv(yearly_path, low_memory=False) if yearly_path.exists() else pd.DataFrame()
 
     station_id = station_dir.name
     station_name = None
