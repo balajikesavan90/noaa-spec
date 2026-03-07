@@ -10,6 +10,13 @@ import time
 
 import pandas as pd
 
+from .cleaning_runner import (
+    CleaningRunConfig,
+    RunWriteFlags,
+    default_roots_for_mode,
+    parse_station_filters,
+    run_cleaning_run,
+)
 from .constants import DEFAULT_END_YEAR, DEFAULT_START_YEAR
 from .pipeline import (
     build_data_file_list,
@@ -374,7 +381,7 @@ def _parse_args() -> argparse.Namespace:
     reprocess_parser = subparsers.add_parser(
         "reprocess-output-dir",
         help=(
-            "Re-clean all station folders in an output directory from "
+            "[DEPRECATED] Re-clean all station folders in an output directory from "
             "LocationData_Raw.csv and optionally generate research reports"
         ),
     )
@@ -467,6 +474,119 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         default=False,
         help="Do not generate domain-split CSV files",
+    )
+
+    cleaning_run_parser = subparsers.add_parser(
+        "cleaning-run",
+        help="Production-safe cleaning orchestration with explicit mode/roots",
+    )
+    cleaning_run_parser.add_argument(
+        "--mode",
+        required=True,
+        choices=["test_csv_dir", "batch_parquet_dir"],
+        help="Execution mode (CSV test folders vs parquet batch input tree)",
+    )
+    cleaning_run_parser.add_argument(
+        "--input-root",
+        required=True,
+        type=Path,
+        help="Root directory containing station folders with raw inputs",
+    )
+    cleaning_run_parser.add_argument(
+        "--input-format",
+        required=True,
+        choices=["csv", "parquet"],
+        help="Raw input format (must match selected mode)",
+    )
+    cleaning_run_parser.add_argument(
+        "--output-root",
+        type=Path,
+        default=None,
+        help="Root directory for cleaned station outputs and domain splits",
+    )
+    cleaning_run_parser.add_argument(
+        "--reports-root",
+        type=Path,
+        default=None,
+        help="Root directory for optional station/global reports",
+    )
+    cleaning_run_parser.add_argument(
+        "--quality-profile-root",
+        type=Path,
+        default=None,
+        help="Root directory for station quality profile sidecars",
+    )
+    cleaning_run_parser.add_argument(
+        "--manifest-root",
+        type=Path,
+        default=None,
+        help="Root directory for run_config/run_manifest/run_status artifacts",
+    )
+    cleaning_run_parser.add_argument(
+        "--run-id",
+        type=str,
+        default=None,
+        help="Run identifier (default: UTC timestamp)",
+    )
+    cleaning_run_parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Optional limit on number of stations processed in this invocation",
+    )
+    cleaning_run_parser.add_argument(
+        "--station-id",
+        action="append",
+        default=[],
+        help="Station filter (repeatable or comma-separated 11-digit IDs)",
+    )
+    cleaning_run_parser.add_argument(
+        "--force",
+        action="store_true",
+        default=False,
+        help="Recompute stations even if status and outputs indicate completion",
+    )
+    cleaning_run_parser.add_argument(
+        "--manifest-first",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Lock station processing to run_manifest snapshot semantics",
+    )
+    cleaning_run_parser.add_argument(
+        "--manifest-refresh",
+        action="store_true",
+        default=False,
+        help="Rebuild run_config/run_manifest/run_status for the same run_id",
+    )
+    cleaning_run_parser.add_argument(
+        "--write-cleaned-station",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Write cleaned station datasets",
+    )
+    cleaning_run_parser.add_argument(
+        "--write-domain-splits",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Write optional domain split datasets",
+    )
+    cleaning_run_parser.add_argument(
+        "--write-station-quality-profile",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Write station quality profile JSON sidecars",
+    )
+    cleaning_run_parser.add_argument(
+        "--write-station-reports",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Write heavier per-station research report artifacts",
+    )
+    cleaning_run_parser.add_argument(
+        "--write-global-summary",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Write global summary from station quality profiles",
     )
 
     return parser.parse_args()
@@ -610,6 +730,54 @@ def main() -> None:
             access_date=args.access_date,
             authors=args.authors,
         )
+        return
+
+    if args.command == "cleaning-run":
+        run_id = args.run_id or datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        station_ids = parse_station_filters(args.station_id)
+        default_roots = default_roots_for_mode(args.mode, run_id)
+
+        def _resolve_flag(value: bool | None, default: bool) -> bool:
+            return default if value is None else bool(value)
+
+        if args.mode == "test_csv_dir":
+            write_flags = RunWriteFlags(
+                write_cleaned_station=_resolve_flag(args.write_cleaned_station, True),
+                write_domain_splits=_resolve_flag(args.write_domain_splits, True),
+                write_station_quality_profile=_resolve_flag(args.write_station_quality_profile, True),
+                write_station_reports=_resolve_flag(args.write_station_reports, False),
+                write_global_summary=_resolve_flag(args.write_global_summary, False),
+            )
+            manifest_first_default = False
+        else:
+            write_flags = RunWriteFlags(
+                write_cleaned_station=_resolve_flag(args.write_cleaned_station, True),
+                write_domain_splits=_resolve_flag(args.write_domain_splits, False),
+                write_station_quality_profile=_resolve_flag(args.write_station_quality_profile, True),
+                write_station_reports=_resolve_flag(args.write_station_reports, False),
+                write_global_summary=_resolve_flag(args.write_global_summary, True),
+            )
+            manifest_first_default = True
+
+        config = CleaningRunConfig(
+            mode=args.mode,
+            input_root=args.input_root,
+            input_format=args.input_format,
+            output_root=args.output_root or default_roots["output_root"],
+            reports_root=args.reports_root or default_roots["reports_root"],
+            quality_profile_root=args.quality_profile_root or default_roots["quality_profile_root"],
+            manifest_root=args.manifest_root or default_roots["manifest_root"],
+            run_id=run_id,
+            limit=args.limit,
+            station_ids=station_ids,
+            force=args.force,
+            manifest_first=(
+                manifest_first_default if args.manifest_first is None else bool(args.manifest_first)
+            ),
+            manifest_refresh=bool(args.manifest_refresh),
+            write_flags=write_flags,
+        )
+        run_cleaning_run(config)
         return
 
     if args.command == "reprocess-output-dir":

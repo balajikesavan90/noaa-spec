@@ -482,6 +482,111 @@ class TestCliCommands:
         mapping_df = pd.read_csv(mapping_path)
         assert {"station_id", "station_slug", "station_name", "LATITUDE", "LONGITUDE", "ELEVATION"}.issubset(mapping_df.columns)
 
+    def test_cli_cleaning_run_invokes_runner_with_batch_defaults(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(cli, "datetime", _FakeDateTime)
+        input_root = tmp_path / "inputs"
+        input_root.mkdir(parents=True)
+
+        called: dict[str, object] = {}
+
+        def fake_run_cleaning_run(config: object) -> dict[str, object]:
+            called["config"] = config
+            return {}
+
+        monkeypatch.setattr(cli, "run_cleaning_run", fake_run_cleaning_run)
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "prog",
+                "cleaning-run",
+                "--mode",
+                "batch_parquet_dir",
+                "--input-root",
+                str(input_root),
+                "--input-format",
+                "parquet",
+                "--station-id",
+                "01234567890,09876543210",
+                "--limit",
+                "5",
+            ],
+        )
+        cli.main()
+
+        config = called["config"]
+        assert str(config.mode) == "batch_parquet_dir"
+        assert str(config.input_format) == "parquet"
+        assert config.input_root.resolve() == input_root.resolve()
+        assert config.station_ids == ("01234567890", "09876543210")
+        assert config.limit == 5
+        assert config.run_id == "20250101T000000Z"
+        assert config.manifest_first is True
+        assert config.write_flags.write_cleaned_station is True
+        assert config.write_flags.write_domain_splits is False
+        assert config.write_flags.write_station_quality_profile is True
+        assert config.write_flags.write_station_reports is False
+        assert config.write_flags.write_global_summary is True
+        assert config.output_root.resolve() == (
+            tmp_path / "artifacts" / "parquet_runs" / "20250101T000000Z" / "cleaned"
+        ).resolve()
+        assert config.manifest_root.resolve() == (
+            tmp_path / "artifacts" / "parquet_runs" / "20250101T000000Z" / "manifests"
+        ).resolve()
+
+    def test_cli_cleaning_run_honors_test_mode_flag_overrides(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        input_root = tmp_path / "inputs"
+        input_root.mkdir(parents=True)
+
+        called: dict[str, object] = {}
+
+        def fake_run_cleaning_run(config: object) -> dict[str, object]:
+            called["config"] = config
+            return {}
+
+        monkeypatch.setattr(cli, "run_cleaning_run", fake_run_cleaning_run)
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "prog",
+                "cleaning-run",
+                "--mode",
+                "test_csv_dir",
+                "--input-root",
+                str(input_root),
+                "--input-format",
+                "csv",
+                "--run-id",
+                "RUN_123",
+                "--manifest-first",
+                "--no-write-domain-splits",
+                "--write-station-reports",
+            ],
+        )
+        cli.main()
+
+        config = called["config"]
+        assert str(config.mode) == "test_csv_dir"
+        assert str(config.input_format) == "csv"
+        assert config.run_id == "RUN_123"
+        assert config.manifest_first is True
+        assert config.write_flags.write_cleaned_station is True
+        assert config.write_flags.write_domain_splits is False
+        assert config.write_flags.write_station_quality_profile is True
+        assert config.write_flags.write_station_reports is True
+        assert config.write_flags.write_global_summary is False
+
     def test_cli_pdf_to_markdown_invokes_converter(
         self,
         tmp_path: Path,

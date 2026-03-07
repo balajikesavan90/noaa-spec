@@ -1,38 +1,280 @@
-# Copilot instructions for noaa-climate-data
+# NOAA Climate Data Publication System
 
-## Big picture
-- Python rewrite of legacy R scripts; the pipeline is split across `noaa_client` (remote listing/download), `cleaning` (comma-encoded field expansion), and `pipeline` (end-to-end transforms). See [src/noaa_climate_data/noaa_client.py](src/noaa_climate_data/noaa_client.py), [src/noaa_climate_data/cleaning.py](src/noaa_climate_data/cleaning.py), and [src/noaa_climate_data/pipeline.py](src/noaa_climate_data/pipeline.py).
-- Target outputs for researchers: `raw_parquet` (immutable ingest), `cleaned_parquet` (standardized columns + quality flags), domain splits (temperature, dew, rainfall, wind, etc), and domain aggregates (monthly/yearly) built from the split datasets.
-- Current top focus: make the cleaned dataset contract accurate and stable; downstream domain splits and aggregates come after cleaning quality is locked in.
-- Data flow (current): list years/files → count year coverage → select full-coverage stations → download station CSVs → clean → add time columns → filter complete months/years → aggregate to monthly/yearly outputs.
+## Purpose
 
-## Source map (src/noaa_climate_data)
-- [src/noaa_climate_data/__init__.py](src/noaa_climate_data/__init__.py): Package entry point; exposes public package metadata and keeps imports minimal to avoid side effects.
-- [src/noaa_climate_data/constants.py](src/noaa_climate_data/constants.py): Shared constants (URLs, field scales, quality flags) used by the client, cleaning, and pipeline modules.
-- [src/noaa_climate_data/noaa_client.py](src/noaa_climate_data/noaa_client.py): Remote listing/download helpers for NOAA Global Hourly CSVs; provides inputs to the pipeline and CLI.
-- [src/noaa_climate_data/cleaning.py](src/noaa_climate_data/cleaning.py): Parsing and expansion of NOAA comma-encoded fields, scale/quality handling, and data normalization prior to aggregation.
-- [src/noaa_climate_data/pipeline.py](src/noaa_climate_data/pipeline.py): Orchestrates end-to-end transforms, including time columns, completeness filters, best-hour selection, and aggregation.
-- [src/noaa_climate_data/cli.py](src/noaa_climate_data/cli.py): CLI entry points that wire together the client, cleaning, and pipeline flows for file-listing and station processing.
+This repository produces **publication-grade scientific data artifacts** derived from the NOAA Integrated Surface Database (ISD) / Global Hourly dataset.
 
-## Key workflows (Poetry)
-- Install: `poetry install` (from [README.md](README.md)).
-- Run tests: `poetry run pytest tests/ -v`.
-- Build file list + year counts: `poetry run python -m noaa_climate_data.cli file-list ...`.
-- Build station metadata: `poetry run python -m noaa_climate_data.cli location-ids ...`.
-- Process a station: `poetry run python -m noaa_climate_data.cli process-location <file>.csv ...`.
+The system is not primarily an analysis pipeline.
 
-## Project-specific conventions
-- Cleaning expands NOAA comma-encoded fields into `<column>__value`, `<column>__quality`, or `<column>__partN` columns; quality filtering uses `QUALITY_FLAGS` from [src/noaa_climate_data/constants.py](src/noaa_climate_data/constants.py).
-- Temperature-like fields apply scale factors defined in `FIELD_SCALES` ([src/noaa_climate_data/cleaning.py](src/noaa_climate_data/cleaning.py)).
-- Aggregation uses numeric mean across grouped columns; non-numeric columns are converted if possible ([_aggregate_numeric](src/noaa_climate_data/pipeline.py#L86)).
-- “Best hour” is chosen by most unique days per hour; only that hour is kept before aggregation ([_best_hour](src/noaa_climate_data/pipeline.py#L57)).
-- Monthly data requires ≥20 days per month and full 12-month years before yearly aggregation ([_filter_full_months](src/noaa_climate_data/pipeline.py#L64), [_filter_full_years](src/noaa_climate_data/pipeline.py#L69)).
-- Output files for each station are written as `LocationData_*.csv` into `output/<station>/` via the CLI ([src/noaa_climate_data/cli.py](src/noaa_climate_data/cli.py)).
+It is a **specification-constrained data publication system** designed to generate:
 
-## Integration points
-- External data source: NOAA Global Hourly CSVs at `BASE_URL` in [src/noaa_climate_data/constants.py](src/noaa_climate_data/constants.py).
-- HTTP is only used for metadata existence checks (`requests.head`) and the remaining CSVs are read via `pandas.read_csv(url)`.
+* canonical cleaned datasets
+* domain-specific datasets
+* quality and usability evidence
+* reproducible release manifests
 
-## When editing/adding code
-- Keep functions pure where possible; `pipeline.py` orchestrates IO while `cleaning.py` focuses on parsing/transformations.
-- Prefer pandas DataFrame transforms to match existing pipeline style; keep column naming consistent with `__value`, `__quality`, `__partN` patterns.
+All agents working in this repository must prioritize **artifact integrity, provenance, and reproducibility**.
+
+---
+
+# 1. Core System Model
+
+The system transforms raw NOAA observations into publishable research artifacts.
+
+```
+NOAA raw files
+        ↓
+specification‑constrained parser/cleaner
+        ↓
+canonical dataset
+        ↓
+domain datasets
+        ↓
+quality evidence artifacts
+        ↓
+release manifests
+```
+
+Each stage must preserve lineage so every published artifact can be traced back to its original NOAA source data.
+
+---
+
+# 2. Repository Responsibilities
+
+This repository is responsible for producing deterministic scientific artifacts:
+
+### Canonical Dataset
+
+The canonical dataset is the **cleaned observation-level dataset** preserving NOAA semantics.
+
+Properties:
+
+* no sentinel values
+* explicit null semantics
+* preserved quality codes
+* deterministic schema
+* stable column naming
+
+The canonical dataset is the **foundation artifact** from which all other outputs derive.
+
+---
+
+### Domain Datasets
+
+Domain datasets project the canonical dataset into reusable scientific domains.
+
+Examples:
+
+* core_meteorology
+* wind
+* precipitation
+* clouds_visibility
+* pressure_temperature
+* remarks
+
+Domain datasets must:
+
+* maintain stable schemas
+* remain joinable across domains
+* avoid embedded aggregation logic
+
+Researchers must be able to compose their own analyses using these datasets.
+
+---
+
+### Quality Evidence Artifacts
+
+Quality artifacts quantify how the cleaning system affects the data.
+
+Examples include:
+
+* field_completeness
+* sentinel_frequency
+* quality_code_exclusions
+* domain_usability_summary
+* station_year_quality
+
+These artifacts are **first‑class outputs**, not debugging tools.
+
+They provide transparency for scientific use.
+
+---
+
+### Release Manifests
+
+Each build must generate a deterministic manifest describing all produced artifacts.
+
+Required metadata fields:
+
+* artifact_id
+* schema_version
+* build_id
+* input_lineage
+* row_count
+* checksum
+* creation_timestamp
+
+Release manifests enable reproducible scientific data releases.
+
+---
+
+# 3. Specification‑Driven Cleaning
+
+The parser and cleaning system enforce rules derived from the NOAA ISD documentation.
+
+Rule types include:
+
+* sentinel handling
+* domain validation
+* range validation
+* token width enforcement
+* field arity constraints
+* allowed quality codes
+
+Agents must treat the NOAA documentation as the **authoritative reference**.
+
+Cleaning behavior must be traceable to specification rules or explicitly documented engineering safeguards.
+
+---
+
+# 4. Rule Provenance and Governance
+
+Every enforced rule must have traceable provenance.
+
+Rule classes include:
+
+* documented_exact
+* documented_inferred
+* engineering_guard
+* legacy_behavior
+
+Rules that are stricter than documentation should not silently destroy data.
+
+Instead, agents should prefer:
+
+* flagging observations
+* recording quality evidence
+* preserving original values when scientifically appropriate
+
+This separation prevents the pipeline from introducing unintended scientific bias.
+
+---
+
+# 5. Artifact Reproducibility Requirements
+
+All artifacts produced by the system must be deterministic.
+
+Identical inputs and configuration must produce identical outputs.
+
+Agents must ensure:
+
+* stable serialization formats
+* deterministic row ordering
+* consistent null representations
+* reproducible checksums
+
+The release layout must follow:
+
+```
+release/
+  build_<build_id>/
+    canonical_cleaned/
+    domains/
+    quality_reports/
+    manifests/
+```
+
+This structure forms the **publication contract** of the system.
+
+---
+
+# 6. Dataset Contracts
+
+Schemas define the public interface of every artifact.
+
+Agents must treat schemas as **versioned contracts**.
+
+Required contract properties:
+
+* stable column names
+* explicit null semantics
+* consistent data types
+* documented join keys
+
+Breaking schema compatibility must follow an explicit version change.
+
+---
+
+# 7. Quality Evidence Philosophy
+
+Cleaning decisions must remain scientifically transparent.
+
+Agents should avoid silently removing or modifying observations when documentation support is weak.
+
+Prefer generating evidence such as:
+
+* nullification counts
+* QC exclusion statistics
+* sentinel frequency metrics
+
+These artifacts allow researchers to evaluate how cleaning affects the dataset.
+
+---
+
+# 8. Development Priorities
+
+Current architectural priorities are:
+
+1. Define and freeze artifact contracts.
+2. Implement deterministic release builds.
+3. Publish domain dataset registry modules.
+4. Generate reproducible quality evidence artifacts.
+5. Harden CI validation for schemas, lineage, and reproducibility.
+
+The existing parser and rule coverage foundation should remain stable.
+
+---
+
+# 9. Constraints for Automated Agents
+
+Agents modifying this repository must follow these constraints.
+
+### Preserve Artifact Contracts
+
+Do not change schema definitions without explicit version updates.
+
+### Maintain Determinism
+
+Changes must not introduce nondeterministic output behavior.
+
+### Preserve Data Transparency
+
+Avoid transformations that hide or discard information without producing evidence artifacts.
+
+### Protect Rule Provenance
+
+Every rule must remain traceable to documentation or explicit engineering rationale.
+
+---
+
+# 10. Conceptual Model
+
+This repository implements a **specification‑constrained scientific data publication framework**.
+
+```
+NOAA specification
+        ↓
+rule extraction
+        ↓
+spec‑driven parser/cleaner
+        ↓
+canonical dataset
+        ↓
+domain datasets
+        ↓
+quality evidence
+        ↓
+reproducible release artifacts
+```
+
+The ultimate objective is to produce **transparent, reproducible climate data products suitable for scientific research and citation.**
