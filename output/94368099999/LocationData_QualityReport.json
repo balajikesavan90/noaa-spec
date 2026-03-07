@@ -5,8 +5,8 @@
   },
   "metadata": {
     "report_type": "data_quality",
-    "generated_at_utc": "2026-03-03T04:21:09Z",
-    "data_access_date": "2026-03-03",
+    "generated_at_utc": "2026-03-06T06:20:14Z",
+    "data_access_date": "2026-03-06",
     "version": "0.1.0"
   },
   "row_counts": {
@@ -360,5 +360,5 @@
       "gap_duration_hours": 30.0
     }
   ],
-  "citation": "Balaji Kesavan. (2026). noaa-climate-data (Version 0.1.0). NOAA ISD Global Hourly data processed for station 94368099999. Retrieved 2026-03-03 from https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database"
+  "citation": "Balaji Kesavan. (2026). noaa-climate-data (Version 0.1.0). NOAA ISD Global Hourly data processed for station 94368099999. Retrieved 2026-03-06 from https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database"
 }

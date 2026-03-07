@@ -2,7 +2,7 @@
 
 - Station ID: 82795099999
 - Station Name: PRESIDENTE JOAO SUASSUNA, BR
-- Generated: 2026-03-03T04:11:16Z
+- Generated: 2026-03-06T06:08:45Z
 - Strategy: best_hour
 
 ## Strategy Parameters
@@ -14,9 +14,9 @@
 
 - min_days_per_month: 20
 - min_months_per_year: 12
-- rows_before_filters: 12393
-- rows_after_min_days_per_month: 12393
-- rows_after_min_months_per_year: 12046
+- rows_before_filters: 0
+- rows_after_min_days_per_month: 0
+- rows_after_min_months_per_year: 0
 
 ## Dropped Columns
 
@@ -126,4 +126,4 @@
 
 ## Citation
 
-Balaji Kesavan. (2026). noaa-climate-data (Version 0.1.0). NOAA ISD Global Hourly data processed for station 82795099999. Retrieved 2026-03-03 from https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database
+Balaji Kesavan. (2026). noaa-climate-data (Version 0.1.0). NOAA ISD Global Hourly data processed for station 82795099999. Retrieved 2026-03-06 from https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database

@@ -2,7 +2,7 @@
 
 - Station ID: 34880099999
 - Station Name: ASTRAHAN, RS
-- Generated: 2026-03-03T03:36:42Z
+- Generated: 2026-03-06T05:29:36Z
 - Strategy: best_hour
 
 ## Strategy Parameters
@@ -14,9 +14,9 @@
 
 - min_days_per_month: 20
 - min_months_per_year: 12
-- rows_before_filters: 6155
-- rows_after_min_days_per_month: 6083
-- rows_after_min_months_per_year: 4693
+- rows_before_filters: 0
+- rows_after_min_days_per_month: 0
+- rows_after_min_months_per_year: 0
 
 ## Dropped Columns
 
@@ -135,4 +135,4 @@
 
 ## Citation
 
-Balaji Kesavan. (2026). noaa-climate-data (Version 0.1.0). NOAA ISD Global Hourly data processed for station 34880099999. Retrieved 2026-03-03 from https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database
+Balaji Kesavan. (2026). noaa-climate-data (Version 0.1.0). NOAA ISD Global Hourly data processed for station 34880099999. Retrieved 2026-03-06 from https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database

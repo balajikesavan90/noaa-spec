@@ -2,8 +2,8 @@
 
 - Station ID: 94368099999
 - Station Name: HAMILTON ISLAND AIRPORT, AS
-- Generated: 2026-03-03T04:21:09Z
-- Data Access Date: 2026-03-03
+- Generated: 2026-03-06T06:20:14Z
+- Data Access Date: 2026-03-06
 
 ## Row Counts
 
@@ -45,4 +45,4 @@
 
 ## Citation
 
-Balaji Kesavan. (2026). noaa-climate-data (Version 0.1.0). NOAA ISD Global Hourly data processed for station 94368099999. Retrieved 2026-03-03 from https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database
+Balaji Kesavan. (2026). noaa-climate-data (Version 0.1.0). NOAA ISD Global Hourly data processed for station 94368099999. Retrieved 2026-03-06 from https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database
