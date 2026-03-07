@@ -1,130 +1,189 @@
-# Architecture next steps: normalized checklist
+# Architecture Next Steps
 
 Last reassessed: 2026-03-07
 
-This file is the implementation checklist and source of truth for architecture and
-productization work.
+## 1. Current State
 
-`NEXT_STEPS.md` is now a completed parser/spec alignment record (all checklist items
-checked as of this reassessment). This file now carries the remaining structural,
-contract, release, and publication backlog.
+The parser/cleaner foundation is strong:
 
-## Status key
+- `NEXT_STEPS.md` is now the completion record for spec-rule alignment and strict parsing behavior.
+- `SPEC_COVERAGE_REPORT.md` reports full implemented and strict-tested coverage for extracted ISD rule families.
+- Parsing breadth is no longer the primary bottleneck.
 
-- [x] Completed in the repository
-- [ ] Open
-- [ ] Open (partial: some implementation exists, but contract-level completion is missing)
+The next bottleneck is artifact credibility and researcher usability. This repository should now be treated as a scientific data publication system built on a specification-constrained parser and cleaner.
 
-## Priority recommendation: `NEXT_STEPS.md` vs architecture work
+## 2. Updated Product Direction
 
-- [x] Keep `NEXT_STEPS.md` as correctness evidence for parser/cleaning semantics.
-- [x] Treat spec-rule implementation work as complete baseline.
-- [ ] Shift active effort toward architecture/productization (~80%) and targeted regression hardening (~20%).
-- [ ] Keep architecture work incremental inside `src/noaa_climate_data/` (no big-bang rewrite).
+This repository is not primarily an opinionated analysis pipeline. It is a publication system that produces reproducible scientific data artifacts:
 
-## P0: conflict normalization (lock these decisions first)
+- canonical cleaned datasets,
+- domain-specific datasets,
+- published quality/usability evidence,
+- release manifests with lineage and reproducibility metadata.
 
-- [ ] Adopt `schemas/` as the canonical contract location; treat `data_contracts/` as deprecated naming.
-- [ ] Standardize raw partitioning to `layer=raw_station/station_bucket=<00-ff>/year=<yyyy>/month=<mm>/` and keep `station_id` in file name/metadata (not a partition directory).
-- [ ] Standardize clean partitioning to `layer=clean_station/station_bucket=<00-ff>/year=<yyyy>/month=<mm>/`.
-- [ ] Standardize curated partitioning to `layer=curated/dataset=<metric>_station/station_bucket=<00-ff>/year=<yyyy>/month=<mm>/`.
-- [ ] Standardize aggregated partitioning to `layer=aggregated/dataset=<metric>_<grain>/year=<yyyy>/month=<mm>/` (omit `month` for yearly or normals outputs).
-- [ ] Keep canonical natural keys (`station_id`, `timestamp_utc`, `year`, `month`, `day`, `hour`) and add deterministic `record_id` hash for observation-level joins/dedup. (partial: time dimensions exist, canonical contract and `record_id` do not)
-- [ ] Standardize provenance column naming with `meta_` prefix: `meta_run_id`, `meta_dataset_version`, `meta_pipeline_commit`, `meta_processed_at_utc`, `meta_source_year`, `meta_source_file_name`, `meta_parent_snapshot_id`.
-- [ ] Keep raw NOAA quality/code fields and add derived usability fields (`*_qc_status`, `*_qc_pass`, `*_usable`) in clean/curated outputs. (partial: `*_qc_status`/`*_qc_pass` plus row-level usability summaries exist)
-- [ ] Canonicalize CLI names to `build-clean-station`, `build-curated`, `build-aggregates`, `validate`, `publish-release`, `run --config`; keep compatibility aliases for `build-metric-stations` and `build-release`.
-- [ ] Canonicalize release artifacts to `checksums.sha256` and `CHANGELOG_DATASET.md` (keep root `CHANGELOG.md` for code changes).
-- [ ] Use both contract layers: versioned JSON schemas for persisted datasets plus Pandera checks in pipeline/runtime validation.
+The parser/cleaner remains the foundation, but the architecture focus is publication-grade contracts and artifact transparency.
 
-## P1: repository architecture and compatibility boundaries
+## 3. Guiding Principles
 
-- [x] Keep incremental migration in `src/noaa_climate_data/` (no big-bang rewrite).
-- [ ] Extract modules with clear boundaries: `ingestion`, `parsing`, `cleaning`, `transforms`, `aggregation`, `validation`, `metadata`, `publish`, `io`, `orchestration`, `observability`. (partial: `pdf_markdown`, `domain_split`, and `research_reports` added, but core boundaries still concentrated in `pipeline.py`)
-- [ ] Keep `constants.py`, `cleaning.py`, and `pipeline.py` as compatibility facades while internal modules are extracted. (partial: modules are still mostly implementation centers, not facades)
-- [ ] Add `src/noaa_climate_data/api.py` as the stable Python API surface.
-- [ ] Add `src/noaa_climate_data/config.py` and central config loading for paths, partitions, manifests, and release settings.
-- [ ] Move root one-off scripts into `scripts/` or CLI commands.
-- [ ] Define internal/private helpers with `_` prefix and keep them out of public docs. (partial: helper naming is mostly present, but policy and docs boundary are not formalized)
+- No big-bang rewrite: evolve incrementally inside `src/noaa_climate_data/`.
+- Preserve and protect the existing spec-driven parser/cleaner/coverage foundation.
+- Model architecture around published artifacts and their lineage graph.
+- Contracts first: schemas, naming, null semantics, and provenance must be explicit and versioned.
+- Deterministic and auditable outputs: identical inputs and config should produce identical artifact signatures.
+- Prioritize researcher composability and joinability over built-in rollups.
+- Keep changes PR-sized, compatibility-aware, and grounded in current package boundaries.
 
-## P2: dataset layering and schema contracts
+## 4. Artifact Model and Dataset Graph
 
-- [ ] Implement and freeze layer contracts for `raw_station`, `clean_station`, curated metric station datasets, aggregated datasets, and published release datasets.
-- [ ] Add versioned JSON schemas in `schemas/` for each dataset and grain.
-- [ ] Define required metadata columns and nullable policy in schema files (no sentinel leakage in numeric outputs).
-- [ ] Define station identity contract (`station_id`, `station_usaf`, `station_wban`) and source identity contract (`meta_source_file_name`, `meta_source_year`).
-- [ ] Add uniqueness constraints for natural key and `record_id` at observation grains.
-- [ ] Add schema migration notes for every backward-incompatible contract change.
+Artifact flow:
 
-## P3: manifests, lineage, and storage reliability
+```text
+NOAA raw files
+  -> specification-constrained parser/cleaner
+  -> canonical cleaned dataset
+  -> domain-specific datasets
+  -> quality/usability reports
+  -> release manifests
+```
 
-- [ ] Add `manifests/ingestion/<run_id>.parquet` (one row per station-year pull attempt).
-- [ ] Add `manifests/dataset/<layer>/<snapshot_id>.json` with schema version, partition spec, row/file counts, null rates, and checksums.
-- [ ] Add lineage tracking fields and manifest graph (raw -> clean -> curated -> aggregated -> published).
-- [ ] Add deterministic parquet write settings and sort behavior for reproducible outputs.
-- [ ] Add atomic write flow (temp write -> checksum verify -> commit marker).
-- [ ] Add compaction plan for clean/curated/aggregated layers to control tiny files.
-- [ ] Replace mutable-only station status booleans with manifest-derived run status views (keep booleans temporarily for compatibility). (partial: booleans exist and are actively used)
-- [ ] Add upload retry/resume and partial-failure handling for object-store publishing.
+Artifact types:
 
-## P4: CLI/API contract hardening and run orchestration
+- `canonical_dataset`: cleaned observation-level dataset that preserves NOAA semantics with standardized null/provenance behavior.
+- `domain_dataset`: stable researcher-facing dataset for a specific domain projection of canonical data.
+- `quality_report`: machine-readable and human-readable quality/usability evidence derived from canonical/domain artifacts.
+- `release_manifest`: deterministic metadata record describing artifacts, schema versions, checksums, counts, and lineage for a build.
 
-- [x] Keep existing commands stable (`file-list`, `location-ids`, `pick-location`, `clean-parquet`, `process-location`) until deprecation windows are published.
-- [ ] Add/finish commands: `ingest-raw`, `build-clean-station`, `build-curated`, `build-aggregates`, `validate`, `publish-release`, `run --config`.
-- [ ] Add explicit deprecation policy for command and argument changes in README.
-- [ ] Document idempotency and overwrite behavior per command.
-- [ ] Implement run IDs and structured logging context in all pipeline entry points.
-- [ ] Add minimal stable API functions: `build_file_index`, `build_station_registry`, `build_clean_station`, `build_curated_station`, `build_aggregates`, `publish_release`, `run_pipeline`.
+Required metadata for every artifact type:
 
-## P5: quality usability and user-facing utility datasets
+- `artifact_id`
+- `schema_version`
+- `build_id`
+- `input_lineage`
+- `row_count`
+- `checksum`
+- `creation_timestamp`
 
-- [x] Add row-level usability signals (`row_has_any_usable_metric`, `usable_metric_count`, `usable_metric_fraction`).
-- [ ] Add station-level usability outputs (coverage percentages, quality score/tier).
-- [ ] Ensure aggregates include completeness metadata (`obs_count`, `usable_obs_count`, `coverage_pct`).
-- [ ] Add curated-derived metrics (dual units, humidity/comfort metrics, wind utility metrics, precipitation intensity where valid). (partial: dual-unit conversion support exists)
-- [ ] Add completeness outputs: `station_completeness_daily`, `station_completeness_monthly`, `station_quality_monthly`.
-- [ ] Add metadata tables: `dim_station`, `dim_variable`, `fact_station_coverage_daily`, `fact_station_quality_monthly`, `fact_processing_runs`, `dim_dataset_release`.
-- [ ] Add machine-readable dataset catalog and sample query/notebook assets. (partial: human-readable reports and data dictionary outputs exist)
+`input_lineage` must resolve parent artifacts and/or source files so the full source-to-output chain is auditable.
 
-## P6: validation, testing, and CI governance
+## 5. Domain Dataset Registry
 
-- [ ] Add Pandera-based runtime validation profiles for clean/curated/aggregated writes.
-- [ ] Add schema contract tests against versioned JSON schemas.
-- [ ] Add dataset-level contract tests under `tests/contract/` or `tests/contracts/` (pick one path and standardize).
-- [ ] Add regression links to architecture open items (replace obsolete linkage to `NEXT_STEPS.md`).
-- [ ] Add property-based tests (Hypothesis) for malformed/edge NOAA encodings.
-- [ ] Add deterministic smoke-test fixture and expected outputs for CI. (partial: smoke-style tests exist, but no contract fixture set)
-- [ ] Add GitHub Actions for lint, type-check, tests, schema contracts, manifest validation, and smoke pipeline run. (partial: suspicious-coverage workflow exists)
-- [ ] Require validation-report generation on release branches before tagging.
+Target structure: module-based registry under `src/noaa_climate_data/domains/`.
 
-## P7: publication and DOI release workflow
+Each domain module defines:
 
-- [ ] Implement `publish-release` workflow that builds immutable `published/release=vX.Y.Z/` artifacts.
-- [ ] Include required release artifacts: parquet snapshots, dataset manifests, `checksums.sha256`, schema bundle, `DATA_DICTIONARY.md`, `README_RELEASE.md`, `CHANGELOG_DATASET.md`, `CITATION.cff`, `LICENSE`, `PROVENANCE.md`.
-- [ ] Add semantic version policy for dataset releases (major/minor/patch compatibility rules).
-- [ ] Add automated release packaging for GitHub Release outputs.
-- [ ] Add Zenodo deposition metadata template and DOI linkage process.
-- [ ] Add release validation checks that block publish when manifests/checksums/citation artifacts are missing.
+- `DOMAIN_NAME`
+- `INPUT_FIELDS`
+- `OUTPUT_SCHEMA`
+- `JOIN_KEYS`
+- `QUALITY_RULES`
 
-## P8: methods paper readiness and evidence artifacts
+Initial domain set:
 
-- [ ] Finalize methods outline tied to implemented pipeline stages.
-- [ ] Run validation experiments: parse fidelity, coverage deltas, QC attrition, cross-source comparisons, reproducibility reruns. (partial: quality/aggregation report generation exists)
-- [ ] Run scaling benchmarks by station count and year window. (partial: timing logs exist, benchmark contract does not)
-- [ ] Produce paper figures (architecture DAG, coverage, QC waterfall, scaling).
-- [ ] Produce paper tables (schema summary, QC policy matrix, validation thresholds, release diffs).
-- [ ] Add reproducibility appendix with exact config, versions, manifests, and checksums. (partial: reproducibility scaffolding exists without architecture manifests/checksums)
+- `core_meteorology`
+- `wind`
+- `precipitation`
+- `clouds_visibility`
+- `pressure_temperature`
+- `remarks`
 
-## P9: PR-sized execution order (re-baselined)
+Domain dataset requirements:
 
-- [ ] PR 1: Add `config.py`, `configs/runs/`, and `run --config` as the canonical execution path.
-- [ ] PR 2: Introduce stable API surface (`api.py`) and map existing pipeline entry points to it.
-- [ ] PR 3: Finalize dataset/layer contracts and partition specs; document key/provenance columns.
-- [ ] PR 4: Add deterministic parquet writer helpers, atomic commit markers, and normalized partition utilities.
-- [ ] PR 5: Add `schemas/` (versioned JSON schemas) and clean-layer schema enforcement.
-- [ ] PR 6: Add ingestion and dataset manifests plus manifest-derived run status views.
-- [ ] PR 7: Replace `aggregate-parquet` placeholder with production `build-aggregates` behavior and completeness metadata.
-- [ ] PR 8: Implement curated build flows and curated metric datasets (keep compatibility aliases where needed).
-- [ ] PR 9: Add `validate` command, schema contract tests, and property-based malformed-input tests.
-- [ ] PR 10: Expand CI from suspicious coverage checks to lint/type/test/smoke/schema/manifest gates.
-- [ ] PR 11: Implement `publish-release` packaging, checksums/changelog/citation artifacts, and release validation gates.
-- [ ] PR 12: Run bounded release-candidate dry run, publish validation report, and capture methods-paper evidence outputs.
+- stable over release versions with explicit contract versioning,
+- researcher-friendly and documented for direct use,
+- joinable via shared identity keys,
+- not aggregated products.
+
+## 6. Published Quality Evidence
+
+Quality evidence artifacts must be generated and published as first-class outputs alongside datasets:
+
+- `field_completeness`
+- `sentinel_frequency`
+- `quality_code_exclusions`
+- `domain_usability_summary`
+- `station_year_quality`
+
+These artifacts must be reproducible for a given build and linked in manifests via artifact IDs and lineage references.
+
+## 7. Release Artifact Layout
+
+Release outputs should follow a deterministic layout:
+
+```text
+release/
+  build_<build_id>/
+    canonical_cleaned/
+    domains/
+    quality_reports/
+    manifests/
+```
+
+Layout, file naming, serialization settings, and manifest generation must be deterministic so reruns produce matching checksums when source inputs and configuration are unchanged.
+
+## 8. Priority Roadmap
+
+### Priority 1 - Dataset Contracts and Schema Discipline
+
+- Freeze explicit contracts for `canonical_dataset`, each `domain_dataset`, each `quality_report` type, and `release_manifest`.
+- Define and version canonical and domain schemas with stable column names, explicit null semantics, and provenance columns.
+- Standardize shared identity keys and join keys across all dataset artifacts.
+- Enforce no-sentinel leakage into cleaned numeric outputs before canonical publication.
+- Encode required artifact metadata fields as contract-level requirements, not optional annotations.
+
+### Priority 2 - Domain-Oriented Dataset Publishing
+
+- Implement `src/noaa_climate_data/domains/` registry modules for the six initial domains.
+- Require each domain module to declare `DOMAIN_NAME`, `INPUT_FIELDS`, `OUTPUT_SCHEMA`, `JOIN_KEYS`, and `QUALITY_RULES`.
+- Publish stable domain definitions and join documentation so cross-domain analyses do not depend on private pipeline details.
+- Keep domains focused on reusable scientific data slices rather than derived aggregate products.
+
+### Priority 3 - Data Quality and Usability Reporting
+
+- Make `field_completeness`, `sentinel_frequency`, `quality_code_exclusions`, `domain_usability_summary`, and `station_year_quality` mandatory published artifacts.
+- Add per-domain and per-field validity/usability indicators with clear exclusion semantics.
+- Preserve QC attrition visibility so researchers can trace data loss from raw to published datasets.
+- Publish quality artifacts in machine-readable formats and release-facing summaries.
+
+### Priority 4 - Reproducibility, Manifests, and Lineage
+
+- Implement deterministic writes for canonical, domain, and quality artifacts.
+- Generate release manifests with schema versions, row counts, checksums, and artifact lineage links.
+- Adopt the deterministic `release/build_<build_id>/...` layout as publication contract.
+- Capture reproducible build metadata (code revision, config identity, build timestamp, source scope).
+- Ensure lineage links connect NOAA raw sources through canonical and domain outputs to released quality evidence.
+
+### Priority 5 - CI and Validation Hardening
+
+- Add CI schema validation for all artifact types (`canonical_dataset`, `domain_dataset`, `quality_report`, `release_manifest`).
+- Add stale artifact detection between domain registry definitions, schemas, and generated outputs.
+- Add reproducibility smoke tests that validate deterministic signatures for a bounded fixture build.
+- Add smoke tests for end-to-end artifact graph generation (canonical -> domains -> quality -> manifests).
+- Continue strict protection of parser/spec coverage guarantees established in `NEXT_STEPS.md`.
+
+## 9. Deferred / Out of Scope
+
+The following are deferred and out of scope for the near-term architecture roadmap:
+
+- built-in aggregate outputs as a core product artifact,
+- opinionated rollup logic embedded in publication flows,
+- downstream analytical summarization.
+
+These are downstream researcher responsibilities using published canonical/domain datasets and quality evidence.
+
+## 10. Implementation Strategy
+
+Delivery remains incremental and PR-based inside the existing package, not an architectural overhaul.
+
+Recommended execution waves:
+
+1. Establish artifact contracts and required metadata fields for canonical/domain/quality/manifest outputs.
+2. Add deterministic release layout and manifest generation with checksums and lineage.
+3. Implement domain registry modules under `src/noaa_climate_data/domains/` and wire stable domain publishing.
+4. Promote quality evidence generation to required release artifacts and bind them into manifests.
+5. Harden CI with schema, lineage, stale-artifact, and reproducibility validation gates.
+
+Compatibility expectations:
+
+- Keep current parser/cleaner behavior as the preserved foundation.
+- Introduce artifact-oriented contracts without break-first migration.
+- Use explicit deprecation windows for any legacy naming/path transitions.
