@@ -1,15 +1,26 @@
 # Architecture next steps: normalized checklist
 
-This document normalizes conflicts between `tech_debt.md` and `DATASET_ARCHITECTURE_RECOMMENDATIONS.md`.
-Use this file as the implementation checklist and source of truth for architecture/productization work.
+Last reassessed: 2026-03-07
+
+This file is the implementation checklist and source of truth for architecture and
+productization work.
+
+`NEXT_STEPS.md` is now a completed parser/spec alignment record (all checklist items
+checked as of this reassessment). This file now carries the remaining structural,
+contract, release, and publication backlog.
+
+## Status key
+
+- [x] Completed in the repository
+- [ ] Open
+- [ ] Open (partial: some implementation exists, but contract-level completion is missing)
 
 ## Priority recommendation: `NEXT_STEPS.md` vs architecture work
 
-- [ ] Keep `NEXT_STEPS.md` as correctness gate for parser/cleaning semantics.
-- [ ] Use a working split of ~70% `NEXT_STEPS.md` and ~30% architecture tasks until `NEXT_STEPS.md` P0/P1 are complete.
-- [ ] Allow parallel architecture work only for low-risk scaffolding (config, manifests, schemas, CI, release plumbing).
-- [ ] Shift to ~50/50 once parser outputs are stable.
-- [ ] Shift to ~30/70 (favoring architecture) once remaining `NEXT_STEPS.md` items are mostly validation hardening.
+- [x] Keep `NEXT_STEPS.md` as correctness evidence for parser/cleaning semantics.
+- [x] Treat spec-rule implementation work as complete baseline.
+- [ ] Shift active effort toward architecture/productization (~80%) and targeted regression hardening (~20%).
+- [ ] Keep architecture work incremental inside `src/noaa_climate_data/` (no big-bang rewrite).
 
 ## P0: conflict normalization (lock these decisions first)
 
@@ -18,22 +29,22 @@ Use this file as the implementation checklist and source of truth for architectu
 - [ ] Standardize clean partitioning to `layer=clean_station/station_bucket=<00-ff>/year=<yyyy>/month=<mm>/`.
 - [ ] Standardize curated partitioning to `layer=curated/dataset=<metric>_station/station_bucket=<00-ff>/year=<yyyy>/month=<mm>/`.
 - [ ] Standardize aggregated partitioning to `layer=aggregated/dataset=<metric>_<grain>/year=<yyyy>/month=<mm>/` (omit `month` for yearly or normals outputs).
-- [ ] Keep canonical natural keys (`station_id`, `timestamp_utc`, `year`, `month`, `day`, `hour`) and add deterministic `record_id` hash for observation-level joins/dedup.
+- [ ] Keep canonical natural keys (`station_id`, `timestamp_utc`, `year`, `month`, `day`, `hour`) and add deterministic `record_id` hash for observation-level joins/dedup. (partial: time dimensions exist, canonical contract and `record_id` do not)
 - [ ] Standardize provenance column naming with `meta_` prefix: `meta_run_id`, `meta_dataset_version`, `meta_pipeline_commit`, `meta_processed_at_utc`, `meta_source_year`, `meta_source_file_name`, `meta_parent_snapshot_id`.
-- [ ] Keep raw NOAA quality/code fields and add derived usability fields (`*_qc_status`, `*_qc_pass`, `*_usable`) in clean/curated outputs.
+- [ ] Keep raw NOAA quality/code fields and add derived usability fields (`*_qc_status`, `*_qc_pass`, `*_usable`) in clean/curated outputs. (partial: `*_qc_status`/`*_qc_pass` plus row-level usability summaries exist)
 - [ ] Canonicalize CLI names to `build-clean-station`, `build-curated`, `build-aggregates`, `validate`, `publish-release`, `run --config`; keep compatibility aliases for `build-metric-stations` and `build-release`.
 - [ ] Canonicalize release artifacts to `checksums.sha256` and `CHANGELOG_DATASET.md` (keep root `CHANGELOG.md` for code changes).
 - [ ] Use both contract layers: versioned JSON schemas for persisted datasets plus Pandera checks in pipeline/runtime validation.
 
 ## P1: repository architecture and compatibility boundaries
 
-- [ ] Keep incremental migration in `src/noaa_climate_data/` (no big-bang rewrite).
-- [ ] Extract modules with clear boundaries: `ingestion`, `parsing`, `cleaning`, `transforms`, `aggregation`, `validation`, `metadata`, `publish`, `io`, `orchestration`, `observability`.
-- [ ] Keep `constants.py`, `cleaning.py`, and `pipeline.py` as compatibility facades while internal modules are extracted.
+- [x] Keep incremental migration in `src/noaa_climate_data/` (no big-bang rewrite).
+- [ ] Extract modules with clear boundaries: `ingestion`, `parsing`, `cleaning`, `transforms`, `aggregation`, `validation`, `metadata`, `publish`, `io`, `orchestration`, `observability`. (partial: `pdf_markdown`, `domain_split`, and `research_reports` added, but core boundaries still concentrated in `pipeline.py`)
+- [ ] Keep `constants.py`, `cleaning.py`, and `pipeline.py` as compatibility facades while internal modules are extracted. (partial: modules are still mostly implementation centers, not facades)
 - [ ] Add `src/noaa_climate_data/api.py` as the stable Python API surface.
 - [ ] Add `src/noaa_climate_data/config.py` and central config loading for paths, partitions, manifests, and release settings.
 - [ ] Move root one-off scripts into `scripts/` or CLI commands.
-- [ ] Define internal/private helpers with `_` prefix and keep them out of public docs.
+- [ ] Define internal/private helpers with `_` prefix and keep them out of public docs. (partial: helper naming is mostly present, but policy and docs boundary are not formalized)
 
 ## P2: dataset layering and schema contracts
 
@@ -52,12 +63,12 @@ Use this file as the implementation checklist and source of truth for architectu
 - [ ] Add deterministic parquet write settings and sort behavior for reproducible outputs.
 - [ ] Add atomic write flow (temp write -> checksum verify -> commit marker).
 - [ ] Add compaction plan for clean/curated/aggregated layers to control tiny files.
-- [ ] Replace mutable-only station status booleans with manifest-derived run status views (keep booleans temporarily for compatibility).
+- [ ] Replace mutable-only station status booleans with manifest-derived run status views (keep booleans temporarily for compatibility). (partial: booleans exist and are actively used)
 - [ ] Add upload retry/resume and partial-failure handling for object-store publishing.
 
 ## P4: CLI/API contract hardening and run orchestration
 
-- [ ] Keep existing commands stable (`file-list`, `location-ids`, `pick-location`, `clean-parquet`, `process-location`) until deprecation windows are published.
+- [x] Keep existing commands stable (`file-list`, `location-ids`, `pick-location`, `clean-parquet`, `process-location`) until deprecation windows are published.
 - [ ] Add/finish commands: `ingest-raw`, `build-clean-station`, `build-curated`, `build-aggregates`, `validate`, `publish-release`, `run --config`.
 - [ ] Add explicit deprecation policy for command and argument changes in README.
 - [ ] Document idempotency and overwrite behavior per command.
@@ -66,22 +77,23 @@ Use this file as the implementation checklist and source of truth for architectu
 
 ## P5: quality usability and user-facing utility datasets
 
-- [ ] Add row-level and station-level usability signals (`row_has_any_usable_metric`, coverage percentages, quality score/tier).
+- [x] Add row-level usability signals (`row_has_any_usable_metric`, `usable_metric_count`, `usable_metric_fraction`).
+- [ ] Add station-level usability outputs (coverage percentages, quality score/tier).
 - [ ] Ensure aggregates include completeness metadata (`obs_count`, `usable_obs_count`, `coverage_pct`).
-- [ ] Add curated-derived metrics (dual units, humidity/comfort metrics, wind utility metrics, precipitation intensity where valid).
+- [ ] Add curated-derived metrics (dual units, humidity/comfort metrics, wind utility metrics, precipitation intensity where valid). (partial: dual-unit conversion support exists)
 - [ ] Add completeness outputs: `station_completeness_daily`, `station_completeness_monthly`, `station_quality_monthly`.
 - [ ] Add metadata tables: `dim_station`, `dim_variable`, `fact_station_coverage_daily`, `fact_station_quality_monthly`, `fact_processing_runs`, `dim_dataset_release`.
-- [ ] Add machine-readable dataset catalog and sample query/notebook assets.
+- [ ] Add machine-readable dataset catalog and sample query/notebook assets. (partial: human-readable reports and data dictionary outputs exist)
 
 ## P6: validation, testing, and CI governance
 
 - [ ] Add Pandera-based runtime validation profiles for clean/curated/aggregated writes.
 - [ ] Add schema contract tests against versioned JSON schemas.
 - [ ] Add dataset-level contract tests under `tests/contract/` or `tests/contracts/` (pick one path and standardize).
-- [ ] Add regression links to open items in `NEXT_STEPS.md`.
+- [ ] Add regression links to architecture open items (replace obsolete linkage to `NEXT_STEPS.md`).
 - [ ] Add property-based tests (Hypothesis) for malformed/edge NOAA encodings.
-- [ ] Add deterministic smoke-test fixture and expected outputs for CI.
-- [ ] Add GitHub Actions for lint, type-check, tests, schema contracts, manifest validation, and smoke pipeline run.
+- [ ] Add deterministic smoke-test fixture and expected outputs for CI. (partial: smoke-style tests exist, but no contract fixture set)
+- [ ] Add GitHub Actions for lint, type-check, tests, schema contracts, manifest validation, and smoke pipeline run. (partial: suspicious-coverage workflow exists)
 - [ ] Require validation-report generation on release branches before tagging.
 
 ## P7: publication and DOI release workflow
@@ -96,25 +108,23 @@ Use this file as the implementation checklist and source of truth for architectu
 ## P8: methods paper readiness and evidence artifacts
 
 - [ ] Finalize methods outline tied to implemented pipeline stages.
-- [ ] Run validation experiments: parse fidelity, coverage deltas, QC attrition, cross-source comparisons, reproducibility reruns.
-- [ ] Run scaling benchmarks by station count and year window.
+- [ ] Run validation experiments: parse fidelity, coverage deltas, QC attrition, cross-source comparisons, reproducibility reruns. (partial: quality/aggregation report generation exists)
+- [ ] Run scaling benchmarks by station count and year window. (partial: timing logs exist, benchmark contract does not)
 - [ ] Produce paper figures (architecture DAG, coverage, QC waterfall, scaling).
 - [ ] Produce paper tables (schema summary, QC policy matrix, validation thresholds, release diffs).
-- [ ] Add reproducibility appendix with exact config, versions, manifests, and checksums.
+- [ ] Add reproducibility appendix with exact config, versions, manifests, and checksums. (partial: reproducibility scaffolding exists without architecture manifests/checksums)
 
-## P9: PR-sized execution order
+## P9: PR-sized execution order (re-baselined)
 
-- [ ] PR 1: Add `config.py`, `configs/runs/`, and `run --config`.
-- [ ] PR 2: Add `run_id` + structured logging context across CLI and pipeline.
-- [ ] PR 3: Add deterministic/atomic parquet writer helpers and normalized partition utilities.
-- [ ] PR 4: Add ingestion manifest writer and manifest-derived station status view.
-- [ ] PR 5: Add schema set under `schemas/` and enforce clean write contracts.
-- [ ] PR 6: Implement `build-clean-station` writer with natural-key + `record_id` uniqueness checks.
-- [ ] PR 7: Implement `build-curated` (with compatibility alias `build-metric-stations`) and first curated datasets.
-- [ ] PR 8: Replace aggregation placeholder with `build-aggregates` outputs and aggregation metadata.
-- [ ] PR 9: Add Pandera validation profiles, contract tests, and `validate` command.
-- [ ] PR 10: Add completeness/quality summary tables and metadata dimension/fact tables.
-- [ ] PR 11: Add dataset manifest builder, lineage graph, and checksum generation.
-- [ ] PR 12: Add CI workflows for lint/type/test/smoke/schema/manifest gates.
-- [ ] PR 13: Add `publish-release` packaging flow and release artifact docs.
-- [ ] PR 14: Run bounded dry-run release candidate, publish validation report, and capture follow-up fixes.
+- [ ] PR 1: Add `config.py`, `configs/runs/`, and `run --config` as the canonical execution path.
+- [ ] PR 2: Introduce stable API surface (`api.py`) and map existing pipeline entry points to it.
+- [ ] PR 3: Finalize dataset/layer contracts and partition specs; document key/provenance columns.
+- [ ] PR 4: Add deterministic parquet writer helpers, atomic commit markers, and normalized partition utilities.
+- [ ] PR 5: Add `schemas/` (versioned JSON schemas) and clean-layer schema enforcement.
+- [ ] PR 6: Add ingestion and dataset manifests plus manifest-derived run status views.
+- [ ] PR 7: Replace `aggregate-parquet` placeholder with production `build-aggregates` behavior and completeness metadata.
+- [ ] PR 8: Implement curated build flows and curated metric datasets (keep compatibility aliases where needed).
+- [ ] PR 9: Add `validate` command, schema contract tests, and property-based malformed-input tests.
+- [ ] PR 10: Expand CI from suspicious coverage checks to lint/type/test/smoke/schema/manifest gates.
+- [ ] PR 11: Implement `publish-release` packaging, checksums/changelog/citation artifacts, and release validation gates.
+- [ ] PR 12: Run bounded release-candidate dry run, publish validation report, and capture methods-paper evidence outputs.
