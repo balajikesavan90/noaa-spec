@@ -79,6 +79,40 @@ def _is_missing_value(value: str, rule: FieldPartRule | None) -> bool:
     return _is_missing_numeric(value)
 
 
+def _is_flag_only_domain_identifier(prefix: str) -> bool:
+    return prefix.startswith(("AC", "AD", "AG", "AH"))
+
+
+def _is_flag_only_arity_identifier(prefix: str) -> bool:
+    return prefix.startswith("AH")
+
+
+def _check_domain(
+    value: str,
+    part_rule: FieldPartRule | None,
+) -> tuple[str | None, bool, bool]:
+    normalized = value.strip()
+    if part_rule is None:
+        return normalized, False, False
+
+    domain_invalid = False
+    pattern_mismatch = False
+    if part_rule.allowed_values:
+        normalized_upper = normalized.upper()
+        if normalized_upper not in part_rule.allowed_values:
+            domain_invalid = True
+    if part_rule.allowed_pattern:
+        pattern = part_rule.allowed_pattern
+        if isinstance(pattern, str):
+            pattern = re.compile(pattern)
+        if not pattern.fullmatch(normalized):
+            pattern_mismatch = True
+
+    if domain_invalid or pattern_mismatch:
+        return None, domain_invalid, pattern_mismatch
+    return normalized, False, False
+
+
 def enforce_domain(value: str, part_rule: FieldPartRule | None) -> str | None:
     normalized = value.strip()
     if part_rule is None:
@@ -388,6 +422,7 @@ def _expand_parsed(
     prefix: str,
     allow_quality: bool,
     strict_mode: bool = True,
+    arity_mismatch: bool = False,
 ) -> dict[str, object]:
     """Expand multi-part parsed field into column dictionary with QC signals.
 
@@ -442,6 +477,19 @@ def _expand_parsed(
         and parsed.parts[3].strip() == "999"
     )
     is_eqd = _is_eqd_prefix(prefix)
+    flag_only_domain = _is_flag_only_domain_identifier(prefix)
+    flag_only_arity = _is_flag_only_arity_identifier(prefix)
+    if flag_only_domain:
+        payload[f"qc_domain_invalid_{prefix}"] = False
+        payload[f"qc_pattern_mismatch_{prefix}"] = False
+    if flag_only_arity:
+        payload[f"qc_arity_mismatch_{prefix}"] = bool(arity_mismatch)
+    if prefix == "WND":
+        payload["qc_calm_wind_detected"] = False
+    if prefix.startswith("OD"):
+        payload["qc_calm_direction_detected_OD"] = False
+    if prefix.startswith("OE"):
+        payload["qc_calm_speed_detected_OE"] = False
     field_rule = get_field_rule(prefix)
     quality_value = None
     if allow_quality:
@@ -466,13 +514,16 @@ def _expand_parsed(
             payload[key] = None
             continue
         if is_wnd_calm and idx == 3:
-            payload[key] = "C"
+            payload["qc_calm_wind_detected"] = True
+            payload[key] = value if value is not None else part.strip()
             continue
         if is_od_calm and idx == 3:
-            payload[key] = 0.0
+            payload["qc_calm_direction_detected_OD"] = True
+            payload[key] = value if value is not None else part.strip()
             continue
         if is_oe_calm and idx == 4:
-            payload[key] = 0.0
+            payload["qc_calm_speed_detected_OE"] = True
+            payload[key] = value if value is not None else part.strip()
             continue
         part_quality = _quality_for_part(prefix, idx, parsed.parts) if allow_quality else None
         allowed_for_part = _allowed_quality_for_value(prefix, idx)
@@ -542,8 +593,22 @@ def _expand_parsed(
             if not normalized.isdigit() or len(normalized) != fixed_width:
                 payload[key] = None
                 continue
-        domain_value = enforce_domain(part, part_rule)
+        domain_value, domain_invalid, pattern_mismatch = _check_domain(part, part_rule)
+        if flag_only_domain:
+            if domain_invalid:
+                payload[f"qc_domain_invalid_{prefix}"] = True
+            if pattern_mismatch:
+                payload[f"qc_pattern_mismatch_{prefix}"] = True
         if domain_value is None:
+            if flag_only_domain and (domain_invalid or pattern_mismatch):
+                if _should_preserve_text_token(prefix, idx, part_rule):
+                    payload[key] = part.strip()
+                elif value is not None:
+                    scale = part_rule.scale if part_rule else None
+                    payload[key] = value * scale if scale is not None else value
+                else:
+                    payload[key] = part.strip()
+                continue
             if _is_numeric_parse_failure(part, value, part_rule):
                 malformed_parts.add(idx)
             payload[key] = None
@@ -737,6 +802,7 @@ def clean_value_quality(raw: str, prefix: str, strict_mode: bool = True) -> dict
                 logger.warning(f"[PARSE_STRICT] Rejected {prefix}: invalid repeated identifier format")
             return {}
     parsed = parse_field(raw)
+    arity_mismatch = False
     
     # A3: Strict mode arity validation - check expected vs actual part count
     # Skip validation for value/quality fields (they have special 2-part handling)
@@ -753,12 +819,27 @@ def clean_value_quality(raw: str, prefix: str, strict_mode: bool = True) -> dict
                     f"[PARSE_STRICT] Rejected {prefix}: extra payload - "
                     f"expected {expected_parts} parts, got {len(parsed.parts)}"
                 )
-            return {}
+            if _is_flag_only_arity_identifier(prefix):
+                arity_mismatch = True
+            else:
+                return {}
     
     if len(parsed.parts) != 2:
-        return _expand_parsed(parsed, prefix, allow_quality=True, strict_mode=strict_mode)
+        return _expand_parsed(
+            parsed,
+            prefix,
+            allow_quality=True,
+            strict_mode=strict_mode,
+            arity_mismatch=arity_mismatch,
+        )
     if not _is_value_quality_field(prefix, len(parsed.parts)):
-        return _expand_parsed(parsed, prefix, allow_quality=True, strict_mode=strict_mode)
+        return _expand_parsed(
+            parsed,
+            prefix,
+            allow_quality=True,
+            strict_mode=strict_mode,
+            arity_mismatch=arity_mismatch,
+        )
     part_rule = field_rule.parts.get(1) if field_rule else None
     entry = get_field_registry_entry(prefix, 1, suffix="value")
     value_key = entry.internal_name if entry else f"{prefix}__value"
@@ -1267,6 +1348,36 @@ def _normalize_control_fields(df: pd.DataFrame) -> pd.DataFrame:
     return work
 
 
+def _annotate_control_field_qc_flags(df: pd.DataFrame) -> pd.DataFrame:
+    """Add deterministic control-field QC flags without rewriting source values."""
+    work = df.copy()
+    control_columns = [
+        "LATITUDE",
+        "LONGITUDE",
+        "DATE",
+        "TIME",
+        "ELEVATION",
+        "CALL_SIGN",
+        "SOURCE",
+        "REPORT_TYPE",
+        "QUALITY_CONTROL",
+    ]
+    present = [column for column in control_columns if column in work.columns]
+    if not present:
+        return work
+
+    normalized = _normalize_control_fields(work)
+    any_invalid = pd.Series(False, index=work.index)
+    for column in present:
+        flag_column = f"qc_control_invalid_{column.lower()}"
+        invalid_mask = work[column].notna() & normalized[column].isna()
+        work[flag_column] = invalid_mask.fillna(False)
+        any_invalid = any_invalid | work[flag_column]
+
+    work["qc_domain_invalid_CONTROL"] = any_invalid.fillna(False)
+    return work
+
+
 def clean_noaa_dataframe(
     df: pd.DataFrame,
     keep_raw: bool = True,
@@ -1438,7 +1549,7 @@ def clean_noaa_dataframe(
             continue
         cleaned[column] = series.apply(lambda value: _cleanup_rule_missing_text(value, column))
 
-    cleaned = _normalize_control_fields(cleaned)
+    cleaned = _annotate_control_field_qc_flags(cleaned)
 
     rename_map = {col: to_friendly_column(col) for col in cleaned.columns}
     if any(key != value for key, value in rename_map.items()):

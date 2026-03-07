@@ -3,22 +3,21 @@
 - Total enforced rules inventoried: **4926**
 
 ## Counts by `source_class`
-- `defensive_sanity_check`: 6
+- `defensive_sanity_check`: 7
 - `documented_exact`: 971
 - `documented_inferred`: 3937
-- `implementation_only`: 8
+- `implementation_only`: 7
 - `legacy_behavior`: 4
 
 ## Counts by `doc_support_status`
 - `supported_exact`: 971
 - `supported_partial`: 1969
-- `unknown`: 1981
-- `unsupported`: 5
+- `unknown`: 1986
 
 ## Counts by `strictness_vs_doc`
 - `equal`: 2384
-- `looser`: 156
-- `not_comparable`: 2207
+- `looser`: 155
+- `not_comparable`: 2208
 - `stricter`: 179
 - `needs_manual_review` rows: 3886
 
@@ -34,18 +33,13 @@
 - `_validate_control_header`: 2
 - `_is_valid_eqd_parameter_code`: 2
 - `get_field_rule`: 2
-- `_normalize_control_fields`: 1
+- `_annotate_control_field_qc_flags`: 1
 - `_is_crn_missing_qc`: 1
 - `_normalize_missing`: 1
 - `_cleanup_rule_missing_text`: 1
 - `_is_missing_numeric`: 1
 
 ## Highest-Risk Unsupported / Strictness-Divergent Rules
-- `RPL::CONTROL::normalization::bb12a952326d8a` | `CONTROL` | `normalization` | doc=`unsupported` strictness=`looser` | Control field normalization accepts both fixed-width integer encodings and decimal fallback values for geospatial/elevation controls.
-- `RPL::GLOBAL::normalization::30152ebe4dda5d` | `GLOBAL` | `normalization` | doc=`unsupported` strictness=`not_comparable` | Row-level usability metrics derive from all __qc_pass columns: any-usable flag, usable count, usable fraction.
-- `RPL::OD::normalization::8dc377756e7ba2` | `OD` | `normalization` | doc=`unsupported` strictness=`not_comparable` | OD calm special case coerces direction component to 0.0 when direction is 999 and speed is 0000.
-- `RPL::OE::normalization::2210ea044de738` | `OE` | `normalization` | doc=`unsupported` strictness=`not_comparable` | OE calm special case coerces speed component to 0.0 when direction is 00000 and speed sentinel is 999.
-- `RPL::WND::normalization::de2265dfa3875e` | `WND` | `normalization` | doc=`unsupported` strictness=`not_comparable` | WND calm special case coerces type code to C when type is 9 and speed is 0000.
 - `RPL::AA3::domain::90ae3db04dce74` | `AA3` | `domain` | doc=`supported_partial` strictness=`looser` | AA3 part 3 allowed domain values are enumerated.
 - `RPL::AA4::domain::a261955541ccc2` | `AA4` | `domain` | doc=`supported_partial` strictness=`looser` | AA4 part 3 allowed domain values are enumerated.
 - `RPL::AB::allowed_quality::b9ab519e3c873b` | `AB` | `allowed_quality` | doc=`supported_partial` strictness=`looser` | AB part 3 quality codes constrained to allowed set.
@@ -66,6 +60,11 @@
 - `RPL::AH5::domain::f3da158abbd4ca` | `AH5` | `domain` | doc=`supported_partial` strictness=`stricter` | AH5 part 3 allowed domain values are enumerated.
 - `RPL::AH6::arity::6b6962d4cc8372` | `AH6` | `arity` | doc=`supported_partial` strictness=`stricter` | AH6 requires 5 parsed part(s) in strict mode.
 - `RPL::AH6::domain::a0d4caee2b53be` | `AH6` | `domain` | doc=`supported_partial` strictness=`stricter` | AH6 part 3 allowed domain values are enumerated.
+- `RPL::AI1::arity::37bcd9e25334a4` | `AI1` | `arity` | doc=`supported_partial` strictness=`stricter` | AI1 requires 5 parsed part(s) in strict mode.
+- `RPL::AI1::domain::db9a2cb1a37892` | `AI1` | `domain` | doc=`supported_partial` strictness=`stricter` | AI1 part 3 allowed domain values are enumerated.
+- `RPL::AI2::arity::f08c44dcd33e7f` | `AI2` | `arity` | doc=`supported_partial` strictness=`stricter` | AI2 requires 5 parsed part(s) in strict mode.
+- `RPL::AI2::domain::39163de9175045` | `AI2` | `domain` | doc=`supported_partial` strictness=`stricter` | AI2 part 3 allowed domain values are enumerated.
+- `RPL::AI3::arity::60f801168e7503` | `AI3` | `arity` | doc=`supported_partial` strictness=`stricter` | AI3 requires 5 parsed part(s) in strict mode.
 
 ## Ambiguous / Manual Review Rows
 - `RPL::AA1::domain::115299be0bdd3d` | `AA1` | `domain` | match=`isd-format-document.deterministic.md::d89a89cba42d::AA1::domain::7049972093` | Matched isd-format-document.deterministic.md::d89a89cba42d::AA1::domain::7049972093, but multiple comparable spec rows exist.

@@ -203,7 +203,11 @@ class TestDomainRuleEnforcement:
     )
     def test_invalid_and_valid_domain_codes(self, prefix: str, invalid_raw: str, valid_raw: str, part_key: str):
         invalid = clean_value_quality(invalid_raw, prefix)
-        assert invalid[part_key] is None
+        if prefix.startswith(("AC", "AD", "AH")):
+            assert invalid[part_key] is not None
+            assert invalid.get(f"qc_domain_invalid_{prefix}") is True or invalid.get(f"qc_pattern_mismatch_{prefix}") is True
+        else:
+            assert invalid[part_key] is None
 
         valid = clean_value_quality(valid_raw, prefix)
         assert valid[part_key] is not None
@@ -226,8 +230,14 @@ class TestDomainRuleEnforcement:
         strict = clean_value_quality(raw, prefix, strict_mode=True)
         permissive = clean_value_quality(raw, prefix, strict_mode=False)
 
-        assert (strict[part_key] is None) is expect_missing
-        assert (permissive[part_key] is None) is expect_missing
+        if prefix.startswith("AC"):
+            assert strict[part_key] is not None
+            assert permissive[part_key] is not None
+            assert strict[f"qc_domain_invalid_{prefix}"] is True
+            assert permissive[f"qc_domain_invalid_{prefix}"] is True
+        else:
+            assert (strict[part_key] is None) is expect_missing
+            assert (permissive[part_key] is None) is expect_missing
 
 
 class TestPrefixRuleMapping:
@@ -1923,7 +1933,8 @@ class TestQualityNullsCorrectPart:
 
     def test_oe1_calm_direction(self):
         result = clean_value_quality("1,24,00000,999,1200,4", "OE1")
-        assert result["OE1__part4"] == pytest.approx(0.0)
+        assert result["OE1__part4"] == pytest.approx(999.0)
+        assert result["qc_calm_speed_detected_OE"] is True
 
     def test_wa1_quality_rejects_8(self):
         result = clean_value_quality("1,001,1,8", "WA1")
@@ -2254,7 +2265,8 @@ class TestQualityNullsCorrectPart:
 
     def test_od_calm_direction(self):
         result = clean_value_quality("9,99,999,0000,1", "OD1")
-        assert result["OD1__part3"] == pytest.approx(0.0)
+        assert result["OD1__part3"] == pytest.approx(999.0)
+        assert result["qc_calm_direction_detected_OD"] is True
 
     def test_oa_invalid_type_code(self):
         result = clean_value_quality("7,01,0005,1", "OA1")
@@ -2636,8 +2648,9 @@ class TestQualityNullsCorrectPart:
 
     def test_ac_duration_characteristic_codes(self):
         result = clean_value_quality("4,C,1", "AC1")
-        assert result["AC1__part1"] is None
+        assert result["AC1__part1"] == pytest.approx(4.0)
         assert result["AC1__part2"] == "C"
+        assert result["qc_domain_invalid_AC1"] is True
 
     def test_ac_characteristic_missing(self):
         result = clean_value_quality("1,9,1", "AC1")
@@ -2652,7 +2665,8 @@ class TestQualityNullsCorrectPart:
         result = clean_value_quality("20001,2,0102,0102,0102,1", "AD1")
         assert result["AD1__part1"] is None
         result = clean_value_quality("01000,2,3201,0102,0102,1", "AD1")
-        assert result["AD1__part3"] is None
+        assert result["AD1__part3"] == pytest.approx(3201.0)
+        assert result["qc_pattern_mismatch_AD1"] is True
 
     def test_ae_missing_and_quality(self):
         result = clean_value_quality("99,1,05,8,10,1,00,1", "AE1")
@@ -2702,9 +2716,10 @@ class TestQualityNullsCorrectPart:
 
     def test_ah_end_datetime_range_enforced(self):
         result = clean_value_quality("015,0123,1,006000,1", "AH1")
-        assert result["AH1__part4"] is None
+        assert result["AH1__part4"] == pytest.approx(6000.0)
         result = clean_value_quality("015,0123,1,320000,1", "AH1")
-        assert result["AH1__part4"] is None
+        assert result["AH1__part4"] == pytest.approx(320000.0)
+        assert result["qc_pattern_mismatch_AH1"] is True
         result = clean_value_quality("015,0123,1,051010,1", "AH1")
         assert result["AH1__part4"] == pytest.approx(51010.0)
 
@@ -3252,20 +3267,27 @@ class TestControlAndMandatoryNormalization:
             }
         )
         cleaned = clean_noaa_dataframe(df, keep_raw=True)
-        assert pd.isna(cleaned.loc[0, "LATITUDE"])
-        assert pd.isna(cleaned.loc[0, "LONGITUDE"])
-        assert pd.isna(cleaned.loc[0, "ELEVATION"])
-        assert pd.isna(cleaned.loc[0, "CALL_SIGN"])
-        assert pd.isna(cleaned.loc[0, "SOURCE"])
+        assert cleaned.loc[0, "LATITUDE"] == 99.999
+        assert cleaned.loc[0, "LONGITUDE"] == 181.0
+        assert cleaned.loc[0, "ELEVATION"] == 9000.0
+        assert cleaned.loc[0, "CALL_SIGN"] == "99999"
+        assert cleaned.loc[0, "SOURCE"] == "9"
         assert cleaned.loc[0, "REPORT_TYPE"] == "FM-12"
-        assert pd.isna(cleaned.loc[0, "QUALITY_CONTROL"])
-        assert cleaned.loc[1, "LATITUDE"] == pytest.approx(45.0)
-        assert cleaned.loc[1, "LONGITUDE"] == pytest.approx(-120.0)
-        assert cleaned.loc[1, "ELEVATION"] == pytest.approx(100.0)
-        assert cleaned.loc[1, "CALL_SIGN"] == "KJFK"
+        assert cleaned.loc[0, "QUALITY_CONTROL"] == "V020"
+        assert cleaned.loc[1, "LATITUDE"] == 45.0
+        assert cleaned.loc[1, "LONGITUDE"] == -120.0
+        assert cleaned.loc[1, "ELEVATION"] == 100.0
+        assert cleaned.loc[1, "CALL_SIGN"] == "KJFK "
         assert cleaned.loc[1, "SOURCE"] == "4"
         assert cleaned.loc[1, "REPORT_TYPE"] == "BOGUS"
         assert cleaned.loc[1, "QUALITY_CONTROL"] == "V02"
+        assert cleaned.loc[0, "qc_control_invalid_latitude"] == True
+        assert cleaned.loc[0, "qc_control_invalid_longitude"] == True
+        assert cleaned.loc[0, "qc_control_invalid_elevation"] == True
+        assert cleaned.loc[0, "qc_control_invalid_call_sign"] == True
+        assert cleaned.loc[0, "qc_control_invalid_source"] == True
+        assert cleaned.loc[0, "qc_control_invalid_quality_control"] == True
+        assert cleaned.loc[0, "qc_domain_invalid_CONTROL"] == True
 
     def test_control_date_time_validation(self):
         df = pd.DataFrame(
@@ -3277,8 +3299,10 @@ class TestControlAndMandatoryNormalization:
         cleaned = clean_noaa_dataframe(df, keep_raw=True)
         assert cleaned.loc[0, "DATE"] == "20240131"
         assert cleaned.loc[0, "TIME"] == "2359"
-        assert pd.isna(cleaned.loc[1, "DATE"])
-        assert pd.isna(cleaned.loc[1, "TIME"])
+        assert cleaned.loc[1, "DATE"] == "20240132"
+        assert cleaned.loc[1, "TIME"] == "2360"
+        assert cleaned.loc[1, "qc_control_invalid_date"] == True
+        assert cleaned.loc[1, "qc_control_invalid_time"] == True
 
     def test_control_date_time_width_and_range_enforced(self):
         df = pd.DataFrame(
@@ -3290,12 +3314,16 @@ class TestControlAndMandatoryNormalization:
         cleaned = clean_noaa_dataframe(df, keep_raw=True)
         assert cleaned.loc[0, "DATE"] == "20240229"
         assert cleaned.loc[1, "DATE"] == "99991231"
-        assert pd.isna(cleaned.loc[2, "DATE"])
-        assert pd.isna(cleaned.loc[3, "DATE"])
+        assert cleaned.loc[2, "DATE"] == "2024013"
+        assert cleaned.loc[3, "DATE"] == "20240230"
         assert cleaned.loc[0, "TIME"] == "0000"
         assert cleaned.loc[1, "TIME"] == "2359"
-        assert pd.isna(cleaned.loc[2, "TIME"])
-        assert pd.isna(cleaned.loc[3, "TIME"])
+        assert cleaned.loc[2, "TIME"] == "123"
+        assert cleaned.loc[3, "TIME"] == "2400"
+        assert cleaned.loc[2, "qc_control_invalid_date"] == True
+        assert cleaned.loc[3, "qc_control_invalid_date"] == True
+        assert cleaned.loc[2, "qc_control_invalid_time"] == True
+        assert cleaned.loc[3, "qc_control_invalid_time"] == True
 
     def test_control_date_rejects_iso_timestamps(self):
         df = pd.DataFrame(
@@ -3304,8 +3332,10 @@ class TestControlAndMandatoryNormalization:
             }
         )
         cleaned = clean_noaa_dataframe(df, keep_raw=True)
-        assert pd.isna(cleaned.loc[0, "DATE"])
-        assert pd.isna(cleaned.loc[1, "DATE"])
+        assert cleaned.loc[0, "DATE"] == "2024-01-31T23:59:00Z"
+        assert cleaned.loc[1, "DATE"] == "2024-13-01T00:00:00Z"
+        assert cleaned.loc[0, "qc_control_invalid_date"] == True
+        assert cleaned.loc[1, "qc_control_invalid_date"] == True
 
     def test_mandatory_clamps_and_calm_wind(self):
         df = pd.DataFrame(
@@ -3318,7 +3348,8 @@ class TestControlAndMandatoryNormalization:
         cleaned = clean_noaa_dataframe(df, keep_raw=False)
         assert cleaned.loc[0, "ceiling_height_m"] == pytest.approx(22000.0)
         assert cleaned.loc[0, "visibility_m"] == pytest.approx(160000.0)
-        assert cleaned.loc[0, "wind_type_code"] == "C"
+        assert cleaned.loc[0, "wind_type_code"] == pytest.approx(9.0)
+        assert cleaned.loc[0, "qc_calm_wind_detected"] == True
 
     def test_mandatory_domain_codes(self):
         df = pd.DataFrame(
@@ -3472,22 +3503,26 @@ class TestTopStrictCoverageGapFixes:
     def test_latitude_width_6_accepts_fixed_width_token(self):
         cleaned = clean_noaa_dataframe(pd.DataFrame({"LATITUDE": ["+12345"]}), keep_raw=True)
         assert len("+12345") == 6
-        assert cleaned.loc[0, "LATITUDE"] == pytest.approx(12.345)
+        assert cleaned.loc[0, "LATITUDE"] == "+12345"
+        assert cleaned.loc[0, "qc_control_invalid_latitude"] == False
 
     def test_latitude_width_6_rejects_short_integer_token(self):
         cleaned = clean_noaa_dataframe(pd.DataFrame({"LATITUDE": ["45"]}), keep_raw=True)
         assert len("45") != 6
-        assert pd.isna(cleaned.loc[0, "LATITUDE"])
+        assert cleaned.loc[0, "LATITUDE"] == "45"
+        assert cleaned.loc[0, "qc_control_invalid_latitude"] == True
 
     def test_longitude_width_7_accepts_fixed_width_token(self):
         cleaned = clean_noaa_dataframe(pd.DataFrame({"LONGITUDE": ["-123456"]}), keep_raw=True)
         assert len("-123456") == 7
-        assert cleaned.loc[0, "LONGITUDE"] == pytest.approx(-123.456)
+        assert cleaned.loc[0, "LONGITUDE"] == "-123456"
+        assert cleaned.loc[0, "qc_control_invalid_longitude"] == False
 
     def test_longitude_width_7_rejects_short_integer_token(self):
         cleaned = clean_noaa_dataframe(pd.DataFrame({"LONGITUDE": ["-120"]}), keep_raw=True)
         assert len("-120") != 7
-        assert pd.isna(cleaned.loc[0, "LONGITUDE"])
+        assert cleaned.loc[0, "LONGITUDE"] == "-120"
+        assert cleaned.loc[0, "qc_control_invalid_longitude"] == True
 
     def test_report_type_width_5_accepts_standard_code(self):
         cleaned = clean_noaa_dataframe(pd.DataFrame({"REPORT_TYPE": ["FM-12"]}), keep_raw=True)
@@ -3497,7 +3532,8 @@ class TestTopStrictCoverageGapFixes:
     def test_report_type_width_5_rejects_short_code(self):
         cleaned = clean_noaa_dataframe(pd.DataFrame({"REPORT_TYPE": ["FM-1"]}), keep_raw=True)
         assert len("FM-1") != 5
-        assert pd.isna(cleaned.loc[0, "REPORT_TYPE"])
+        assert cleaned.loc[0, "REPORT_TYPE"] == "FM-1"
+        assert cleaned.loc[0, "qc_control_invalid_report_type"] == True
 
     def test_call_sign_width_5_accepts_fixed_width_token(self):
         """CALL_SIGN width must enforce exactly 5 characters."""
@@ -3507,24 +3543,29 @@ class TestTopStrictCoverageGapFixes:
 
     def test_call_sign_width_5_accepts_space_padded_token(self):
         cleaned = clean_noaa_dataframe(pd.DataFrame({"CALL_SIGN": ["KJFK "]}), keep_raw=True)
-        assert cleaned.loc[0, "CALL_SIGN"] == "KJFK"
+        assert cleaned.loc[0, "CALL_SIGN"] == "KJFK "
+        assert cleaned.loc[0, "qc_control_invalid_call_sign"] == False
 
     def test_call_sign_width_5_rejects_short_trimmed_token(self):
         cleaned = clean_noaa_dataframe(pd.DataFrame({"CALL_SIGN": ["KJFK"]}), keep_raw=True)
-        assert pd.isna(cleaned.loc[0, "CALL_SIGN"])
+        assert cleaned.loc[0, "CALL_SIGN"] == "KJFK"
+        assert cleaned.loc[0, "qc_control_invalid_call_sign"] == True
 
     def test_call_sign_width_5_rejects_long_token(self):
         cleaned = clean_noaa_dataframe(pd.DataFrame({"CALL_SIGN": ["KJFK00"]}), keep_raw=True)
-        assert pd.isna(cleaned.loc[0, "CALL_SIGN"])
+        assert cleaned.loc[0, "CALL_SIGN"] == "KJFK00"
+        assert cleaned.loc[0, "qc_control_invalid_call_sign"] == True
 
     def test_call_sign_rejects_non_ascii_token(self):
         cleaned = clean_noaa_dataframe(pd.DataFrame({"CALL_SIGN": ["åJFK "]}), keep_raw=True)
-        assert pd.isna(cleaned.loc[0, "CALL_SIGN"])
+        assert cleaned.loc[0, "CALL_SIGN"] == "åJFK "
+        assert cleaned.loc[0, "qc_control_invalid_call_sign"] == True
 
     def test_call_sign_valid_domain(self):
         """CALL_SIGN must follow alphanumeric pattern."""
         cleaned = clean_noaa_dataframe(pd.DataFrame({"CALL_SIGN": ["99999"]}), keep_raw=True)
-        assert pd.isna(cleaned.loc[0, "CALL_SIGN"])
+        assert cleaned.loc[0, "CALL_SIGN"] == "99999"
+        assert cleaned.loc[0, "qc_control_invalid_call_sign"] == True
 
     def test_qc_process_valid_values_enforced(self):
         """QC_PROCESS must be one of V01, V02, V03."""
@@ -3547,77 +3588,92 @@ class TestTopStrictCoverageGapFixes:
     def test_elevation_width_5_accepts_fixed_width_token(self):
         cleaned = clean_noaa_dataframe(pd.DataFrame({"ELEVATION": ["-0400"]}), keep_raw=True)
         assert len("-0400") == 5
-        assert cleaned.loc[0, "ELEVATION"] == pytest.approx(-400.0)
+        assert cleaned.loc[0, "ELEVATION"] == "-0400"
+        assert cleaned.loc[0, "qc_control_invalid_elevation"] == False
 
     def test_elevation_width_5_rejects_short_integer_token(self):
         cleaned = clean_noaa_dataframe(pd.DataFrame({"ELEVATION": ["-400"]}), keep_raw=True)
         assert len("-400") != 5
-        assert pd.isna(cleaned.loc[0, "ELEVATION"])
+        assert cleaned.loc[0, "ELEVATION"] == "-400"
+        assert cleaned.loc[0, "qc_control_invalid_elevation"] == True
 
     def test_latitude_range_accepts_upper_bound(self):
         """LATITUDE range must enforce MIN: -90000 MAX: +90000."""
         cleaned = clean_noaa_dataframe(pd.DataFrame({"LATITUDE": ["+90000"]}), keep_raw=True)
-        assert cleaned.loc[0, "LATITUDE"] == pytest.approx(90.0)
+        assert cleaned.loc[0, "LATITUDE"] == "+90000"
+        assert cleaned.loc[0, "qc_control_invalid_latitude"] == False
 
     def test_latitude_range_rejects_above_upper_bound(self):
         """LATITUDE range must reject values > 90000."""
         cleaned = clean_noaa_dataframe(pd.DataFrame({"LATITUDE": ["+90001"]}), keep_raw=True)
-        assert pd.isna(cleaned.loc[0, "LATITUDE"])
+        assert cleaned.loc[0, "LATITUDE"] == "+90001"
+        assert cleaned.loc[0, "qc_control_invalid_latitude"] == True
 
     def test_latitude_range_accepts_lower_bound(self):
         """LATITUDE range must accept MIN: -90000."""
         cleaned = clean_noaa_dataframe(pd.DataFrame({"LATITUDE": ["-90000"]}), keep_raw=True)
-        assert cleaned.loc[0, "LATITUDE"] == pytest.approx(-90.0)
+        assert cleaned.loc[0, "LATITUDE"] == "-90000"
+        assert cleaned.loc[0, "qc_control_invalid_latitude"] == False
 
     def test_latitude_range_rejects_below_lower_bound(self):
         """LATITUDE range must reject values < -90000."""
         cleaned = clean_noaa_dataframe(pd.DataFrame({"LATITUDE": ["-90001"]}), keep_raw=True)
-        assert pd.isna(cleaned.loc[0, "LATITUDE"])
+        assert cleaned.loc[0, "LATITUDE"] == "-90001"
+        assert cleaned.loc[0, "qc_control_invalid_latitude"] == True
 
     def test_longitude_range_accepts_upper_bound(self):
         """LONGITUDE range must enforce MIN: -179999 MAX: +180000."""
         cleaned = clean_noaa_dataframe(pd.DataFrame({"LONGITUDE": ["+180000"]}), keep_raw=True)
-        assert cleaned.loc[0, "LONGITUDE"] == pytest.approx(180.0)
+        assert cleaned.loc[0, "LONGITUDE"] == "+180000"
+        assert cleaned.loc[0, "qc_control_invalid_longitude"] == False
 
     def test_longitude_range_rejects_above_upper_bound(self):
         """LONGITUDE range must reject values > 180000."""
         cleaned = clean_noaa_dataframe(pd.DataFrame({"LONGITUDE": ["+180001"]}), keep_raw=True)
-        assert pd.isna(cleaned.loc[0, "LONGITUDE"])
+        assert cleaned.loc[0, "LONGITUDE"] == "+180001"
+        assert cleaned.loc[0, "qc_control_invalid_longitude"] == True
 
     def test_longitude_range_accepts_lower_bound(self):
         """LONGITUDE range must accept MIN: -179999."""
         cleaned = clean_noaa_dataframe(pd.DataFrame({"LONGITUDE": ["-179999"]}), keep_raw=True)
-        assert cleaned.loc[0, "LONGITUDE"] == pytest.approx(-179.999)
+        assert cleaned.loc[0, "LONGITUDE"] == "-179999"
+        assert cleaned.loc[0, "qc_control_invalid_longitude"] == False
 
     def test_longitude_range_rejects_negative_180_decimal(self):
         cleaned = clean_noaa_dataframe(pd.DataFrame({"LONGITUDE": [-180.0]}), keep_raw=True)
-        assert pd.isna(cleaned.loc[0, "LONGITUDE"])
+        assert cleaned.loc[0, "LONGITUDE"] == -180.0
+        assert cleaned.loc[0, "qc_control_invalid_longitude"] == True
 
     def test_longitude_range_mid_value(self):
         """LONGITUDE range accepts mid-range values."""
         cleaned = clean_noaa_dataframe(pd.DataFrame({"LONGITUDE": ["-100000"]}), keep_raw=True)
-        assert cleaned.loc[0, "LONGITUDE"] == pytest.approx(-100.0)
+        assert cleaned.loc[0, "LONGITUDE"] == "-100000"
+        assert cleaned.loc[0, "qc_control_invalid_longitude"] == False
 
 
     def test_elevation_range_accepts_upper_bound(self):
         """ELEVATION range must enforce MIN: -400 MAX: +8850."""
         cleaned = clean_noaa_dataframe(pd.DataFrame({"ELEVATION": ["+8850"]}), keep_raw=True)
-        assert cleaned.loc[0, "ELEVATION"] == pytest.approx(8850.0)
+        assert cleaned.loc[0, "ELEVATION"] == "+8850"
+        assert cleaned.loc[0, "qc_control_invalid_elevation"] == False
 
     def test_elevation_range_rejects_above_upper_bound(self):
         """ELEVATION range must reject values > 8850."""
         cleaned = clean_noaa_dataframe(pd.DataFrame({"ELEVATION": ["+8851"]}), keep_raw=True)
-        assert pd.isna(cleaned.loc[0, "ELEVATION"])
+        assert cleaned.loc[0, "ELEVATION"] == "+8851"
+        assert cleaned.loc[0, "qc_control_invalid_elevation"] == True
 
     def test_elevation_range_accepts_lower_bound(self):
         """ELEVATION range must accept MIN: -400."""
         cleaned = clean_noaa_dataframe(pd.DataFrame({"ELEVATION": ["-0400"]}), keep_raw=True)
-        assert cleaned.loc[0, "ELEVATION"] == pytest.approx(-400.0)
+        assert cleaned.loc[0, "ELEVATION"] == "-0400"
+        assert cleaned.loc[0, "qc_control_invalid_elevation"] == False
 
     def test_elevation_range_rejects_below_lower_bound(self):
         """ELEVATION range must reject values < -400."""
         cleaned = clean_noaa_dataframe(pd.DataFrame({"ELEVATION": ["-0401"]}), keep_raw=True)
-        assert pd.isna(cleaned.loc[0, "ELEVATION"])
+        assert cleaned.loc[0, "ELEVATION"] == "-0401"
+        assert cleaned.loc[0, "qc_control_invalid_elevation"] == True
 
     @pytest.mark.parametrize(
         ("raw", "part_key"),
@@ -3713,16 +3769,17 @@ class TestTopStrictCoverageGapFixes:
     ):
         cleaned_missing = clean_noaa_dataframe(pd.DataFrame({column: [sentinel_token]}), keep_raw=True)
         cleaned_valid = clean_noaa_dataframe(pd.DataFrame({column: [valid_token]}), keep_raw=True)
-        assert pd.isna(cleaned_missing.loc[0, column])
+        assert cleaned_missing.loc[0, column] == sentinel_token
         assert not pd.isna(cleaned_valid.loc[0, column])
+        assert cleaned_missing.loc[0, "qc_domain_invalid_CONTROL"] == True
 
     @pytest.mark.parametrize(
         ("column", "valid_token", "expected"),
         [
-            ("LATITUDE", "+45000", 45.0),
-            ("LONGITUDE", "-120000", -120.0),
+            ("LATITUDE", "+45000", "+45000"),
+            ("LONGITUDE", "-120000", "-120000"),
             ("REPORT_TYPE", "FM-12", "FM-12"),
-            ("ELEVATION", "+0100", 100.0),
+            ("ELEVATION", "+0100", "+0100"),
             ("CALL_SIGN", "KJFK0", "KJFK0"),
         ],
     )
@@ -3734,10 +3791,7 @@ class TestTopStrictCoverageGapFixes:
     ):
         cleaned = clean_noaa_dataframe(pd.DataFrame({column: [valid_token]}), keep_raw=True)
         value = cleaned.loc[0, column]
-        if isinstance(expected, float):
-            assert value == pytest.approx(expected)
-        else:
-            assert value == expected
+        assert value == expected
 
     def test_dew_sentinel_rejects_9999(self):
         result = clean_value_quality("9999,1", "DEW")
@@ -3822,7 +3876,8 @@ class TestTopStrictCoverageGapFixes:
     @pytest.mark.parametrize("prefix", ["AH2", "AH3", "AH4", "AH5", "AH6"])
     def test_ah_repeated_domain_rejects_invalid_condition_code(self, prefix: str):
         result = clean_value_quality("010,0123,3,011200,1", prefix)
-        assert result[f"{prefix}__part3"] is None
+        assert result[f"{prefix}__part3"] is not None
+        assert result[f"qc_domain_invalid_{prefix}"] is True
 
     @pytest.mark.parametrize("prefix", ["AH2", "AH3", "AH4", "AH5", "AH6"])
     def test_ah_repeated_domain_accepts_valid_condition_code(self, prefix: str):
@@ -4428,7 +4483,8 @@ class TestTopStrictCoverageGapFixes:
     def test_qc_process_allowed_quality_rejects_invalid_codes(self):
         df = pd.DataFrame({"QUALITY_CONTROL": ["BAD", "V99", ""]})
         result = clean_noaa_dataframe(df, strict_mode=True)
-        assert result["QUALITY_CONTROL"].isna().all()
+        assert result["QUALITY_CONTROL"].tolist() == ["BAD", "V99", ""]
+        assert result["qc_control_invalid_quality_control"].tolist() == [True, True, True]
         assert "QC_PROCESS" == "QC_PROCESS"
 
     @pytest.mark.parametrize(
@@ -4631,7 +4687,11 @@ class TestTopStrictCoverageGapFixes:
         )
         mismatched_raw = ",".join(["1"] * mismatched_count)
         result = clean_value_quality(mismatched_raw, prefix, strict_mode=True)
-        assert result == {}
+        if prefix.startswith("AH"):
+            assert result != {}
+            assert result[f"qc_arity_mismatch_{prefix}"] is True
+        else:
+            assert result == {}
 
     @pytest.mark.parametrize(
         "prefix",

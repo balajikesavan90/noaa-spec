@@ -352,7 +352,7 @@ class TestAggregationStrategies:
         )
         assert outputs.monthly.iloc[0]["temperature_c"] == pytest.approx(10.0)
 
-    def test_fixed_hour_rejects_iso_timestamp_dates_in_strict_mode(self):
+    def test_fixed_hour_preserves_iso_timestamp_dates_in_strict_mode(self):
         raw = _raw_with_hours(
             [
                 ("2020-01-01T01:00:00Z", 10.0),
@@ -366,10 +366,8 @@ class TestAggregationStrategies:
             min_months_per_year=1,
             strict_mode=True,
         )
-        assert outputs.cleaned.empty
-        assert outputs.hourly.empty
-        assert outputs.monthly.empty
-        assert outputs.yearly.empty
+        assert not outputs.cleaned.empty
+        assert outputs.monthly.iloc[0]["temperature_c"] == pytest.approx(10.0)
 
     def test_fixed_hour_uses_split_date_and_time(self):
         raw = _raw_with_split_date_time(
