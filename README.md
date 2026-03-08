@@ -203,6 +203,52 @@ poetry run python -m noaa_climate_data.cli clean-parquet output/01001099999/Loca
 This writes `LocationData_Cleaned.parquet` alongside the raw parquet and marks
 `data_cleaned=True` in the latest `noaa_file_index/YYYYMMDD/Stations.csv`.
 
+### Run cleaning orchestration (`cleaning-run`)
+
+Use `cleaning-run` for resumable station batch processing with explicit input/output roots,
+run manifests, and status tracking.
+
+CSV test mode (existing behavior):
+
+```bash
+poetry run python -m noaa_climate_data.cli cleaning-run \
+  --mode test_csv_dir \
+  --input-root output \
+  --input-format csv
+```
+
+Parquet-aligned test mode:
+
+```bash
+poetry run python -m noaa_climate_data.cli cleaning-run \
+  --mode test_parquet_dir \
+  --input-root output \
+  --input-format parquet
+```
+
+Parquet batch mode:
+
+```bash
+poetry run python -m noaa_climate_data.cli cleaning-run \
+  --mode batch_parquet_dir \
+  --input-root output \
+  --input-format parquet
+```
+
+Mode expectations:
+
+- `test_csv_dir` reads `LocationData_Raw.csv` and writes cleaned CSV outputs.
+- `test_parquet_dir` reads `LocationData_Raw.parquet` and writes cleaned parquet outputs
+  while keeping test-mode defaults (domain splits on, global summary off).
+- `batch_parquet_dir` reads `LocationData_Raw.parquet` and writes cleaned parquet outputs
+  with batch defaults (domain splits off, global summary on).
+
+If your station folders currently only have `LocationData_Raw.csv`, create parquet copies first:
+
+```bash
+poetry run python scripts/convert_output_raw_csv_to_parquet.py --output-root output
+```
+
 ### Convert a PDF to deterministic markdown
 
 ```bash

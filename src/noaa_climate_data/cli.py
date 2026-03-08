@@ -483,8 +483,8 @@ def _parse_args() -> argparse.Namespace:
     cleaning_run_parser.add_argument(
         "--mode",
         required=True,
-        choices=["test_csv_dir", "batch_parquet_dir"],
-        help="Execution mode (CSV test folders vs parquet batch input tree)",
+        choices=["test_csv_dir", "test_parquet_dir", "batch_parquet_dir"],
+        help="Execution mode (CSV test folders, parquet test folders, or parquet batch input tree)",
     )
     cleaning_run_parser.add_argument(
         "--input-root",
@@ -740,7 +740,7 @@ def main() -> None:
         def _resolve_flag(value: bool | None, default: bool) -> bool:
             return default if value is None else bool(value)
 
-        if args.mode == "test_csv_dir":
+        if args.mode in {"test_csv_dir", "test_parquet_dir"}:
             write_flags = RunWriteFlags(
                 write_cleaned_station=_resolve_flag(args.write_cleaned_station, True),
                 write_domain_splits=_resolve_flag(args.write_domain_splits, True),

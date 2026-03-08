@@ -40,11 +40,13 @@ STATION_ID_RE = re.compile(r"^\d{11}$")
 
 MODE_TO_RAW_FILE = {
     "test_csv_dir": "LocationData_Raw.csv",
+    "test_parquet_dir": "LocationData_Raw.parquet",
     "batch_parquet_dir": "LocationData_Raw.parquet",
 }
 
 MODE_TO_INPUT_FORMAT = {
     "test_csv_dir": "csv",
+    "test_parquet_dir": "parquet",
     "batch_parquet_dir": "parquet",
 }
 
@@ -275,6 +277,8 @@ def parse_station_filters(values: list[str] | None) -> tuple[str, ...]:
 
 def default_roots_for_mode(mode: str, run_id: str) -> dict[str, Path]:
     if mode == "test_csv_dir":
+        base = Path("artifacts") / "test_runs" / run_id
+    elif mode == "test_parquet_dir":
         base = Path("artifacts") / "test_runs" / run_id
     elif mode == "batch_parquet_dir":
         base = Path("artifacts") / "parquet_runs" / run_id

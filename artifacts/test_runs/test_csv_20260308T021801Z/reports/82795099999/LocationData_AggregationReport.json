@@ -1,0 +1,1847 @@
+{
+  "station": {
+    "station_id": "82795099999",
+    "station_name": "PRESIDENTE JOAO SUASSUNA, BR"
+  },
+  "metadata": {
+    "report_type": "aggregation_assumptions",
+    "generated_at_utc": "2026-03-08T03:57:39.777669Z",
+    "data_access_date": "2026-03-08",
+    "version": "0.1.0"
+  },
+  "strategy": {
+    "name": "best_hour",
+    "best_hour_selected": 12,
+    "fixed_hour_selected": null,
+    "day_coverage_per_hour": [
+      {
+        "hour": 12,
+        "unique_days": 8793
+      },
+      {
+        "hour": 18,
+        "unique_days": 8747
+      },
+      {
+        "hour": 0,
+        "unique_days": 8548
+      },
+      {
+        "hour": 17,
+        "unique_days": 6410
+      },
+      {
+        "hour": 15,
+        "unique_days": 6397
+      },
+      {
+        "hour": 19,
+        "unique_days": 6346
+      },
+      {
+        "hour": 13,
+        "unique_days": 6331
+      },
+      {
+        "hour": 10,
+        "unique_days": 6324
+      },
+      {
+        "hour": 16,
+        "unique_days": 6296
+      },
+      {
+        "hour": 11,
+        "unique_days": 6289
+      },
+      {
+        "hour": 14,
+        "unique_days": 6246
+      },
+      {
+        "hour": 20,
+        "unique_days": 6228
+      },
+      {
+        "hour": 21,
+        "unique_days": 5747
+      },
+      {
+        "hour": 3,
+        "unique_days": 5637
+      },
+      {
+        "hour": 9,
+        "unique_days": 4816
+      },
+      {
+        "hour": 22,
+        "unique_days": 4766
+      },
+      {
+        "hour": 2,
+        "unique_days": 4690
+      },
+      {
+        "hour": 23,
+        "unique_days": 4631
+      },
+      {
+        "hour": 1,
+        "unique_days": 4563
+      },
+      {
+        "hour": 4,
+        "unique_days": 4390
+      },
+      {
+        "hour": 5,
+        "unique_days": 4302
+      },
+      {
+        "hour": 8,
+        "unique_days": 4190
+      },
+      {
+        "hour": 7,
+        "unique_days": 4184
+      },
+      {
+        "hour": 6,
+        "unique_days": 4173
+      }
+    ]
+  },
+  "completeness_filters": {
+    "min_days_per_month": 20,
+    "min_months_per_year": 12,
+    "rows_before_filters": 12393,
+    "rows_after_min_days_per_month": 12393,
+    "rows_after_min_months_per_year": 12046,
+    "rows_filtered_out": 347
+  },
+  "output_rows": {
+    "cleaned": 148563,
+    "hourly": 12393,
+    "monthly": 288,
+    "yearly": 24
+  },
+  "aggregation_functions": [
+    {
+      "column": "AA1",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "AA1__part1__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "AA1__part1__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "AA1__part1__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "AA1__part2__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "AA1__part2__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "AA1__part2__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "AA1__quality",
+      "aggregation": "drop",
+      "is_quality_column": true
+    },
+    {
+      "column": "AA2",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "AA2__part1__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "AA2__part1__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "AA2__part1__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "AA2__part2__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "AA2__part2__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "AA2__part2__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "AA2__quality",
+      "aggregation": "drop",
+      "is_quality_column": true
+    },
+    {
+      "column": "AJ1",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "AJ1__part1__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "AJ1__part1__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "AJ1__part1__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "AJ1__part4__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "AJ1__part4__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "AJ1__part4__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "AY1",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "AY1__part2",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "AY1__part4",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "AY2",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "AY2__part2",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "AY2__part4",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "AZ1",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "AZ2",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "CIG",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "CIG__part1__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "CIG__part1__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "CIG__part1__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "CIG__quality",
+      "aggregation": "drop",
+      "is_quality_column": true
+    },
+    {
+      "column": "DEW",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "DEW__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "DEW__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "DEW__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "ED1",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "ED1__part1__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "ED1__part1__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "ED1__part1__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "ED1__part3__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "ED1__part3__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "ED1__part3__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "ED1__quality",
+      "aggregation": "drop",
+      "is_quality_column": true
+    },
+    {
+      "column": "EQD",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA1",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA1__part1__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA1__part1__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA1__part1__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA1__part3__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA1__part3__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA1__part3__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA2",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA2__part1__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA2__part1__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA2__part1__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA2__part3__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA2__part3__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA2__part3__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA3",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA3__part1__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA3__part1__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA3__part1__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA3__part3__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA3__part3__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA3__part3__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA4",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA4__part1__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA4__part1__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA4__part1__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA4__part3__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA4__part3__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA4__part3__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA5",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA5__part1__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA5__part1__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA5__part1__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA5__part3__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA5__part3__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GA5__part3__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GE1",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GE1__part3__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GE1__part3__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GE1__part3__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GE1__part4__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GE1__part4__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GE1__part4__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GF1",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GF1__part1__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GF1__part1__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GF1__part1__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GF1__part2__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GF1__part2__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GF1__part2__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GF1__part4__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GF1__part4__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GF1__part4__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GF1__part8__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GF1__part8__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "GF1__part8__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "IA1",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "IA1__quality",
+      "aggregation": "drop",
+      "is_quality_column": true
+    },
+    {
+      "column": "KA1",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "KA1__part1__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "KA1__part1__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "KA1__part1__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "KA1__part3__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "KA1__part3__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "KA1__part3__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "KA1__quality",
+      "aggregation": "drop",
+      "is_quality_column": true
+    },
+    {
+      "column": "KA2",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "KA2__part1__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "KA2__part1__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "KA2__part1__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "KA2__part3__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "KA2__part3__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "KA2__part3__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "KA2__quality",
+      "aggregation": "drop",
+      "is_quality_column": true
+    },
+    {
+      "column": "MA1",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "MA1__part1__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "MA1__part1__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "MA1__part1__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "MA1__part3__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "MA1__part3__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "MA1__part3__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "MD1",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "MD1__part3__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "MD1__part3__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "MD1__part3__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "MD1__part5__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "MD1__part5__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "MD1__part5__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "ME1",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "ME1__part2__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "ME1__part2__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "ME1__part2__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "ME1__quality",
+      "aggregation": "drop",
+      "is_quality_column": true
+    },
+    {
+      "column": "MW1",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "MW1__part2",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "MW1__quality",
+      "aggregation": "drop",
+      "is_quality_column": true
+    },
+    {
+      "column": "MW2",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "MW2__part2",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "MW2__quality",
+      "aggregation": "drop",
+      "is_quality_column": true
+    },
+    {
+      "column": "MW3",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "MW3__part2",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "MW3__quality",
+      "aggregation": "drop",
+      "is_quality_column": true
+    },
+    {
+      "column": "NAME__part1",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "NAME__part2",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "OC1",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "OC1__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "OC1__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "OC1__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "REM",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "REM__texts_json__part1",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "REM__texts_json__part2",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "REM__types__part1",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "REM__types__part2",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "SLP",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "SLP__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "SLP__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "SLP__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "TMP",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "TMP__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "TMP__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "TMP__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "VIS",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "VIS__part1__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "VIS__part1__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "VIS__part1__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "WND",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "WND__part1__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "WND__part1__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "WND__part1__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "WND__part4__qc_pass",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "WND__part4__qc_reason",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "WND__part4__qc_status",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "altimeter_quality_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "altimeter_setting_hpa",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "ceiling_cavok_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "ceiling_determination_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "ceiling_height_m",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "ceiling_height_quality_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_base_height_lower_m",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_base_height_upper_m",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_high_genus_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_high_genus_quality_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_base_height_m_1",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_base_height_m_2",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_base_height_m_3",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_base_height_m_4",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_base_height_m_5",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_base_height_quality_code_1",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_base_height_quality_code_2",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_base_height_quality_code_3",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_base_height_quality_code_4",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_base_height_quality_code_5",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_coverage_1",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_coverage_2",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_coverage_3",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_coverage_4",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_coverage_5",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_coverage_quality_code_1",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_coverage_quality_code_2",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_coverage_quality_code_3",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_coverage_quality_code_4",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_coverage_quality_code_5",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_type_code_1",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_type_code_2",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_type_code_3",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_type_code_4",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_type_code_5",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_type_quality_code_1",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_type_quality_code_2",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_type_quality_code_3",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_type_quality_code_4",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_layer_type_quality_code_5",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_low_genus_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_low_genus_quality_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_lowest_base_height_m",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_lowest_base_height_quality_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_lowest_coverage",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_lowest_coverage_quality_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_mid_genus_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_mid_genus_quality_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_opaque_coverage",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_total_coverage",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_total_coverage_quality_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "cloud_vertical_datum_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "convective_cloud_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "dew_point_c",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "dew_point_quality_code",
+      "aggregation": "drop",
+      "is_quality_column": true
+    },
+    {
+      "column": "extreme_temp_c_1",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "extreme_temp_c_2",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "extreme_temp_period_hours_1",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "extreme_temp_period_hours_2",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "extreme_temp_quality_code_1",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "extreme_temp_quality_code_2",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "extreme_temp_type_1",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "extreme_temp_type_2",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "geopotential_height_m",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "geopotential_height_quality_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "geopotential_isobaric_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "ground_surface_observation_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "ground_surface_observation_quality_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "past_weather_auto_condition_code_1",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "past_weather_auto_condition_code_2",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "past_weather_auto_condition_quality_code_1",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "past_weather_auto_condition_quality_code_2",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "past_weather_auto_period_hours_1",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "past_weather_auto_period_hours_2",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "past_weather_auto_period_quality_code_1",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "past_weather_auto_period_quality_code_2",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "past_weather_condition_code_1",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "past_weather_condition_code_2",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "past_weather_period_hours_1",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "past_weather_period_hours_2",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "precip_amount_1",
+      "aggregation": "sum",
+      "is_quality_column": false
+    },
+    {
+      "column": "precip_amount_2",
+      "aggregation": "sum",
+      "is_quality_column": false
+    },
+    {
+      "column": "precip_condition_code_1",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "precip_condition_code_2",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "precip_period_hours_1",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "precip_period_hours_2",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "precip_quality_code_1",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "precip_quality_code_2",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "present_weather_code_1",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "present_weather_code_2",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "present_weather_code_3",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "pressure_change_24hr_hpa",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "pressure_change_24hr_quality_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "pressure_change_3hr_hpa",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "pressure_change_3hr_quality_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "pressure_tendency_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "pressure_tendency_quality_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "qc_calm_wind_detected",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "qc_control_invalid_call_sign",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "qc_control_invalid_date",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "qc_control_invalid_elevation",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "qc_control_invalid_latitude",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "qc_control_invalid_longitude",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "qc_control_invalid_quality_control",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "qc_control_invalid_report_type",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "qc_control_invalid_source",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "qc_domain_invalid_CONTROL",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "remarks_text",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "remarks_text_blocks_json",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "remarks_type_code",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "remarks_type_codes",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "row_has_any_usable_metric",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "runway_designator_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "runway_direction_deg",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "runway_visibility_m",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "runway_visibility_quality_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "sea_level_pressure_hpa",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "sea_level_pressure_quality_code",
+      "aggregation": "drop",
+      "is_quality_column": true
+    },
+    {
+      "column": "snow_depth_1",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "snow_depth_condition_code_1",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "snow_depth_quality_code_1",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "snow_water_condition_code_1",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "snow_water_equivalent_1",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "snow_water_quality_code_1",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "station_pressure_hpa",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "station_pressure_quality_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "temperature_c",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "temperature_quality_code",
+      "aggregation": "drop",
+      "is_quality_column": true
+    },
+    {
+      "column": "usable_metric_count",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "usable_metric_fraction",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "visibility_m",
+      "aggregation": "min",
+      "is_quality_column": false
+    },
+    {
+      "column": "visibility_quality_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "visibility_variability_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "visibility_variability_quality_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "wind_direction_deg",
+      "aggregation": "circular_mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "wind_direction_quality_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "wind_direction_variable",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "wind_gust_ms",
+      "aggregation": "max",
+      "is_quality_column": false
+    },
+    {
+      "column": "wind_gust_quality_code",
+      "aggregation": "drop",
+      "is_quality_column": true
+    },
+    {
+      "column": "wind_speed_ms",
+      "aggregation": "mean",
+      "is_quality_column": false
+    },
+    {
+      "column": "wind_speed_quality_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    },
+    {
+      "column": "wind_type_code",
+      "aggregation": "drop",
+      "is_quality_column": false
+    }
+  ],
+  "dropped_columns": [
+    "AA1__quality",
+    "AA2__quality",
+    "AY1__part2",
+    "AY1__part4",
+    "AY2__part2",
+    "AY2__part4",
+    "CIG__quality",
+    "ED1__quality",
+    "IA1__quality",
+    "KA1__quality",
+    "KA2__quality",
+    "ME1__quality",
+    "MW1__part2",
+    "MW1__quality",
+    "MW2__part2",
+    "MW2__quality",
+    "MW3__part2",
+    "MW3__quality",
+    "altimeter_quality_code",
+    "ceiling_cavok_code",
+    "ceiling_determination_code",
+    "ceiling_height_quality_code",
+    "cloud_high_genus_code",
+    "cloud_high_genus_quality_code",
+    "cloud_layer_base_height_quality_code_1",
+    "cloud_layer_base_height_quality_code_2",
+    "cloud_layer_base_height_quality_code_3",
+    "cloud_layer_base_height_quality_code_4",
+    "cloud_layer_base_height_quality_code_5",
+    "cloud_layer_coverage_quality_code_1",
+    "cloud_layer_coverage_quality_code_2",
+    "cloud_layer_coverage_quality_code_3",
+    "cloud_layer_coverage_quality_code_4",
+    "cloud_layer_coverage_quality_code_5",
+    "cloud_layer_type_code_1",
+    "cloud_layer_type_code_2",
+    "cloud_layer_type_code_3",
+    "cloud_layer_type_code_4",
+    "cloud_layer_type_code_5",
+    "cloud_layer_type_quality_code_1",
+    "cloud_layer_type_quality_code_2",
+    "cloud_layer_type_quality_code_3",
+    "cloud_layer_type_quality_code_4",
+    "cloud_layer_type_quality_code_5",
+    "cloud_low_genus_code",
+    "cloud_low_genus_quality_code",
+    "cloud_lowest_base_height_quality_code",
+    "cloud_lowest_coverage_quality_code",
+    "cloud_mid_genus_code",
+    "cloud_mid_genus_quality_code",
+    "cloud_total_coverage_quality_code",
+    "cloud_vertical_datum_code",
+    "convective_cloud_code",
+    "dew_point_quality_code",
+    "extreme_temp_quality_code_1",
+    "extreme_temp_quality_code_2",
+    "extreme_temp_type_1",
+    "extreme_temp_type_2",
+    "geopotential_height_quality_code",
+    "geopotential_isobaric_code",
+    "ground_surface_observation_code",
+    "ground_surface_observation_quality_code",
+    "past_weather_auto_condition_code_1",
+    "past_weather_auto_condition_code_2",
+    "past_weather_auto_condition_quality_code_1",
+    "past_weather_auto_condition_quality_code_2",
+    "past_weather_auto_period_hours_1",
+    "past_weather_auto_period_hours_2",
+    "past_weather_auto_period_quality_code_1",
+    "past_weather_auto_period_quality_code_2",
+    "past_weather_condition_code_1",
+    "past_weather_condition_code_2",
+    "past_weather_period_hours_1",
+    "past_weather_period_hours_2",
+    "precip_condition_code_1",
+    "precip_condition_code_2",
+    "precip_period_hours_1",
+    "precip_period_hours_2",
+    "precip_quality_code_1",
+    "precip_quality_code_2",
+    "present_weather_code_1",
+    "present_weather_code_2",
+    "present_weather_code_3",
+    "pressure_change_24hr_quality_code",
+    "pressure_change_3hr_quality_code",
+    "pressure_tendency_code",
+    "pressure_tendency_quality_code",
+    "runway_designator_code",
+    "runway_visibility_quality_code",
+    "sea_level_pressure_quality_code",
+    "snow_depth_condition_code_1",
+    "snow_depth_quality_code_1",
+    "snow_water_condition_code_1",
+    "snow_water_quality_code_1",
+    "station_pressure_quality_code",
+    "temperature_quality_code",
+    "visibility_quality_code",
+    "visibility_variability_code",
+    "visibility_variability_quality_code",
+    "wind_direction_quality_code",
+    "wind_gust_quality_code",
+    "wind_speed_quality_code",
+    "wind_type_code"
+  ],
+  "citation": "Balaji Kesavan. (2026). noaa-climate-data (Version 0.1.0). NOAA ISD Global Hourly data processed for station 82795099999. Retrieved 2026-03-08 from https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database"
+}

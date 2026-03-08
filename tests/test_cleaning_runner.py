@@ -157,12 +157,22 @@ def test_mode_specific_file_discovery(tmp_path: Path) -> None:
         input_root=input_root,
         write_flags=_flags(cleaned=False, quality=False),
     )
+    test_parquet_config = _config(
+        tmp_path,
+        mode="test_parquet_dir",
+        input_format="parquet",
+        run_id="run_test_parquet_mode",
+        input_root=input_root,
+        write_flags=_flags(cleaned=False, quality=False),
+    )
 
     csv_discovered = _discover_stations(csv_config)
     parquet_discovered = _discover_stations(parquet_config)
+    test_parquet_discovered = _discover_stations(test_parquet_config)
 
     assert [row["station_id"] for row in csv_discovered] == ["01234567890"]
     assert [row["station_id"] for row in parquet_discovered] == ["09876543210"]
+    assert [row["station_id"] for row in test_parquet_discovered] == ["09876543210"]
 
 
 def test_manifest_snapshot_is_deterministic(tmp_path: Path) -> None:

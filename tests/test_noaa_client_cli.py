@@ -587,6 +587,57 @@ class TestCliCommands:
         assert config.write_flags.write_station_reports is True
         assert config.write_flags.write_global_summary is False
 
+    def test_cli_cleaning_run_invokes_runner_with_test_parquet_defaults(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(cli, "datetime", _FakeDateTime)
+        input_root = tmp_path / "inputs"
+        input_root.mkdir(parents=True)
+
+        called: dict[str, object] = {}
+
+        def fake_run_cleaning_run(config: object) -> dict[str, object]:
+            called["config"] = config
+            return {}
+
+        monkeypatch.setattr(cli, "run_cleaning_run", fake_run_cleaning_run)
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "prog",
+                "cleaning-run",
+                "--mode",
+                "test_parquet_dir",
+                "--input-root",
+                str(input_root),
+                "--input-format",
+                "parquet",
+            ],
+        )
+        cli.main()
+
+        config = called["config"]
+        assert str(config.mode) == "test_parquet_dir"
+        assert str(config.input_format) == "parquet"
+        assert config.input_root.resolve() == input_root.resolve()
+        assert config.run_id == "20250101T000000Z"
+        assert config.manifest_first is False
+        assert config.write_flags.write_cleaned_station is True
+        assert config.write_flags.write_domain_splits is True
+        assert config.write_flags.write_station_quality_profile is True
+        assert config.write_flags.write_station_reports is False
+        assert config.write_flags.write_global_summary is False
+        assert config.output_root.resolve() == (
+            tmp_path / "artifacts" / "test_runs" / "20250101T000000Z" / "cleaned"
+        ).resolve()
+        assert config.manifest_root.resolve() == (
+            tmp_path / "artifacts" / "test_runs" / "20250101T000000Z" / "manifests"
+        ).resolve()
+
     def test_cli_pdf_to_markdown_invokes_converter(
         self,
         tmp_path: Path,
