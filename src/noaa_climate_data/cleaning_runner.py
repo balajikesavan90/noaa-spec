@@ -18,6 +18,7 @@ import pandas as pd
 
 from . import __version__
 from .cleaning import clean_noaa_dataframe
+from .contracts import REQUIRED_ARTIFACT_METADATA_FIELDS, SUCCESS_MARKER_SCHEMA_VERSION
 from .constants import to_internal_column
 from .domain_split import sanitize_station_slug, split_station_cleaned_by_domain
 from .pipeline import _extract_time_columns
@@ -89,18 +90,6 @@ QC_REASON_TO_FAMILY = {
     "OUT_OF_RANGE": "range_validation",
     "MALFORMED_TOKEN": "width_validation",
 }
-
-REQUIRED_RELEASE_METADATA_FIELDS = (
-    "artifact_id",
-    "schema_version",
-    "build_id",
-    "input_lineage",
-    "row_count",
-    "checksum",
-    "creation_timestamp",
-)
-SUCCESS_MARKER_SCHEMA_VERSION = "1.0.0"
-
 
 @dataclass(frozen=True)
 class RunWriteFlags:
@@ -885,7 +874,7 @@ def _write_success_marker(
 
 
 def _validate_release_metadata(payload: dict[str, Any]) -> None:
-    missing = [field for field in REQUIRED_RELEASE_METADATA_FIELDS if field not in payload]
+    missing = [field for field in REQUIRED_ARTIFACT_METADATA_FIELDS if field not in payload]
     if missing:
         raise ValueError(f"Missing required release metadata fields: {missing}")
 
