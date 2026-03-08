@@ -143,10 +143,14 @@ These gates block publishability. Complete these before Priority 1-5.
 
 ### Priority 2 - Domain-Oriented Dataset Publishing
 
-- Implement `src/noaa_climate_data/domains/` registry modules for the six initial domains.
-- Require each domain module to declare `DOMAIN_NAME`, `INPUT_FIELDS`, `OUTPUT_SCHEMA`, `JOIN_KEYS`, and `QUALITY_RULES`.
-- Publish stable domain definitions and join documentation so cross-domain analyses do not depend on private pipeline details.
-- Keep domains focused on reusable scientific data slices rather than derived aggregate products.
+- [ ] Implement `src/noaa_climate_data/domains/` registry modules for the six initial domains.
+  - [x] Add package registry skeleton and module set for `core_meteorology`, `wind`, `precipitation`, `clouds_visibility`, `pressure_temperature`, and `remarks`.
+  - [ ] Wire registry definitions into domain publishing paths as the runtime source of truth.
+- [ ] Require each domain module to declare `DOMAIN_NAME`, `INPUT_FIELDS`, `OUTPUT_SCHEMA`, `JOIN_KEYS`, and `QUALITY_RULES`.
+  - [x] Add required declaration constants to each initial domain module and validate registry loading in tests.
+  - [ ] Enforce declaration compatibility against emitted domain artifacts during release generation.
+- [ ] Publish stable domain definitions and join documentation so cross-domain analyses do not depend on private pipeline details.
+- [ ] Keep domains focused on reusable scientific data slices rather than derived aggregate products.
 
 ### Priority 3 - Data Quality and Usability Reporting
 
