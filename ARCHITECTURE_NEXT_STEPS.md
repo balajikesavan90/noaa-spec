@@ -150,7 +150,10 @@ These gates block publishability. Complete these before Priority 1-5.
   - [x] Delegate `scripts/split_cleaned_by_domain.py` column classification to `noaa_climate_data.domain_split` (`COMMON_COLUMNS` + `classify_columns`).
   - [x] Hard-deprecate `scripts/split_domains_by_station.py` to remove parallel contract maintenance outside package-governed modules.
   - [x] Add regression test to enforce absence of duplicate script-level domain rule registries.
-- [ ] Establish explicit artifact tracking policy (including `.gitignore` alignment) for release-grade CSV/Parquet datasets and manifests.
+- [x] Establish explicit artifact tracking policy (including `.gitignore` alignment) for release-grade CSV/Parquet datasets and manifests.
+  - [x] Add explicit runtime-root blocklist entries (`output/`, `artifacts/test_runs/`, `artifacts/parquet_runs/`) to `.gitignore`.
+  - [x] Add release publication allowlist exceptions for `release/build_*/{canonical_cleaned,domains,quality_reports,manifests}` CSV/Parquet outputs.
+  - [x] Document tracking policy in `docs/ARTIFACT_BOUNDARY_POLICY.md` and enforce policy entries in tests.
 
 ### Priority 1 - Dataset Contracts and Schema Discipline
 
