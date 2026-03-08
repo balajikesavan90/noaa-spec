@@ -1373,7 +1373,11 @@ def _build_release_manifest_rows(
     canonical_rows = _canonical_release_manifest_rows(config, status_df)
     canonical_artifact_ids = {str(row["artifact_id"]) for row in canonical_rows}
 
-    domain_rows = _domain_release_manifest_rows(config, status_df)
+    domain_rows = _domain_release_manifest_rows(
+        config,
+        status_df,
+        canonical_artifact_ids=canonical_artifact_ids,
+    )
     domain_artifact_ids = {str(row["artifact_id"]) for row in domain_rows}
 
     quality_rows = _quality_release_manifest_rows(
@@ -1424,10 +1428,16 @@ def _canonical_release_manifest_rows(
 def _domain_release_manifest_rows(
     config: CleaningRunConfig,
     status_df: pd.DataFrame,
+    *,
+    canonical_artifact_ids: set[str],
 ) -> list[dict[str, Any]]:
     completed = status_df[status_df["status"].astype(str) == "completed"].copy()
     rows: list[dict[str, Any]] = []
     created_at = _pst_now_iso()
+    input_paths_by_station = {
+        str(record.get("station_id", "")): str(record.get("input_path", ""))
+        for record in completed.to_dict(orient="records")
+    }
 
     for station_id in sorted(set(completed["station_id"].astype(str).tolist())):
         manifest_path = config.output_root.parent / "domains" / station_id / "station_split_manifest.csv"
@@ -1443,6 +1453,13 @@ def _domain_release_manifest_rows(
             file_path = Path(str(record.get("file", "")))
             if not domain_name or not file_path.exists():
                 continue
+            canonical_artifact_id = f"canonical_dataset/{config.run_id}/{station_id}"
+            lineage: list[str]
+            if canonical_artifact_id in canonical_artifact_ids:
+                lineage = [canonical_artifact_id]
+            else:
+                raw_input_path = input_paths_by_station.get(station_id, "")
+                lineage = [str(Path(raw_input_path).resolve())] if raw_input_path else []
             rows.append(
                 {
                     "artifact_id": f"domain_dataset/{config.run_id}/{station_id}/{domain_name}",
@@ -1450,9 +1467,7 @@ def _domain_release_manifest_rows(
                     "artifact_path": str(file_path.resolve()),
                     "schema_version": DOMAIN_DATASET_CONTRACT.schema_version,
                     "build_id": config.run_id,
-                    "input_lineage": _json_compact(
-                        [f"canonical_dataset/{config.run_id}/{station_id}"]
-                    ),
+                    "input_lineage": _json_compact(lineage),
                     "row_count": int(_coerce_int(record.get("rows", 0))),
                     "checksum": _checksum_for_output_bundle([file_path]),
                     "creation_timestamp": created_at,
@@ -1549,8 +1564,9 @@ def _write_release_manifest(path: Path, rows: list[dict[str, Any]]) -> None:
         frame = pd.DataFrame(columns=RELEASE_MANIFEST_COLUMNS)
     else:
         frame = frame[RELEASE_MANIFEST_COLUMNS]
-    write_deterministic_csv(frame, path, sort_by=("artifact_id",))
     _validate_release_manifest_frame(frame)
+    _validate_release_manifest_lineage(frame)
+    write_deterministic_csv(frame, path, sort_by=("artifact_id",))
 
 
 def _validate_release_manifest_frame(frame: pd.DataFrame) -> None:
@@ -1561,6 +1577,74 @@ def _validate_release_manifest_frame(frame: pd.DataFrame) -> None:
     ]
     if missing:
         raise ValueError(f"Release manifest contract violation: missing columns {missing}")
+
+
+def _validate_release_manifest_lineage(frame: pd.DataFrame) -> None:
+    if frame.empty:
+        return
+
+    artifacts = frame.to_dict(orient="records")
+    artifact_ids = {str(record.get("artifact_id", "")) for record in artifacts}
+    canonical_ids = {
+        str(record.get("artifact_id", ""))
+        for record in artifacts
+        if str(record.get("artifact_type", "")) == "canonical_dataset"
+    }
+    domain_ids = {
+        str(record.get("artifact_id", ""))
+        for record in artifacts
+        if str(record.get("artifact_type", "")) == "domain_dataset"
+    }
+
+    for record in artifacts:
+        artifact_id = str(record.get("artifact_id", ""))
+        artifact_type = str(record.get("artifact_type", ""))
+        lineage = _parse_lineage_values(record.get("input_lineage", "[]"))
+
+        reference_ids = [
+            value
+            for value in lineage
+            if value.startswith("canonical_dataset/") or value.startswith("domain_dataset/")
+        ]
+        unresolved = [value for value in reference_ids if value not in artifact_ids]
+        if unresolved:
+            raise ValueError(
+                f"Release manifest lineage violation for {artifact_id}: unresolved lineage {unresolved}"
+            )
+
+        if artifact_type == "domain_dataset" and canonical_ids:
+            if not any(value in canonical_ids for value in lineage):
+                raise ValueError(
+                    f"Release manifest lineage violation for {artifact_id}: "
+                    "domain artifacts must reference canonical artifacts"
+                )
+
+        if artifact_type == "quality_report" and canonical_ids:
+            if not any(value in canonical_ids for value in lineage):
+                raise ValueError(
+                    f"Release manifest lineage violation for {artifact_id}: "
+                    "quality artifacts must reference canonical artifacts"
+                )
+            if domain_ids and not any(value in domain_ids for value in lineage):
+                raise ValueError(
+                    f"Release manifest lineage violation for {artifact_id}: "
+                    "quality artifacts must reference domain artifacts when present"
+                )
+
+
+def _parse_lineage_values(raw_value: Any) -> list[str]:
+    if raw_value is None:
+        return []
+    text = str(raw_value).strip()
+    if not text:
+        return []
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(payload, list):
+        return []
+    return [str(value) for value in payload]
 
 
 def _verify_outputs_exist(paths: list[Path]) -> None:

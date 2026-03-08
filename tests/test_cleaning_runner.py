@@ -503,6 +503,12 @@ def test_release_manifest_contains_canonical_domain_and_quality_artifact_rows(
     }
     assert expected_quality_ids.issubset(set(quality_rows["artifact_id"].astype(str)))
 
+    artifact_ids = set(manifest["artifact_id"].astype(str))
+    first_quality_lineage = json.loads(str(quality_rows.iloc[0]["input_lineage"]))
+    assert any(value.startswith("canonical_dataset/") for value in first_quality_lineage)
+    assert any(value.startswith("domain_dataset/") for value in first_quality_lineage)
+    assert all(value in artifact_ids for value in first_quality_lineage)
+
 
 def test_mandatory_quality_artifacts_written_even_when_quality_profiles_disabled(
     tmp_path: Path,
