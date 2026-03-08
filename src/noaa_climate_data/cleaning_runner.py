@@ -675,6 +675,41 @@ def _validate_config(config: CleaningRunConfig) -> None:
                 f"Invalid path hygiene: {label} ({root}) must not be inside input_root ({input_root})."
             )
 
+    _validate_release_layout_roots(config)
+
+
+def _validate_release_layout_roots(config: CleaningRunConfig) -> None:
+    output_root = config.output_root.resolve()
+    reports_root = config.reports_root.resolve()
+    quality_profile_root = config.quality_profile_root.resolve()
+    manifest_root = config.manifest_root.resolve()
+
+    build_root = output_root.parent
+    expected_output_root = build_root / "canonical_cleaned"
+    expected_reports_root = build_root / "quality_reports"
+    expected_quality_profile_root = expected_reports_root / "station_quality"
+    expected_manifest_root = build_root / "manifests"
+
+    violations: list[str] = []
+    if output_root != expected_output_root:
+        violations.append(f"output_root={output_root} (expected {expected_output_root})")
+    if reports_root != expected_reports_root:
+        violations.append(f"reports_root={reports_root} (expected {expected_reports_root})")
+    if quality_profile_root != expected_quality_profile_root:
+        violations.append(
+            f"quality_profile_root={quality_profile_root} (expected {expected_quality_profile_root})"
+        )
+    if manifest_root != expected_manifest_root:
+        violations.append(f"manifest_root={manifest_root} (expected {expected_manifest_root})")
+
+    if violations:
+        raise ValueError(
+            "Release layout contract violation: roots must be sibling paths under "
+            "`<build_root>/{canonical_cleaned,quality_reports,manifests}` with "
+            "`quality_profile_root=<build_root>/quality_reports/station_quality`. "
+            + "; ".join(violations)
+        )
+
 
 def _validate_or_write_run_config(
     *,

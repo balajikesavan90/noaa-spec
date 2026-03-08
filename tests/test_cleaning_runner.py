@@ -100,14 +100,14 @@ def _config(
     quality_root: Path | None = None,
     manifest_root: Path | None = None,
 ) -> CleaningRunConfig:
-    base = tmp_path / "artifacts" / run_id
+    base = tmp_path / "release" / f"build_{run_id}"
     return CleaningRunConfig(
         mode=mode,
         input_root=input_root,
         input_format=input_format,
-        output_root=output_root or (base / "cleaned"),
-        reports_root=reports_root or (base / "reports"),
-        quality_profile_root=quality_root or (base / "quality_profiles"),
+        output_root=output_root or (base / "canonical_cleaned"),
+        reports_root=reports_root or (base / "quality_reports"),
+        quality_profile_root=quality_root or (base / "quality_reports" / "station_quality"),
         manifest_root=manifest_root or (base / "manifests"),
         run_id=run_id,
         limit=limit,
@@ -198,6 +198,24 @@ def test_default_roots_for_mode_uses_release_build_layout() -> None:
         Path("release") / f"build_{run_id}" / "quality_reports" / "station_quality"
     )
     assert roots["manifest_root"] == Path("release") / f"build_{run_id}" / "manifests"
+
+
+def test_release_layout_contract_requires_sibling_roots(tmp_path: Path) -> None:
+    input_root = tmp_path / "inputs"
+    _write_raw_csv(input_root / "01234567890", "01234567890")
+
+    config = _config(
+        tmp_path,
+        mode="test_csv_dir",
+        input_format="csv",
+        run_id="run_bad_layout",
+        input_root=input_root,
+        reports_root=tmp_path / "non_release" / "quality_reports",
+        write_flags=_flags(cleaned=False, quality=False),
+    )
+
+    with pytest.raises(ValueError, match="Release layout contract violation"):
+        run_cleaning_run(config)
 
 
 def test_manifest_snapshot_is_deterministic(tmp_path: Path) -> None:
