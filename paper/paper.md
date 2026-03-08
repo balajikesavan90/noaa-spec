@@ -41,6 +41,10 @@ The distinguishing software design approach in NOAA-Spec is a domain-specific pi
 # Software Design
 NOAA-Spec is organized as a reproducible pipeline architecture rather than a collection of one-off scripts. It has five main components: (1) the **Specification Rule Graph**, which translates NOAA format documents into machine-readable constraints [@noaa_isd_docs], (2) the **Implementation Alignment Map**, which records rule origin and governance class and links each rule to implementation behavior, (3) a deterministic cleaning engine that parses records and applies rule-constrained normalization, (4) **Test Coverage Verification**, which checks that repository tests remain aligned with specification-derived rules and expected behavior, and (5) execution workflows that write canonical outputs, domain datasets, quality evidence artifacts, and manifests.
 
+Large language models were used as a development mechanism across documentation analysis, rule formalization, implementation drafting, and test generation. Because NOAA format guidance is extensive and partially distributed across technical documentation, AI-assisted workflows were used to iteratively translate textual specification guidance into candidate rule definitions, implementation fragments, and test cases.
+
+In this project, correctness was established through verification artifacts rather than through trust in model outputs alone. Specifically, AI-assisted outputs were incorporated only when resulting behavior remained consistent with the system’s verification framework: the Specification Rule Graph, Implementation Alignment Map, and Test Coverage Verification workflows that ensure alignment between documentation-derived rules, implementation behavior, and repository tests.
+
 A typical invocation is:
 
 ```bash
@@ -63,7 +67,7 @@ This consistency also lowers onboarding cost for new collaborators and students 
 Because NOAA-Spec is open source, users can inspect rule logic through the Specification Rule Graph, audit provenance metadata in the Implementation Alignment Map, and adapt execution profiles to their own station subsets. The pipeline architecture also offers a reusable implementation pattern for other specification-governed observational datasets where reproducible preprocessing is required.
 
 # AI Usage Disclosure
-Large language models were used during development to assist with reading NOAA documentation, drafting specification-derived rules, and proposing implementation or tests. AI-generated outputs were treated as suggestions only. All accepted changes were manually reviewed, edited, and validated against the project's Specification Rule Graph, Implementation Alignment Map, and Test Coverage Verification checks before inclusion. These constraints ensured AI-assisted outputs were accepted only when they satisfied specification-derived validation behavior and repository tests.
+Large language models were used extensively during development to assist with documentation interpretation, rule expansion, implementation drafting, and test generation. Because AI-assisted development can introduce errors or unsupported assumptions, outputs were not accepted on the basis of generation alone. Instead, the project relied on the Verification Triangle — the Specification Rule Graph, Implementation Alignment Map, and Test Coverage Verification workflows — to ensure that accepted behavior remained consistent with NOAA specification-derived constraints and repository tests.
 
 # Acknowledgements
 The author acknowledges NOAA National Centers for Environmental Information (NCEI) for maintaining the Integrated Surface Database and associated documentation used by this project [@noaa_isd_docs; @smith2011isd]. The open-source data quality and reproducibility communities also informed the design perspective presented in this work.
