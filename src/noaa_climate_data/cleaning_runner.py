@@ -1517,7 +1517,7 @@ def _source_release_manifest_rows(
     completed = status_df[status_df["status"].astype(str) == "completed"].copy()
     rows: list[dict[str, Any]] = []
     artifact_ids_by_station: dict[str, str] = {}
-    created_at = _pst_now_iso()
+    created_at = _build_timestamp_from_run_id(config.run_id)
 
     for record in completed.to_dict(orient="records"):
         station_id = str(record.get("station_id", ""))
@@ -1554,7 +1554,7 @@ def _canonical_release_manifest_rows(
     completed = status_df[status_df["status"].astype(str) == "completed"].copy()
     rows: list[dict[str, Any]] = []
     cleaned_ext = "csv" if config.input_format == "csv" else "parquet"
-    created_at = _pst_now_iso()
+    created_at = _build_timestamp_from_run_id(config.run_id)
 
     for record in completed.to_dict(orient="records"):
         station_id = str(record.get("station_id", ""))
@@ -1594,7 +1594,7 @@ def _domain_release_manifest_rows(
 ) -> list[dict[str, Any]]:
     completed = status_df[status_df["status"].astype(str) == "completed"].copy()
     rows: list[dict[str, Any]] = []
-    created_at = _pst_now_iso()
+    created_at = _build_timestamp_from_run_id(config.run_id)
     input_paths_by_station = {
         str(record.get("station_id", "")): str(record.get("input_path", ""))
         for record in completed.to_dict(orient="records")
@@ -1651,7 +1651,7 @@ def _quality_release_manifest_rows(
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     lineage = sorted(canonical_artifact_ids | domain_artifact_ids)
-    created_at = _pst_now_iso()
+    created_at = _build_timestamp_from_run_id(config.run_id)
 
     for report_type, frame in sorted(quality_frames.items()):
         artifact_path = config.reports_root / f"{report_type}.csv"

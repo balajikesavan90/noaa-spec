@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from pathlib import Path
 
 import pandas as pd
@@ -35,7 +36,12 @@ def _schema_payload(name: str) -> dict[str, object]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _run_fixture_build(tmp_path: Path, *, run_id: str) -> tuple[CleaningRunConfig, str]:
+def _run_fixture_build(
+    tmp_path: Path,
+    *,
+    run_id: str,
+    force: bool = False,
+) -> tuple[CleaningRunConfig, str]:
     station_id = "01234567890"
     input_root = tmp_path / "inputs"
     _write_raw_csv(input_root / station_id, station_id)
@@ -52,7 +58,7 @@ def _run_fixture_build(tmp_path: Path, *, run_id: str) -> tuple[CleaningRunConfi
         run_id=run_id,
         limit=None,
         station_ids=(),
-        force=False,
+        force=force,
         manifest_first=False,
         manifest_refresh=False,
         write_flags=RunWriteFlags(
@@ -65,6 +71,12 @@ def _run_fixture_build(tmp_path: Path, *, run_id: str) -> tuple[CleaningRunConfi
     )
     run_cleaning_run(config)
     return config, station_id
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    digest.update(path.read_bytes())
+    return digest.hexdigest()
 
 
 def test_ci_schema_validation_for_publication_artifact_types(tmp_path: Path) -> None:
@@ -133,3 +145,32 @@ def test_ci_detects_stale_domain_artifacts_against_registry_and_schema(tmp_path:
         release_row = release_domain_rows[release_domain_rows["artifact_id"] == artifact_id]
         assert not release_row.empty
         assert str(release_row.iloc[0]["schema_version"]) == DOMAIN_DATASET_CONTRACT.schema_version
+
+
+def test_ci_reproducibility_smoke_for_fixture_build_signatures(tmp_path: Path) -> None:
+    run_id = "20260101T120002Z"
+    config, station_id = _run_fixture_build(tmp_path, run_id=run_id, force=False)
+
+    domain_manifest_path = config.output_root.parent / "domains" / station_id / "station_split_manifest.csv"
+    domain_manifest = pd.read_csv(domain_manifest_path)
+    domain_artifact_paths = sorted(Path(path) for path in domain_manifest["file"].astype(str))
+
+    first_paths = [
+        config.output_root / station_id / "LocationData_Cleaned.csv",
+        config.reports_root / "field_completeness.csv",
+        config.reports_root / "sentinel_frequency.csv",
+        config.reports_root / "quality_code_exclusions.csv",
+        config.reports_root / "domain_usability_summary.csv",
+        config.reports_root / "station_year_quality.csv",
+        config.manifest_root / "release_manifest.csv",
+        config.manifest_root / "build_metadata.json",
+        *domain_artifact_paths,
+    ]
+    first_signatures = {str(path): _sha256(path) for path in first_paths}
+
+    forced_config, _ = _run_fixture_build(tmp_path, run_id=run_id, force=True)
+    second_paths = [Path(path_text) for path_text in first_signatures.keys()]
+    second_signatures = {str(path): _sha256(path) for path in second_paths}
+
+    assert forced_config.run_id == run_id
+    assert second_signatures == first_signatures
