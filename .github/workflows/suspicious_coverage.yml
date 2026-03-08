@@ -50,6 +50,10 @@ jobs:
         run: |
           poetry run pytest tests/test_publication_schema_ci.py -v
 
+      - name: Run parser/spec guardrail checks
+        run: |
+          poetry run pytest tests/test_parser_spec_guardrails.py -v
+
       - name: Generate suspicious coverage summary
         run: |
           poetry run python tools/spec_coverage/export_suspicious_summary.py
