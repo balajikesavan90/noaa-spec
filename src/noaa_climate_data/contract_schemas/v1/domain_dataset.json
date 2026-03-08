@@ -1,0 +1,19 @@
+{
+  "artifact_type": "domain_dataset",
+  "schema_version": "1.0.0",
+  "required_columns": ["station_id", "DATE"],
+  "join_keys": ["station_id", "DATE"],
+  "required_metadata_fields": [
+    "artifact_id",
+    "schema_version",
+    "build_id",
+    "input_lineage",
+    "row_count",
+    "checksum",
+    "creation_timestamp"
+  ],
+  "null_semantics": [
+    "domain values inherit canonical null semantics",
+    "join keys are stable and nullable only when source observations are malformed"
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "artifact_type": "quality_report",
+  "schema_version": "1.0.0",
+  "required_columns": ["artifact_id", "report_type"],
+  "join_keys": ["artifact_id"],
+  "required_metadata_fields": [
+    "artifact_id",
+    "schema_version",
+    "build_id",
+    "input_lineage",
+    "row_count",
+    "checksum",
+    "creation_timestamp"
+  ],
+  "null_semantics": [
+    "quality counts use explicit zero values, not implicit missing values",
+    "report references must preserve lineage to canonical or domain artifacts"
+  ]
+}

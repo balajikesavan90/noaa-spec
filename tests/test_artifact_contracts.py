@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from noaa_climate_data.contracts import (
     REQUIRED_ARTIFACT_METADATA_FIELDS,
     SHARED_JOIN_KEYS,
@@ -9,6 +12,10 @@ from noaa_climate_data.contracts import (
     publication_artifact_contracts,
 )
 from noaa_climate_data.domains.registry import domain_definitions
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+SCHEMA_CONTRACTS_DIR = PROJECT_ROOT / "src" / "noaa_climate_data" / "contract_schemas" / "v1"
 
 
 def test_publication_contract_registry_covers_all_artifact_types() -> None:
@@ -48,3 +55,27 @@ def test_quality_contract_declares_required_quality_report_types() -> None:
         "domain_usability_summary",
         "station_year_quality",
     )
+
+
+def test_externalized_contract_schemas_exist_and_align_with_runtime_contracts() -> None:
+    runtime_contracts = {contract.artifact_type: contract for contract in publication_artifact_contracts()}
+
+    expected_files = (
+        "canonical_dataset.json",
+        "domain_dataset.json",
+        "quality_report.json",
+        "release_manifest.json",
+    )
+    for schema_file_name in expected_files:
+        schema_path = SCHEMA_CONTRACTS_DIR / schema_file_name
+        assert schema_path.exists()
+        payload = json.loads(schema_path.read_text(encoding="utf-8"))
+
+        artifact_type = str(payload["artifact_type"])
+        assert artifact_type in runtime_contracts
+        runtime_contract = runtime_contracts[artifact_type]
+        assert payload["schema_version"] == runtime_contract.schema_version
+        assert tuple(payload["required_columns"]) == runtime_contract.required_columns
+        assert tuple(payload["join_keys"]) == runtime_contract.join_keys
+        assert tuple(payload["required_metadata_fields"]) == runtime_contract.required_metadata_fields
+        assert tuple(payload["null_semantics"]) == runtime_contract.null_semantics
