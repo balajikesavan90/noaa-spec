@@ -198,7 +198,8 @@ These gates block publishability. Complete these before Priority 1-5.
 
 ### Priority 4 - Reproducibility, Manifests, and Lineage
 
-- [ ] Implement deterministic writes for canonical, domain, and quality artifacts.
+- [x] Implement deterministic writes for canonical, domain, and quality artifacts.
+  - [x] Introduce deterministic CSV/Parquet serializers and route canonical/domain/quality artifact writers through them.
 - [ ] Generate release manifests with schema versions, row counts, checksums, and artifact lineage links.
   - [x] Encode required metadata fields (`artifact_id`, `schema_version`, `build_id`, `input_lineage`, `row_count`, `checksum`, `creation_timestamp`) in station `_SUCCESS.json` artifact bundles.
   - [ ] Add release-manifest artifact rows for canonical/domain/quality outputs with contract metadata.
