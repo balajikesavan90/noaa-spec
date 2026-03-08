@@ -204,9 +204,9 @@ These gates block publishability. Complete these before Priority 1-5.
   - [x] Encode required metadata fields (`artifact_id`, `schema_version`, `build_id`, `input_lineage`, `row_count`, `checksum`, `creation_timestamp`) in station `_SUCCESS.json` artifact bundles.
   - [x] Add release-manifest artifact rows for canonical/domain/quality outputs with contract metadata.
   - [x] Validate manifest lineage links across canonical -> domains -> quality artifacts.
-- [ ] Adopt the deterministic `release/build_<build_id>/...` layout as publication contract.
+- [x] Adopt the deterministic `release/build_<build_id>/...` layout as publication contract.
   - [x] Default `cleaning-run` path generation now targets `release/build_<build_id>/`.
-  - [ ] Enforce canonical/domain/quality/manifest sibling layout for all write paths and modes.
+  - [x] Enforce canonical/domain/quality/manifest sibling layout for all write paths and modes.
 - [ ] Capture reproducible build metadata (code revision, config identity, build timestamp, source scope).
 - [ ] Ensure lineage links connect NOAA raw sources through canonical and domain outputs to released quality evidence.
 
