@@ -189,9 +189,12 @@ These gates block publishability. Complete these before Priority 1-5.
 - [x] Make `field_completeness`, `sentinel_frequency`, `quality_code_exclusions`, `domain_usability_summary`, and `station_year_quality` mandatory published artifacts.
   - [x] Emit run-level CSV artifacts for all five required quality report types from `cleaning_runner`.
   - [x] Enforce these artifacts as unconditional release outputs across run modes/flags.
-- [ ] Add per-domain and per-field validity/usability indicators with clear exclusion semantics.
-- [ ] Preserve QC attrition visibility so researchers can trace data loss from raw to published datasets.
-- [ ] Publish quality artifacts in machine-readable formats and release-facing summaries.
+- [x] Add per-domain and per-field validity/usability indicators with clear exclusion semantics.
+  - [x] Add `field_identifier`-level completeness ratios and domain-level usability metrics (`usable_rows`, `usable_row_rate`) to published quality artifacts.
+- [x] Preserve QC attrition visibility so researchers can trace data loss from raw to published datasets.
+  - [x] Add explicit `qc_attrition_rows` signals to `station_year_quality` artifacts.
+- [x] Publish quality artifacts in machine-readable formats and release-facing summaries.
+  - [x] Publish machine-readable CSV quality artifacts and release-facing `quality_reports_summary.md`.
 
 ### Priority 4 - Reproducibility, Manifests, and Lineage
 
