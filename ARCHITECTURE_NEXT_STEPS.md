@@ -136,6 +136,9 @@ These gates block publishability. Complete these before Priority 1-5.
   - [x] Switch default `cleaning-run` roots to `release/build_<build_id>/{canonical_cleaned,quality_reports,manifests}`.
   - [x] Route default domain split outputs to `release/build_<build_id>/domains/<station_id>/`.
   - [ ] Enforce release-path contract across remaining docs/runtime interfaces and remove legacy assumptions.
+    - [x] Remove legacy `reprocess-output-dir` default domain-output root (`output/NOAA Demo Data`) and derive defaults from `--output-root` (`canonical_cleaned` sibling or `<output-root>/domains`).
+    - [x] Update cleaning-run mode docs to state `release/build_<run_id>/{canonical_cleaned,domains,quality_reports,manifests}` as the default publication layout.
+    - [ ] Audit remaining CLI/docs references for non-release publication path assumptions.
 - [ ] Separate runtime outputs from publication artifacts, fixtures, and examples.
 - [ ] Remove or relocate operational run snapshots from publication-facing tracked locations.
 - [ ] Eliminate domain-contract drift by centralizing domain-rule definitions and removing duplicated logic paths.
