@@ -178,8 +178,11 @@ These gates block publishability. Complete these before Priority 1-5.
 - [x] Require each domain module to declare `DOMAIN_NAME`, `INPUT_FIELDS`, `OUTPUT_SCHEMA`, `JOIN_KEYS`, and `QUALITY_RULES`.
   - [x] Add required declaration constants to each initial domain module and validate registry loading in tests.
   - [x] Enforce declaration compatibility against emitted domain artifacts during release generation.
-- [ ] Publish stable domain definitions and join documentation so cross-domain analyses do not depend on private pipeline details.
-- [ ] Keep domains focused on reusable scientific data slices rather than derived aggregate products.
+- [x] Publish stable domain definitions and join documentation so cross-domain analyses do not depend on private pipeline details.
+  - [x] Add `docs/DOMAIN_DATASET_REGISTRY.md` documenting domain schemas, quality rules, and shared join keys.
+  - [x] Add tests to ensure domain docs remain aligned with registry domain names and shared join keys.
+- [x] Keep domains focused on reusable scientific data slices rather than derived aggregate products.
+  - [x] Add registry tests that enforce observation-level join-key contracts and reject aggregate rollup-oriented schema columns.
 
 ### Priority 3 - Data Quality and Usability Reporting
 
