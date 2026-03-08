@@ -37,6 +37,14 @@ DISALLOWED_VALIDATION_PLAN_REFERENCES = (
     "tools/spec_coverage/sample_audit_rules.py",
 )
 
+STALE_README_QUANTITATIVE_PHRASES = (
+    "3,800+",
+    "1,955+",
+    "803 tests",
+    "874 tests",
+    "84 tests",
+)
+
 
 def _compute_suspicious_stats() -> tuple[int, int, float]:
     with open(SPEC_COVERAGE_PATH, "r", encoding="utf-8") as handle:
@@ -121,3 +129,13 @@ def test_noaa_index_readme_has_no_placeholder_cleaning_or_aggregation_sections()
     assert "aggregation cli entrypoint not yet implemented" not in lowered
     assert "placeholder only; cleaning pipeline is not yet wired for cron" not in lowered
     assert "placeholder only; aggregation pipeline is not yet wired for cron" not in lowered
+
+
+def test_readme_excludes_known_stale_quantitative_claims():
+    readme_text = README_PATH.read_text(encoding="utf-8")
+    lowered = readme_text.lower()
+
+    for stale_phrase in STALE_README_QUANTITATIVE_PHRASES:
+        assert stale_phrase.lower() not in lowered, (
+            f"Stale README phrase should not appear: {stale_phrase}"
+        )
