@@ -7,6 +7,7 @@ from pathlib import Path
 import pandas as pd
 
 from ..contracts import DOMAIN_DATASET_CONTRACT
+from ..deterministic_io import write_deterministic_csv, write_deterministic_parquet
 from .registry import DomainDefinition, domain_definitions
 
 
@@ -34,9 +35,13 @@ def write_domain_datasets_from_registry(
         output_file = output_dir / f"{station_slug}__{definition.domain_name}.{output_suffix}"
         domain_df = cleaned[selected_columns]
         if output_format == "csv":
-            domain_df.to_csv(output_file, index=False)
+            write_deterministic_csv(domain_df, output_file, sort_by=tuple(definition.join_keys))
         else:
-            _normalize_object_columns_for_parquet(domain_df).to_parquet(output_file, index=False)
+            write_deterministic_parquet(
+                _normalize_object_columns_for_parquet(domain_df),
+                output_file,
+                sort_by=tuple(definition.join_keys),
+            )
 
         size_mb = output_file.stat().st_size / (1024 * 1024)
         manifest_rows.append(

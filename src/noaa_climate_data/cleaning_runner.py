@@ -21,6 +21,7 @@ from .cleaning import clean_noaa_dataframe
 from .contract_validation import validate_no_sentinel_leakage
 from .contracts import REQUIRED_ARTIFACT_METADATA_FIELDS, SUCCESS_MARKER_SCHEMA_VERSION
 from .constants import to_internal_column
+from .deterministic_io import write_deterministic_csv, write_deterministic_parquet
 from .domain_split import sanitize_station_slug
 from .domains.publisher import write_domain_datasets_from_registry
 from .pipeline import _extract_time_columns
@@ -91,6 +92,14 @@ QC_REASON_TO_FAMILY = {
     "BAD_QUALITY_CODE": "quality_code_handling",
     "OUT_OF_RANGE": "range_validation",
     "MALFORMED_TOKEN": "width_validation",
+}
+
+QUALITY_ARTIFACT_SORT_KEYS: dict[str, tuple[str, ...]] = {
+    "field_completeness": ("station_id", "field_identifier"),
+    "sentinel_frequency": ("station_id",),
+    "quality_code_exclusions": ("station_id",),
+    "domain_usability_summary": ("station_id", "domain"),
+    "station_year_quality": ("station_id", "year"),
 }
 
 @dataclass(frozen=True)
@@ -466,7 +475,11 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
                     output_dir=paths.domain_dir,
                     output_format=config.input_format,
                 )
-                pd.DataFrame(domain_rows).to_csv(paths.domain_manifest_path, index=False)
+                write_deterministic_csv(
+                    pd.DataFrame(domain_rows),
+                    paths.domain_manifest_path,
+                    sort_by=("domain",),
+                )
 
             if config.write_flags.write_station_quality_profile and profile_payload is not None:
                 print(f"[{idx}/{len(manifest_rows)}] {station_id}: write station quality profile")
@@ -566,8 +579,11 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
     quality_frames = _build_mandatory_quality_artifact_frames(config, status_df)
     for artifact_name, frame in quality_frames.items():
         output_path = config.reports_root / f"{artifact_name}.csv"
-        _ensure_dir(config.reports_root)
-        frame.to_csv(output_path, index=False)
+        write_deterministic_csv(
+            frame,
+            output_path,
+            sort_by=QUALITY_ARTIFACT_SORT_KEYS.get(artifact_name, ("station_id",)),
+        )
         print(f"Quality artifact: wrote {output_path}")
     summary_path = config.reports_root / "quality_reports_summary.md"
     _write_quality_reports_summary(summary_path, quality_frames, config.run_id)
@@ -949,12 +965,11 @@ def _clean_canonical_dataset(raw: pd.DataFrame) -> pd.DataFrame:
 
 
 def _write_cleaned_station(cleaned: pd.DataFrame, output_path: Path, input_format: str) -> None:
-    _ensure_dir(output_path.parent)
     if input_format == "csv":
-        cleaned.to_csv(output_path, index=False)
+        write_deterministic_csv(cleaned, output_path)
         return
     if input_format == "parquet":
-        _normalize_object_columns_for_parquet(cleaned).to_parquet(output_path, index=False)
+        write_deterministic_parquet(_normalize_object_columns_for_parquet(cleaned), output_path)
         return
     raise ValueError(f"Unsupported input format: {input_format}")
 
@@ -1432,7 +1447,6 @@ def _status_field_value(value: Any) -> str:
 
 
 def _write_manifest(path: Path, rows: list[dict[str, Any]]) -> None:
-    _ensure_dir(path.parent)
     frame = pd.DataFrame(rows)
     for column in RUN_MANIFEST_COLUMNS:
         if column not in frame.columns:
@@ -1440,8 +1454,8 @@ def _write_manifest(path: Path, rows: list[dict[str, Any]]) -> None:
     if frame.empty:
         frame = pd.DataFrame(columns=RUN_MANIFEST_COLUMNS)
     else:
-        frame = frame[RUN_MANIFEST_COLUMNS].sort_values("station_id", kind="stable")
-    frame.to_csv(path, index=False)
+        frame = frame[RUN_MANIFEST_COLUMNS]
+    write_deterministic_csv(frame, path, sort_by=("station_id",))
 
 
 def _read_manifest(path: Path) -> list[dict[str, Any]]:
@@ -1464,7 +1478,6 @@ def _load_status(path: Path) -> pd.DataFrame:
 
 
 def _write_status(path: Path, status_df: pd.DataFrame) -> None:
-    _ensure_dir(path.parent)
     frame = status_df.copy()
     for column in RUN_STATUS_COLUMNS:
         if column not in frame.columns:
@@ -1472,8 +1485,8 @@ def _write_status(path: Path, status_df: pd.DataFrame) -> None:
     if frame.empty:
         frame = pd.DataFrame(columns=RUN_STATUS_COLUMNS)
     else:
-        frame = frame[RUN_STATUS_COLUMNS].sort_values("station_id", kind="stable")
-    frame.to_csv(path, index=False)
+        frame = frame[RUN_STATUS_COLUMNS]
+    write_deterministic_csv(frame, path, sort_by=("station_id",))
 
 
 def _run_config_payload(config: CleaningRunConfig) -> dict[str, Any]:

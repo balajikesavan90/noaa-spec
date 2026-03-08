@@ -93,6 +93,7 @@ def _config(
     manifest_refresh: bool = False,
     station_ids: tuple[str, ...] = (),
     limit: int | None = None,
+    force: bool = False,
     write_flags: RunWriteFlags | None = None,
     output_root: Path | None = None,
     reports_root: Path | None = None,
@@ -111,11 +112,19 @@ def _config(
         run_id=run_id,
         limit=limit,
         station_ids=station_ids,
-        force=False,
+        force=force,
         manifest_first=(mode == "batch_parquet_dir") if manifest_first is None else manifest_first,
         manifest_refresh=manifest_refresh,
         write_flags=write_flags or _flags(),
     )
+
+
+def _sha256(path: Path) -> str:
+    import hashlib
+
+    digest = hashlib.sha256()
+    digest.update(path.read_bytes())
+    return digest.hexdigest()
 
 
 def test_station_discovery_excludes_non_station_directories(tmp_path: Path) -> None:
@@ -684,3 +693,51 @@ def test_station_reports_write_domain_quality_reports_without_aggregation(tmp_pa
     expected_outputs = success_payload.get("expected_outputs", [])
     assert all("LocationData_AggregationReport" not in path for path in expected_outputs)
     assert any("LocationData_DomainQuality_temperature.json" in path for path in expected_outputs)
+
+
+def test_repeated_force_runs_keep_canonical_domain_and_quality_artifact_checksums_stable(
+    tmp_path: Path,
+) -> None:
+    input_root = tmp_path / "inputs"
+    station_id = "01234567890"
+    _write_raw_csv(input_root / station_id, station_id)
+
+    config = _config(
+        tmp_path,
+        mode="test_csv_dir",
+        input_format="csv",
+        run_id="run_deterministic_artifacts",
+        input_root=input_root,
+        write_flags=_flags(cleaned=True, domain=True, quality=True, reports=False, global_summary=False),
+    )
+    run_cleaning_run(config)
+
+    canonical_path = config.output_root / station_id / "LocationData_Cleaned.csv"
+    quality_path = config.reports_root / "field_completeness.csv"
+    domain_manifest_path = config.output_root.parent / "domains" / station_id / "station_split_manifest.csv"
+    domain_manifest = pd.read_csv(domain_manifest_path)
+    domain_path = Path(str(domain_manifest.loc[0, "file"]))
+
+    first_hashes = {
+        "canonical": _sha256(canonical_path),
+        "domain": _sha256(domain_path),
+        "quality": _sha256(quality_path),
+    }
+
+    forced = _config(
+        tmp_path,
+        mode="test_csv_dir",
+        input_format="csv",
+        run_id="run_deterministic_artifacts",
+        input_root=input_root,
+        force=True,
+        write_flags=_flags(cleaned=True, domain=True, quality=True, reports=False, global_summary=False),
+    )
+    run_cleaning_run(forced)
+
+    second_hashes = {
+        "canonical": _sha256(canonical_path),
+        "domain": _sha256(domain_path),
+        "quality": _sha256(quality_path),
+    }
+    assert second_hashes == first_hashes
