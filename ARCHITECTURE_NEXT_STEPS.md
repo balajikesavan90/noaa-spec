@@ -143,7 +143,9 @@ These gates block publishability. Complete these before Priority 1-5.
   - [x] Decouple integration test discovery from ambient `output/` state via explicit fixture-root configuration (`NOAA_INTEGRATION_OUTPUT_DIR`).
   - [x] Move tracked sample reports/demo outputs from `output/` into `docs/examples/` to avoid mixed runtime/tracked semantics.
   - [x] Publish explicit runtime vs publication boundary policy in `docs/ARTIFACT_BOUNDARY_POLICY.md`.
-- [ ] Remove or relocate operational run snapshots from publication-facing tracked locations.
+- [x] Remove or relocate operational run snapshots from publication-facing tracked locations.
+  - [x] Remove tracked operational snapshots under `artifacts/test_runs/**` from version control.
+  - [x] Add tracked-surface regression test to assert `artifacts/test_runs/**` and root `reprocess_timing*.log` are not tracked.
 - [ ] Eliminate domain-contract drift by centralizing domain-rule definitions and removing duplicated logic paths.
 - [ ] Establish explicit artifact tracking policy (including `.gitignore` alignment) for release-grade CSV/Parquet datasets and manifests.
 
