@@ -139,7 +139,10 @@ These gates block publishability. Complete these before Priority 1-5.
     - [x] Remove legacy `reprocess-output-dir` default domain-output root (`output/NOAA Demo Data`) and derive defaults from `--output-root` (`canonical_cleaned` sibling or `<output-root>/domains`).
     - [x] Update cleaning-run mode docs to state `release/build_<run_id>/{canonical_cleaned,domains,quality_reports,manifests}` as the default publication layout.
     - [x] Audit remaining CLI/docs references for non-release publication path assumptions.
-- [ ] Separate runtime outputs from publication artifacts, fixtures, and examples.
+- [x] Separate runtime outputs from publication artifacts, fixtures, and examples.
+  - [x] Decouple integration test discovery from ambient `output/` state via explicit fixture-root configuration (`NOAA_INTEGRATION_OUTPUT_DIR`).
+  - [x] Move tracked sample reports/demo outputs from `output/` into `docs/examples/` to avoid mixed runtime/tracked semantics.
+  - [x] Publish explicit runtime vs publication boundary policy in `docs/ARTIFACT_BOUNDARY_POLICY.md`.
 - [ ] Remove or relocate operational run snapshots from publication-facing tracked locations.
 - [ ] Eliminate domain-contract drift by centralizing domain-rule definitions and removing duplicated logic paths.
 - [ ] Establish explicit artifact tracking policy (including `.gitignore` alignment) for release-grade CSV/Parquet datasets and manifests.
