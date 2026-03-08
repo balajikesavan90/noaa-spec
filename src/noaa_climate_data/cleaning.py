@@ -524,15 +524,24 @@ def _expand_parsed(
             continue
         if is_wnd_calm and idx == 3:
             payload["qc_calm_wind_detected"] = True
-            payload[key] = value if value is not None else part.strip()
+            if _is_missing_value(part, part_rule):
+                payload[key] = None
+            else:
+                payload[key] = value if value is not None else part.strip()
             continue
         if is_od_calm and idx == 3:
             payload[f"qc_calm_direction_detected_{prefix}"] = True
-            payload[key] = value if value is not None else part.strip()
+            if _is_missing_value(part, part_rule):
+                payload[key] = None
+            else:
+                payload[key] = value if value is not None else part.strip()
             continue
         if is_oe_calm and idx == 4:
             payload[f"qc_calm_speed_detected_{prefix}"] = True
-            payload[key] = value if value is not None else part.strip()
+            if _is_missing_value(part, part_rule):
+                payload[key] = None
+            else:
+                payload[key] = value if value is not None else part.strip()
             continue
         part_quality = _quality_for_part(prefix, idx, parsed.parts) if allow_quality else None
         allowed_for_part = _allowed_quality_for_value(prefix, idx)

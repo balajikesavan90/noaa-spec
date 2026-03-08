@@ -1942,7 +1942,7 @@ class TestQualityNullsCorrectPart:
 
     def test_oe1_calm_direction(self):
         result = clean_value_quality("1,24,00000,999,1200,4", "OE1")
-        assert result["OE1__part4"] == pytest.approx(999.0)
+        assert result["OE1__part4"] is None
         assert result["qc_calm_speed_detected_OE1"] is True
 
     def test_wa1_quality_rejects_8(self):
@@ -2274,7 +2274,7 @@ class TestQualityNullsCorrectPart:
 
     def test_od_calm_direction(self):
         result = clean_value_quality("9,99,999,0000,1", "OD1")
-        assert result["OD1__part3"] == pytest.approx(999.0)
+        assert result["OD1__part3"] is None
         assert result["qc_calm_direction_detected_OD1"] is True
 
     def test_od_calm_flags_are_prefix_specific(self):
@@ -3462,7 +3462,7 @@ class TestControlAndMandatoryNormalization:
         cleaned = clean_noaa_dataframe(df, keep_raw=False)
         assert cleaned.loc[0, "ceiling_height_m"] == pytest.approx(22000.0)
         assert cleaned.loc[0, "visibility_m"] == pytest.approx(160000.0)
-        assert cleaned.loc[0, "wind_type_code"] == pytest.approx(9.0)
+        assert pd.isna(cleaned.loc[0, "wind_type_code"])
         assert cleaned.loc[0, "qc_calm_wind_detected"] == True
 
     def test_mandatory_domain_codes(self):
