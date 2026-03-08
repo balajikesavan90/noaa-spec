@@ -6,12 +6,35 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 README_PATH = PROJECT_ROOT / "README.md"
 SPEC_COVERAGE_PATH = PROJECT_ROOT / "spec_coverage.csv"
+VALIDATION_PLAN_PATH = PROJECT_ROOT / "docs" / "PIPELINE_VALIDATION_PLAN.md"
+NOAA_INDEX_README_PATH = PROJECT_ROOT / "noaa_file_index" / "20260207" / "README.md"
 SUSPICIOUS_SUMMARY_PATH = (
     PROJECT_ROOT
     / "docs"
     / "validation_artifacts"
     / "suspicious_coverage"
     / "suspicious_summary.md"
+)
+
+REQUIRED_VALIDATION_PLAN_REFERENCES = (
+    "tools/spec_coverage/generate_spec_coverage.py",
+    "tools/spec_coverage/export_suspicious_summary.py",
+    "tools/spec_coverage/generate_rule_provenance_ledger.py",
+    "tools/rule_impact/generate_rule_impact_report.py",
+    "tests/test_cleaning.py",
+    "tests/test_qc_comprehensive.py",
+    "tests/test_spec_coverage_generator.py",
+    "tests/test_suspicious_coverage_integrity.py",
+    "tests/test_documentation_integrity.py",
+    "tests/test_integration.py",
+    "tests/test_cleaning_runner.py",
+    "tests/test_domain_split.py",
+)
+
+DISALLOWED_VALIDATION_PLAN_REFERENCES = (
+    "tools/spec_coverage/export_suspicious_cases.py",
+    "tests/test_suspicious_audit.py",
+    "tools/spec_coverage/sample_audit_rules.py",
 )
 
 
@@ -71,3 +94,30 @@ def test_suspicious_summary_matches_spec_coverage():
     suspicious_count, _, suspicious_percentage = _compute_suspicious_stats()
     assert documented_count == suspicious_count
     assert documented_percentage == round(suspicious_percentage, 2)
+
+
+def test_validation_plan_references_existing_paths():
+    validation_plan = VALIDATION_PLAN_PATH.read_text(encoding="utf-8")
+
+    for relative_path in REQUIRED_VALIDATION_PLAN_REFERENCES:
+        assert relative_path in validation_plan, f"Missing reference in plan: {relative_path}"
+        assert (PROJECT_ROOT / relative_path).exists(), f"Referenced path missing: {relative_path}"
+
+
+def test_validation_plan_excludes_stale_references():
+    validation_plan = VALIDATION_PLAN_PATH.read_text(encoding="utf-8")
+
+    for stale_reference in DISALLOWED_VALIDATION_PLAN_REFERENCES:
+        assert stale_reference not in validation_plan, (
+            f"Stale reference should not appear in plan: {stale_reference}"
+        )
+
+
+def test_noaa_index_readme_has_no_placeholder_cleaning_or_aggregation_sections():
+    index_readme = NOAA_INDEX_README_PATH.read_text(encoding="utf-8")
+    lowered = index_readme.lower()
+
+    assert "cleaning cli entrypoint not yet implemented" not in lowered
+    assert "aggregation cli entrypoint not yet implemented" not in lowered
+    assert "placeholder only; cleaning pipeline is not yet wired for cron" not in lowered
+    assert "placeholder only; aggregation pipeline is not yet wired for cron" not in lowered

@@ -64,42 +64,25 @@ This folder contains the NOAA Global Hourly file index and year-counts used by t
 - Cron schedule runs every 5 minutes.
 - Schedule started on 2026-02-13.
 
-### Data cleaning (placeholder)
+### Data cleaning
 
 #### Outputs:
 
 - `output/<station_id>/LocationData_Cleaned.parquet`: cleaned station data.
-- `Stations.csv`: `data_cleaned` is updated to `True` after a successful write.
+- `Stations.csv`: `data_cleaned` is updated to `True` after successful cleaning.
 
-#### Command:
+#### Commands:
 
-- Placeholder (cleaning CLI entrypoint not yet implemented).
-
-#### Behavior:
-- Picks a random station with `raw_data_pulled=True` and `data_cleaned=False`.
-- Cleans the raw parquet and writes `LocationData_Cleaned.parquet`.
-- Marks the station as `data_cleaned=True` on success.
+- Single-file cleaning:
+  `poetry run python -m noaa_climate_data.cli clean-parquet output/<station_id>/LocationData_Raw.parquet --file-name <station_id>.csv`
+- Batch cleaning orchestration:
+  `poetry run python -m noaa_climate_data.cli cleaning-run --mode <mode> --input-root <root> --input-format parquet`
 
 #### Notes
-- Placeholder only; cleaning pipeline is not yet wired for cron.
 
-### Data aggregation (placeholder)
+- This dated index folder stores index and station metadata snapshots.
+- Runtime cleaned/domain/quality/manifests publication outputs are produced under runtime output roots (for example `release/build_<build_id>/...`), not inside this index snapshot folder.
 
-#### Outputs:
+### Data aggregation
 
-- Aggregated parquet outputs (to be defined).
-- `Stations.csv`: `data_aggregated` is updated to `True` after a successful write.
-
-#### Command:
-
-- Placeholder (aggregation CLI entrypoint not yet implemented).
-
-#### Behavior:
-- Picks a random station with `raw_data_pulled=True`, `data_cleaned=True`, and
-	`data_aggregated=False`.
-- Aggregates the cleaned parquet into summary outputs.
-- Marks the station as `data_aggregated=True` on success.
-
-#### Notes
-- Placeholder only; aggregation pipeline is not yet wired for cron.
-
+This index snapshot does not store aggregation outputs. Aggregated artifacts are produced by the runtime processing workflows and should be tracked in their designated release/output roots.
