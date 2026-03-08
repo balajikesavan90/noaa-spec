@@ -160,9 +160,9 @@ These gates block publishability. Complete these before Priority 1-5.
 - [x] Freeze explicit contracts for `canonical_dataset`, each `domain_dataset`, each `quality_report` type, and `release_manifest`.
   - [x] Add versioned publication artifact contract declarations in `src/noaa_climate_data/contracts.py`.
   - [x] Publish externalized contract artifacts (for example schema files) alongside runtime declarations.
-- [ ] Define and version canonical and domain schemas with stable column names, explicit null semantics, and provenance columns.
+- [x] Define and version canonical and domain schemas with stable column names, explicit null semantics, and provenance columns.
   - [x] Declare `1.0.0` schema versions and null-semantics statements for canonical/domain/quality/manifest artifact types.
-  - [ ] Add field-level canonical schema contract publication and validation.
+  - [x] Add field-level canonical schema contract publication and validation.
 - [x] Standardize shared identity keys and join keys across all dataset artifacts.
   - [x] Declare shared join keys (`station_id`, `DATE`) in contracts and enforce consistency with domain registry definitions in tests.
 - [x] Enforce no-sentinel leakage into cleaned numeric outputs before canonical publication.
