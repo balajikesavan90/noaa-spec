@@ -157,11 +157,14 @@ These gates block publishability. Complete these before Priority 1-5.
 
 ### Priority 4 - Reproducibility, Manifests, and Lineage
 
-- Implement deterministic writes for canonical, domain, and quality artifacts.
-- Generate release manifests with schema versions, row counts, checksums, and artifact lineage links.
-- Adopt the deterministic `release/build_<build_id>/...` layout as publication contract.
-- Capture reproducible build metadata (code revision, config identity, build timestamp, source scope).
-- Ensure lineage links connect NOAA raw sources through canonical and domain outputs to released quality evidence.
+- [ ] Implement deterministic writes for canonical, domain, and quality artifacts.
+- [ ] Generate release manifests with schema versions, row counts, checksums, and artifact lineage links.
+  - [x] Encode required metadata fields (`artifact_id`, `schema_version`, `build_id`, `input_lineage`, `row_count`, `checksum`, `creation_timestamp`) in station `_SUCCESS.json` artifact bundles.
+  - [ ] Add release-manifest artifact rows for canonical/domain/quality outputs with contract metadata.
+  - [ ] Validate manifest lineage links across canonical -> domains -> quality artifacts.
+- [ ] Adopt the deterministic `release/build_<build_id>/...` layout as publication contract.
+- [ ] Capture reproducible build metadata (code revision, config identity, build timestamp, source scope).
+- [ ] Ensure lineage links connect NOAA raw sources through canonical and domain outputs to released quality evidence.
 
 ### Priority 5 - CI and Validation Hardening
 
