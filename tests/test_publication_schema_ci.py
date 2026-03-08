@@ -8,6 +8,8 @@ from pathlib import Path
 import pandas as pd
 
 from noaa_climate_data.cleaning_runner import CleaningRunConfig, RunWriteFlags, run_cleaning_run
+from noaa_climate_data.contracts import DOMAIN_DATASET_CONTRACT
+from noaa_climate_data.domains.registry import domain_definitions
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -33,12 +35,11 @@ def _schema_payload(name: str) -> dict[str, object]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def test_ci_schema_validation_for_publication_artifact_types(tmp_path: Path) -> None:
+def _run_fixture_build(tmp_path: Path, *, run_id: str) -> tuple[CleaningRunConfig, str]:
     station_id = "01234567890"
     input_root = tmp_path / "inputs"
     _write_raw_csv(input_root / station_id, station_id)
 
-    run_id = "20260101T120000Z"
     build_root = tmp_path / "release" / f"build_{run_id}"
     config = CleaningRunConfig(
         mode="test_csv_dir",
@@ -63,6 +64,12 @@ def test_ci_schema_validation_for_publication_artifact_types(tmp_path: Path) -> 
         ),
     )
     run_cleaning_run(config)
+    return config, station_id
+
+
+def test_ci_schema_validation_for_publication_artifact_types(tmp_path: Path) -> None:
+    run_id = "20260101T120000Z"
+    config, station_id = _run_fixture_build(tmp_path, run_id=run_id)
 
     canonical_contract = _schema_payload("canonical_dataset")
     domain_contract = _schema_payload("domain_dataset")
@@ -91,3 +98,38 @@ def test_ci_schema_validation_for_publication_artifact_types(tmp_path: Path) -> 
         for required_field in quality_contract["required_metadata_fields"]:
             assert row.get(str(required_field), "")
         assert Path(str(row["artifact_path"])).exists()
+
+
+def test_ci_detects_stale_domain_artifacts_against_registry_and_schema(tmp_path: Path) -> None:
+    run_id = "20260101T120001Z"
+    config, station_id = _run_fixture_build(tmp_path, run_id=run_id)
+
+    domain_contract = _schema_payload("domain_dataset")
+    registry_by_name = {definition.domain_name: definition for definition in domain_definitions()}
+
+    domain_manifest_path = config.output_root.parent / "domains" / station_id / "station_split_manifest.csv"
+    domain_manifest = pd.read_csv(domain_manifest_path)
+    assert not domain_manifest.empty
+
+    release_manifest = pd.read_csv(config.manifest_root / "release_manifest.csv", dtype=str)
+    release_domain_rows = release_manifest[release_manifest["artifact_type"] == "domain_dataset"].copy()
+    assert len(release_domain_rows) == len(domain_manifest)
+
+    for record in domain_manifest.to_dict(orient="records"):
+        domain_name = str(record["domain"])
+        assert domain_name in registry_by_name
+
+        definition = registry_by_name[domain_name]
+        output_schema_columns = {column for column, _dtype in definition.output_schema}
+        join_keys = tuple(str(value) for value in domain_contract["join_keys"])
+        assert join_keys == definition.join_keys
+
+        artifact_path = Path(str(record["file"]))
+        artifact_df = pd.read_csv(artifact_path, low_memory=False)
+        assert set(domain_contract["required_columns"]).issubset(artifact_df.columns)
+        assert set(artifact_df.columns).issubset(output_schema_columns)
+
+        artifact_id = f"domain_dataset/{run_id}/{station_id}/{domain_name}"
+        release_row = release_domain_rows[release_domain_rows["artifact_id"] == artifact_id]
+        assert not release_row.empty
+        assert str(release_row.iloc[0]["schema_version"]) == DOMAIN_DATASET_CONTRACT.schema_version
