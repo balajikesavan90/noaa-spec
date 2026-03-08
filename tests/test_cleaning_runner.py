@@ -423,6 +423,37 @@ def test_mandatory_quality_artifacts_are_written_with_station_quality_profiles(
         assert not frame.empty
 
 
+def test_mandatory_quality_artifacts_written_even_when_quality_profiles_disabled(
+    tmp_path: Path,
+) -> None:
+    input_root = tmp_path / "inputs"
+    station_id = "01234567890"
+    _write_raw_csv(input_root / station_id, station_id)
+
+    config = _config(
+        tmp_path,
+        mode="test_csv_dir",
+        input_format="csv",
+        run_id="run_quality_artifacts_without_profiles",
+        input_root=input_root,
+        write_flags=_flags(cleaned=True, quality=False, reports=False, global_summary=False),
+    )
+    run_cleaning_run(config)
+
+    expected_artifacts = (
+        "field_completeness",
+        "sentinel_frequency",
+        "quality_code_exclusions",
+        "domain_usability_summary",
+        "station_year_quality",
+    )
+    for artifact_name in expected_artifacts:
+        artifact_path = config.reports_root / f"{artifact_name}.csv"
+        assert artifact_path.exists()
+        frame = pd.read_csv(artifact_path)
+        assert list(frame.columns)
+
+
 def test_runner_processes_repeated_wind_groups_without_duplicate_cleaned_columns(tmp_path: Path) -> None:
     input_root = tmp_path / "inputs"
     station_id = "01234567890"

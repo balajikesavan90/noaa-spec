@@ -563,13 +563,12 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
         _write_json(global_summary_path, summary)
         print(f"Global summary: wrote {global_summary_path}")
 
-    if config.write_flags.write_station_quality_profile:
-        quality_frames = _build_mandatory_quality_artifact_frames(config, status_df)
-        for artifact_name, frame in quality_frames.items():
-            output_path = config.reports_root / f"{artifact_name}.csv"
-            _ensure_dir(config.reports_root)
-            frame.to_csv(output_path, index=False)
-            print(f"Quality artifact: wrote {output_path}")
+    quality_frames = _build_mandatory_quality_artifact_frames(config, status_df)
+    for artifact_name, frame in quality_frames.items():
+        output_path = config.reports_root / f"{artifact_name}.csv"
+        _ensure_dir(config.reports_root)
+        frame.to_csv(output_path, index=False)
+        print(f"Quality artifact: wrote {output_path}")
 
     total_elapsed_seconds = (datetime.now(timezone.utc) - run_started_at).total_seconds()
     total_elapsed_minutes = total_elapsed_seconds / 60.0
