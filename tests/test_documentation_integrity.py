@@ -8,6 +8,7 @@ README_PATH = PROJECT_ROOT / "README.md"
 SPEC_COVERAGE_PATH = PROJECT_ROOT / "spec_coverage.csv"
 VALIDATION_PLAN_PATH = PROJECT_ROOT / "docs" / "PIPELINE_VALIDATION_PLAN.md"
 RUN_MODES_PATH = PROJECT_ROOT / "docs" / "CLEANING_RUN_MODES.md"
+ARTIFACT_BOUNDARY_POLICY_PATH = PROJECT_ROOT / "docs" / "ARTIFACT_BOUNDARY_POLICY.md"
 NOAA_INDEX_README_PATH = PROJECT_ROOT / "noaa_file_index" / "20260207" / "README.md"
 SUSPICIOUS_SUMMARY_PATH = (
     PROJECT_ROOT
@@ -164,3 +165,18 @@ def test_integration_tests_default_to_explicit_fixture_root():
         'PROJECT_ROOT / "tests" / "fixtures" / "integration_output"'
         in integration_test_text
     )
+
+
+def test_artifact_boundary_policy_declares_publication_and_runtime_surfaces():
+    policy_text = ARTIFACT_BOUNDARY_POLICY_PATH.read_text(encoding="utf-8")
+
+    assert "release/build_<build_id>/" in policy_text
+    assert "output/" in policy_text
+    assert "artifacts/test_runs/" in policy_text
+    assert "docs/examples/" in policy_text
+    assert "tests/fixtures/" in policy_text
+
+
+def test_station_report_examples_are_tracked_under_docs_examples():
+    assert (PROJECT_ROOT / "docs" / "examples" / "station_reports").exists()
+    assert (PROJECT_ROOT / "docs" / "examples" / "noaa_demo").exists()
