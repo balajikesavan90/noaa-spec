@@ -1,203 +1,26 @@
 #!/usr/bin/env python3
-"""Split a cleaned NOAA CSV into smaller domain-specific CSV files."""
+"""Split a cleaned NOAA CSV into domain-specific CSV files.
+
+This script intentionally delegates domain classification to
+``noaa_climate_data.domain_split`` so classification rules remain centralized
+in package-governed code.
+"""
 
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
 from pathlib import Path
 
 import pandas as pd
 
-
-@dataclass(frozen=True)
-class DomainRule:
-    keywords: tuple[str, ...]
-    prefixes: tuple[str, ...]
-
-
-COMMON_COLUMNS = (
-    "station_id",
-    "station_name",
-    "STATION",
-    "DATE",
-    "YEAR",
-    "SOURCE",
-    "LATITUDE",
-    "LONGITUDE",
-    "ELEVATION",
-    "NAME",
-    "REPORT_TYPE",
-    "CALL_SIGN",
-    "QUALITY_CONTROL",
-    "Year",
-    "MonthNum",
-    "MonthName",
-    "Day",
-    "Hour",
-    "row_has_any_usable_metric",
-    "usable_metric_count",
-    "usable_metric_fraction",
-)
-
-
-DOMAIN_RULES: tuple[tuple[str, DomainRule], ...] = (
-    (
-        "temperature",
-        DomainRule(
-            keywords=(
-                "temperature",
-                "extreme_temp",
-                "temp_c",
-                "heat_index",
-                "wind_chill",
-            ),
-            prefixes=(
-                "TMP",
-                "KA",
-                "KB",
-                "KC",
-                "KD",
-                "KE",
-                "KF",
-                "KG",
-                "KH",
-                "KI",
-                "KJ",
-                "KK",
-                "KL",
-                "KM",
-                "KN",
-                "KO",
-                "KP",
-                "KQ",
-                "KR",
-                "KS",
-                "KT",
-                "KU",
-                "KV",
-                "CW",
-                "CT",
-                "CU",
-                "CV",
-                "CX",
-            ),
-        ),
-    ),
-    (
-        "dew_point",
-        DomainRule(
-            keywords=("dew_point", "dew_"),
-            prefixes=("DEW",),
-        ),
-    ),
-    (
-        "wind",
-        DomainRule(
-            keywords=(
-                "wind_",
-                "windspeed",
-                "wind_speed",
-                "wind_direction",
-                "wind_type",
-                "gust",
-            ),
-            prefixes=("WND", "OA", "OB", "OC", "OD", "OE"),
-        ),
-    ),
-    (
-        "pressure",
-        DomainRule(
-            keywords=("pressure", "altimeter", "barometer"),
-            prefixes=("SLP", "MA", "MD", "MF", "MG", "MH"),
-        ),
-    ),
-    (
-        "visibility_ceiling",
-        DomainRule(
-            keywords=("visibility", "ceiling", "cavok"),
-            prefixes=("VIS", "CIG"),
-        ),
-    ),
-    (
-        "precipitation",
-        DomainRule(
-            keywords=("precip", "rain", "snow", "drizzle", "hail", "liquid"),
-            prefixes=(
-                "AA",
-                "AB",
-                "AC",
-                "AD",
-                "AE",
-                "AF",
-                "AG",
-                "AH",
-                "AI",
-                "AJ",
-                "AK",
-                "AL",
-                "AM",
-                "AN",
-                "AO",
-                "AP",
-                "AQ",
-                "AR",
-                "AS",
-            ),
-        ),
-    ),
-    (
-        "cloud_solar",
-        DomainRule(
-            keywords=("cloud", "sky_cover", "solar", "sun", "irradiance", "radiation"),
-            prefixes=(
-                "GA",
-                "GD",
-                "GE",
-                "GF",
-                "GG",
-                "GH",
-                "GJ",
-                "GK",
-                "GL",
-                "GM",
-                "GN",
-                "GO",
-                "GP",
-                "GQ",
-                "GR",
-                "GS",
-                "GT",
-                "GU",
-                "GV",
-                "GW",
-                "GX",
-                "GY",
-                "GZ",
-            ),
-        ),
-    ),
-    (
-        "weather_occurrence",
-        DomainRule(
-            keywords=("weather", "thunder", "lightning", "storm", "tornado", "funnel"),
-            prefixes=("AY", "AZ", "AW", "MW"),
-        ),
-    ),
-)
+from noaa_climate_data.domain_split import COMMON_COLUMNS, classify_columns
 
 
 def _coerce_qc_pass(series: pd.Series) -> pd.Series:
     if pd.api.types.is_bool_dtype(series):
         return series.fillna(False)
     truthy = {"true", "1", "yes", "y", "t"}
-    return (
-        series.fillna(False)
-        .astype(str)
-        .str.strip()
-        .str.lower()
-        .isin(truthy)
-    )
+    return series.fillna(False).astype(str).str.strip().str.lower().isin(truthy)
 
 
 def _recompute_usability_columns(
@@ -215,16 +38,15 @@ def _recompute_usability_columns(
         total_metrics = len(qc_pass_columns)
         usable_metric_fraction = usable_metric_count / total_metrics
         row_has_any_usable_metric = usable_metric_count > 0
+    elif metric_columns:
+        usable_metric_count = chunk[metric_columns].notna().sum(axis=1).astype(int)
+        total_metrics = len(metric_columns)
+        usable_metric_fraction = usable_metric_count / total_metrics
+        row_has_any_usable_metric = usable_metric_count > 0
     else:
-        if metric_columns:
-            usable_metric_count = chunk[metric_columns].notna().sum(axis=1).astype(int)
-            total_metrics = len(metric_columns)
-            usable_metric_fraction = usable_metric_count / total_metrics
-            row_has_any_usable_metric = usable_metric_count > 0
-        else:
-            usable_metric_count = pd.Series(0, index=chunk.index, dtype="int64")
-            usable_metric_fraction = pd.Series(0.0, index=chunk.index, dtype="float64")
-            row_has_any_usable_metric = pd.Series(False, index=chunk.index, dtype="bool")
+        usable_metric_count = pd.Series(0, index=chunk.index, dtype="int64")
+        usable_metric_fraction = pd.Series(0.0, index=chunk.index, dtype="float64")
+        row_has_any_usable_metric = pd.Series(False, index=chunk.index, dtype="bool")
 
     if "row_has_any_usable_metric" in chunk.columns:
         chunk["row_has_any_usable_metric"] = row_has_any_usable_metric
@@ -234,37 +56,6 @@ def _recompute_usability_columns(
         chunk["usable_metric_fraction"] = usable_metric_fraction
 
     return chunk
-
-
-def _column_matches_rule(column_name: str, rule: DomainRule) -> bool:
-    lowered = column_name.lower()
-    uppered = column_name.upper()
-    if any(keyword in lowered for keyword in rule.keywords):
-        return True
-    if any(uppered.startswith(prefix) for prefix in rule.prefixes):
-        return True
-    return False
-
-
-def _classify_columns(
-    columns: list[str],
-) -> tuple[list[str], dict[str, list[str]]]:
-    common = [col for col in COMMON_COLUMNS if col in columns]
-    domain_columns: dict[str, list[str]] = {name: [] for name, _ in DOMAIN_RULES}
-    assigned: set[str] = set()
-
-    for column in columns:
-        if column in common:
-            continue
-        for domain_name, domain_rule in DOMAIN_RULES:
-            if _column_matches_rule(column, domain_rule):
-                domain_columns[domain_name].append(column)
-                assigned.add(column)
-                break
-
-    other_columns = [col for col in columns if col not in assigned and col not in common]
-    domain_columns["other"] = other_columns
-    return common, domain_columns
 
 
 def _write_subset_csv(
@@ -344,7 +135,7 @@ def main() -> None:
     prefix = args.prefix or input_csv.stem
 
     input_columns = list(pd.read_csv(input_csv, nrows=0).columns)
-    common_columns, domain_columns = _classify_columns(input_columns)
+    common_columns, domain_columns = classify_columns(input_columns)
     if args.exclude_other:
         domain_columns.pop("other", None)
 

@@ -19,6 +19,8 @@ SUSPICIOUS_SUMMARY_PATH = (
     / "suspicious_summary.md"
 )
 INTEGRATION_TEST_PATH = PROJECT_ROOT / "tests" / "test_integration.py"
+SPLIT_CLEANED_SCRIPT_PATH = PROJECT_ROOT / "scripts" / "split_cleaned_by_domain.py"
+SPLIT_BY_STATION_SCRIPT_PATH = PROJECT_ROOT / "scripts" / "split_domains_by_station.py"
 
 REQUIRED_VALIDATION_PLAN_REFERENCES = (
     "tools/spec_coverage/generate_spec_coverage.py",
@@ -201,3 +203,14 @@ def test_operational_snapshots_are_not_tracked_in_publication_facing_paths():
         text=True,
     ).stdout.strip()
     assert tracked_timing_logs == ""
+
+
+def test_legacy_split_scripts_do_not_duplicate_domain_contract_rules():
+    split_cleaned_text = SPLIT_CLEANED_SCRIPT_PATH.read_text(encoding="utf-8")
+    assert "from noaa_climate_data.domain_split import COMMON_COLUMNS, classify_columns" in split_cleaned_text
+    assert "DOMAIN_RULES" not in split_cleaned_text
+    assert "class DomainRule" not in split_cleaned_text
+
+    split_by_station_text = SPLIT_BY_STATION_SCRIPT_PATH.read_text(encoding="utf-8").lower()
+    assert "deprecated" in split_by_station_text
+    assert "cleaning-run" in split_by_station_text
