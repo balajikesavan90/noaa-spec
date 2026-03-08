@@ -569,6 +569,9 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
         _ensure_dir(config.reports_root)
         frame.to_csv(output_path, index=False)
         print(f"Quality artifact: wrote {output_path}")
+    summary_path = config.reports_root / "quality_reports_summary.md"
+    _write_quality_reports_summary(summary_path, quality_frames, config.run_id)
+    print(f"Quality artifact: wrote {summary_path}")
 
     total_elapsed_seconds = (datetime.now(timezone.utc) - run_started_at).total_seconds()
     total_elapsed_minutes = total_elapsed_seconds / 60.0
@@ -1104,24 +1107,41 @@ def _build_mandatory_quality_artifact_frames(
     field_completeness_rows: list[dict[str, Any]] = []
     sentinel_frequency_rows: list[dict[str, Any]] = []
     quality_code_rows: list[dict[str, Any]] = []
-    domain_usability_rows: list[dict[str, Any]] = []
+    domain_usability_rows: list[dict[str, Any]] = _build_domain_usability_rows(config, status_df)
 
     for profile in profiles:
         station_id = str(profile.get("station_id", ""))
         rows_total = int(profile.get("rows_total", 0))
         rows_with_qc = int(profile.get("rows_with_qc_flags", 0))
-        completeness_ratio = (
-            float(rows_total - rows_with_qc) / float(rows_total) if rows_total > 0 else 0.0
-        )
-        field_completeness_rows.append(
-            {
-                "run_id": config.run_id,
-                "station_id": station_id,
-                "rows_total": rows_total,
-                "rows_with_qc_flags": rows_with_qc,
-                "field_completeness_ratio": completeness_ratio,
-            }
-        )
+        null_counts = profile.get("null_counts_by_identifier", {})
+        if isinstance(null_counts, dict) and null_counts:
+            for field_identifier in sorted(str(identifier) for identifier in null_counts.keys()):
+                null_count = int(null_counts.get(field_identifier, 0))
+                field_completeness_rows.append(
+                    {
+                        "run_id": config.run_id,
+                        "station_id": station_id,
+                        "field_identifier": field_identifier,
+                        "rows_total": rows_total,
+                        "null_count": null_count,
+                        "field_completeness_ratio": (
+                            float(rows_total - null_count) / float(rows_total) if rows_total > 0 else 0.0
+                        ),
+                    }
+                )
+        else:
+            field_completeness_rows.append(
+                {
+                    "run_id": config.run_id,
+                    "station_id": station_id,
+                    "field_identifier": "__all__",
+                    "rows_total": rows_total,
+                    "null_count": rows_with_qc,
+                    "field_completeness_ratio": (
+                        float(rows_total - rows_with_qc) / float(rows_total) if rows_total > 0 else 0.0
+                    ),
+                }
+            )
 
         family_counts = profile.get("rule_family_impact_counts", {})
         sentinel_events = int(family_counts.get("sentinel_handling", 0)) if isinstance(family_counts, dict) else 0
@@ -1147,20 +1167,27 @@ def _build_mandatory_quality_artifact_frames(
                 ),
             }
         )
-        domain_usability_rows.append(
-            {
-                "run_id": config.run_id,
-                "station_id": station_id,
-                "rows_total": rows_total,
-                "usable_row_rate": (
-                    1.0 - float(profile.get("fraction_rows_impacted", 0.0)) if rows_total > 0 else 0.0
-                ),
-            }
-        )
+    if not domain_usability_rows:
+        for profile in profiles:
+            station_id = str(profile.get("station_id", ""))
+            rows_total = int(profile.get("rows_total", 0))
+            rows_with_qc = int(profile.get("rows_with_qc_flags", 0))
+            domain_usability_rows.append(
+                {
+                    "run_id": config.run_id,
+                    "station_id": station_id,
+                    "domain": "__all__",
+                    "rows_total": rows_total,
+                    "usable_rows": rows_total - rows_with_qc,
+                    "usable_row_rate": (
+                        1.0 - float(profile.get("fraction_rows_impacted", 0.0)) if rows_total > 0 else 0.0
+                    ),
+                }
+            )
 
     field_completeness = _sorted_quality_frame(
         field_completeness_rows,
-        ["run_id", "station_id", "rows_total", "rows_with_qc_flags", "field_completeness_ratio"],
+        ["run_id", "station_id", "field_identifier", "rows_total", "null_count", "field_completeness_ratio"],
     )
     sentinel_frequency = _sorted_quality_frame(
         sentinel_frequency_rows,
@@ -1172,7 +1199,7 @@ def _build_mandatory_quality_artifact_frames(
     )
     domain_usability_summary = _sorted_quality_frame(
         domain_usability_rows,
-        ["run_id", "station_id", "rows_total", "usable_row_rate"],
+        ["run_id", "station_id", "domain", "rows_total", "usable_rows", "usable_row_rate"],
     )
     station_year_quality = _build_station_year_quality_frame(config, status_df)
 
@@ -1229,15 +1256,68 @@ def _build_station_year_quality_frame(
                     "year": int(year_value),
                     "rows_total": rows_total,
                     "usable_rows": usable_rows,
+                    "qc_attrition_rows": rows_total - usable_rows,
                     "usable_row_rate": (float(usable_rows) / float(rows_total) if rows_total > 0 else 0.0),
                 }
             )
 
     if not rows:
         return pd.DataFrame(
-            columns=["run_id", "station_id", "year", "rows_total", "usable_rows", "usable_row_rate"]
+            columns=[
+                "run_id",
+                "station_id",
+                "year",
+                "rows_total",
+                "usable_rows",
+                "qc_attrition_rows",
+                "usable_row_rate",
+            ]
         )
     return pd.DataFrame(rows).sort_values(["station_id", "year"]).reset_index(drop=True)
+
+
+def _build_domain_usability_rows(
+    config: CleaningRunConfig,
+    status_df: pd.DataFrame,
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    completed = status_df[status_df["status"].astype(str) == "completed"].copy()
+    station_ids = sorted(set(completed["station_id"].astype(str).tolist()))
+
+    for station_id in station_ids:
+        manifest_path = config.output_root.parent / "domains" / station_id / "station_split_manifest.csv"
+        if not manifest_path.exists():
+            continue
+        try:
+            domain_manifest = pd.read_csv(manifest_path)
+        except Exception:
+            continue
+        for record in domain_manifest.to_dict(orient="records"):
+            domain_name = str(record.get("domain", ""))
+            file_path = Path(str(record.get("file", "")))
+            if not file_path.exists():
+                continue
+            output_format = "parquet" if file_path.suffix.lower() == ".parquet" else "csv"
+            try:
+                domain_df = _read_raw_input(file_path, output_format)
+            except Exception:
+                continue
+            if domain_df.empty:
+                continue
+            usable_rows = int(_usable_row_series(domain_df).astype(bool).sum())
+            rows_total = int(len(domain_df))
+            rows.append(
+                {
+                    "run_id": config.run_id,
+                    "station_id": station_id,
+                    "domain": domain_name,
+                    "rows_total": rows_total,
+                    "usable_rows": usable_rows,
+                    "usable_row_rate": (float(usable_rows) / float(rows_total) if rows_total > 0 else 0.0),
+                }
+            )
+    rows.sort(key=lambda item: (str(item.get("station_id", "")), str(item.get("domain", ""))))
+    return rows
 
 
 def _year_series(cleaned: pd.DataFrame) -> pd.Series:
@@ -1260,6 +1340,30 @@ def _usable_row_series(cleaned: pd.DataFrame) -> pd.Series:
     if not metric_columns:
         return pd.Series(False, index=cleaned.index, dtype="bool")
     return cleaned[metric_columns].notna().any(axis=1)
+
+
+def _write_quality_reports_summary(
+    output_path: Path,
+    quality_frames: dict[str, pd.DataFrame],
+    run_id: str,
+) -> None:
+    lines = [
+        "# Quality Reports Summary",
+        "",
+        f"- run_id: `{run_id}`",
+    ]
+    for artifact_name in (
+        "field_completeness",
+        "sentinel_frequency",
+        "quality_code_exclusions",
+        "domain_usability_summary",
+        "station_year_quality",
+    ):
+        frame = quality_frames.get(artifact_name, pd.DataFrame())
+        lines.append(f"- {artifact_name}: {len(frame)} rows")
+    lines.append("")
+    _ensure_dir(output_path.parent)
+    output_path.write_text("\n".join(lines), encoding="utf-8")
 
 
 def _verify_outputs_exist(paths: list[Path]) -> None:

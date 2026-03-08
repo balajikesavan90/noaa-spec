@@ -422,6 +422,19 @@ def test_mandatory_quality_artifacts_are_written_with_station_quality_profiles(
         frame = pd.read_csv(artifact_path)
         assert not frame.empty
 
+    field_completeness = pd.read_csv(config.reports_root / "field_completeness.csv")
+    assert {"field_identifier", "null_count", "field_completeness_ratio"}.issubset(field_completeness.columns)
+
+    domain_usability = pd.read_csv(config.reports_root / "domain_usability_summary.csv")
+    assert {"domain", "usable_rows", "usable_row_rate"}.issubset(domain_usability.columns)
+
+    station_year_quality = pd.read_csv(config.reports_root / "station_year_quality.csv")
+    assert {"qc_attrition_rows", "usable_row_rate"}.issubset(station_year_quality.columns)
+
+    summary_md = config.reports_root / "quality_reports_summary.md"
+    assert summary_md.exists()
+    assert "Quality Reports Summary" in summary_md.read_text(encoding="utf-8")
+
 
 def test_mandatory_quality_artifacts_written_even_when_quality_profiles_disabled(
     tmp_path: Path,
