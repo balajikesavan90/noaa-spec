@@ -18,6 +18,7 @@ import pandas as pd
 
 from . import __version__
 from .cleaning import clean_noaa_dataframe
+from .contract_validation import validate_no_sentinel_leakage
 from .contracts import REQUIRED_ARTIFACT_METADATA_FIELDS, SUCCESS_MARKER_SCHEMA_VERSION
 from .constants import to_internal_column
 from .domain_split import sanitize_station_slug, split_station_cleaned_by_domain
@@ -440,6 +441,7 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
 
             print(f"[{idx}/{len(manifest_rows)}] {station_id}: clean canonical dataset")
             cleaned_df = _clean_canonical_dataset(raw_df)
+            validate_no_sentinel_leakage(cleaned_df)
             row_count_cleaned = int(len(cleaned_df))
 
             profile_payload: dict[str, Any] | None = None
