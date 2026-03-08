@@ -630,7 +630,7 @@ Two new comprehensive validation documents guide pipeline correctness:
 
 A GitHub Actions workflow (`.github/workflows/suspicious_coverage.yml`) automatically detects **suspicious coverage** — cases where tests claim to cover a spec rule but the rule is not marked as implemented in code. This prevents false-positive coverage metrics.
 
-- Current suspicious entries: **407** (11.3% of rules)
+- Current suspicious entries: **0** (0.0% of rules)
 - See [docs/validation_artifacts/suspicious_coverage/suspicious_summary.md](docs/validation_artifacts/suspicious_coverage/suspicious_summary.md) for the latest report
 
 ---
