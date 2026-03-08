@@ -9,6 +9,14 @@
     "usable_metric_count",
     "usable_metric_fraction"
   ],
+  "column_types": {
+    "station_id": "string",
+    "DATE": "string",
+    "YEAR": "integer",
+    "row_has_any_usable_metric": "boolean",
+    "usable_metric_count": "integer",
+    "usable_metric_fraction": "float"
+  },
   "join_keys": ["station_id", "DATE"],
   "required_metadata_fields": [
     "artifact_id",

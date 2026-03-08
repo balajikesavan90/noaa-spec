@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 from noaa_climate_data.contracts import (
+    CANONICAL_CORE_COLUMN_TYPES,
     REQUIRED_ARTIFACT_METADATA_FIELDS,
     SHARED_JOIN_KEYS,
     QUALITY_REPORT_TYPES,
@@ -79,3 +80,6 @@ def test_externalized_contract_schemas_exist_and_align_with_runtime_contracts() 
         assert tuple(payload["join_keys"]) == runtime_contract.join_keys
         assert tuple(payload["required_metadata_fields"]) == runtime_contract.required_metadata_fields
         assert tuple(payload["null_semantics"]) == runtime_contract.null_semantics
+
+        if artifact_type == "canonical_dataset":
+            assert payload["column_types"] == dict(CANONICAL_CORE_COLUMN_TYPES)

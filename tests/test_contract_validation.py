@@ -8,6 +8,7 @@ import pytest
 from noaa_climate_data.contract_validation import (
     find_sentinel_leakage,
     sentinel_values_for_column,
+    validate_canonical_schema_contract,
     validate_no_sentinel_leakage,
 )
 
@@ -40,3 +41,47 @@ def test_validate_no_sentinel_leakage_raises_on_contract_violation() -> None:
 def test_validate_no_sentinel_leakage_allows_clean_numeric_values() -> None:
     cleaned = pd.DataFrame({"temperature_c": [12.0, 5.0, None], "remarks_text": ["ok", None, "ok"]})
     validate_no_sentinel_leakage(cleaned)
+
+
+def test_validate_canonical_schema_contract_requires_core_columns() -> None:
+    cleaned = pd.DataFrame(
+        {
+            "station_id": ["01234567890"],
+            "DATE": ["2020-01-01T00:00:00"],
+            "YEAR": [2020],
+            "row_has_any_usable_metric": [True],
+            "usable_metric_fraction": [1.0],
+        }
+    )
+    with pytest.raises(ValueError, match="missing required columns"):
+        validate_canonical_schema_contract(cleaned)
+
+
+def test_validate_canonical_schema_contract_rejects_invalid_core_types() -> None:
+    cleaned = pd.DataFrame(
+        {
+            "station_id": ["01234567890"],
+            "DATE": ["2020-01-01T00:00:00"],
+            "YEAR": ["bad_year"],
+            "row_has_any_usable_metric": [True],
+            "usable_metric_count": [1],
+            "usable_metric_fraction": [1.0],
+        }
+    )
+    with pytest.raises(ValueError, match="YEAR"):
+        validate_canonical_schema_contract(cleaned)
+
+
+def test_validate_canonical_schema_contract_accepts_valid_core_schema() -> None:
+    cleaned = pd.DataFrame(
+        {
+            "station_id": ["01234567890"],
+            "DATE": ["2020-01-01T00:00:00"],
+            "YEAR": [2020],
+            "row_has_any_usable_metric": [True],
+            "usable_metric_count": [1],
+            "usable_metric_fraction": [1.0],
+            "temperature_c": [12.5],
+        }
+    )
+    validate_canonical_schema_contract(cleaned)

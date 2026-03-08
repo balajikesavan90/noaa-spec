@@ -27,6 +27,15 @@ QUALITY_REPORT_TYPES: tuple[str, ...] = (
     "station_year_quality",
 )
 
+CANONICAL_CORE_COLUMN_TYPES: tuple[tuple[str, str], ...] = (
+    ("station_id", "string"),
+    ("DATE", "string"),
+    ("YEAR", "integer"),
+    ("row_has_any_usable_metric", "boolean"),
+    ("usable_metric_count", "integer"),
+    ("usable_metric_fraction", "float"),
+)
+
 
 @dataclass(frozen=True)
 class ArtifactContract:
