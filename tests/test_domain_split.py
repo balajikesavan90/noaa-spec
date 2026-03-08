@@ -68,3 +68,26 @@ def test_station_metadata_mapping_row_includes_separate_mapping_fields() -> None
     assert row["LATITUDE"] == 12.34
     assert row["LONGITUDE"] == 56.78
     assert row["ELEVATION"] == 100.0
+
+
+def test_split_station_cleaned_by_domain_writes_parquet_when_requested(tmp_path: Path) -> None:
+    cleaned = _sample_cleaned().copy()
+    cleaned["wind_type_code"] = ["N", 1.0]
+    manifest_rows = split_station_cleaned_by_domain(
+        cleaned,
+        station_slug="TEST_STATION",
+        station_name="TEST STATION",
+        output_dir=tmp_path,
+        output_format="parquet",
+    )
+
+    assert manifest_rows
+    temp_path = tmp_path / "TEST_STATION__temperature.parquet"
+    assert temp_path.exists()
+
+    temp_df = pd.read_parquet(temp_path)
+    assert "station_name" not in temp_df.columns
+    assert "LATITUDE" not in temp_df.columns
+    assert "LONGITUDE" not in temp_df.columns
+    assert "ELEVATION" not in temp_df.columns
+    assert "station_id" in temp_df.columns

@@ -234,10 +234,14 @@ def split_station_cleaned_by_domain(
     station_name: str,
     output_dir: Path,
     include_other: bool = True,
+    output_format: str = "csv",
 ) -> list[dict[str, object]]:
     output_dir.mkdir(parents=True, exist_ok=True)
     columns = list(cleaned.columns)
     common_columns, domain_columns = classify_columns(columns)
+
+    if output_format not in {"csv", "parquet"}:
+        raise ValueError(f"Unsupported domain split output format: {output_format}")
 
     if not include_other:
         domain_columns.pop("other", None)
@@ -247,8 +251,13 @@ def split_station_cleaned_by_domain(
         if not cols:
             continue
         selected = common_columns + cols
-        output_file = output_dir / f"{station_slug}__{domain_name}.csv"
-        cleaned[selected].to_csv(output_file, index=False)
+        output_suffix = "csv" if output_format == "csv" else "parquet"
+        output_file = output_dir / f"{station_slug}__{domain_name}.{output_suffix}"
+        split_df = cleaned[selected]
+        if output_format == "csv":
+            split_df.to_csv(output_file, index=False)
+        else:
+            _normalize_object_columns_for_parquet(split_df).to_parquet(output_file, index=False)
         size_mb = output_file.stat().st_size / (1024 * 1024)
         manifest_rows.append(
             {
@@ -261,6 +270,26 @@ def split_station_cleaned_by_domain(
             }
         )
     return manifest_rows
+
+
+def _normalize_object_columns_for_parquet(frame: pd.DataFrame) -> pd.DataFrame:
+    normalized = frame.copy()
+    for column in normalized.columns:
+        series = normalized[column]
+        if not pd.api.types.is_object_dtype(series):
+            continue
+        normalized[column] = series.map(_coerce_to_nullable_text).astype("string")
+    return normalized
+
+
+def _coerce_to_nullable_text(value: object) -> object:
+    if value is None:
+        return pd.NA
+    if isinstance(value, float) and pd.isna(value):
+        return pd.NA
+    if isinstance(value, (bytes, bytearray)):
+        return value.decode("utf-8", errors="replace")
+    return str(value)
 
 
 def station_metadata_mapping_row(

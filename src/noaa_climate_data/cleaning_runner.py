@@ -7,7 +7,7 @@ and low-I/O execution. Cleaning semantics remain in ``clean_noaa_dataframe``.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
 import re
@@ -37,6 +37,7 @@ from .research_reports import (
 
 
 STATION_ID_RE = re.compile(r"^\d{11}$")
+PST = timezone(timedelta(hours=-8), name="PST")
 
 MODE_TO_RAW_FILE = {
     "test_csv_dir": "LocationData_Raw.csv",
@@ -424,7 +425,7 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
             print(f"[{idx}/{len(manifest_rows)}] {station_id}: stale completion marker; recomputing")
 
         processed_for_limit += 1
-        started_at = _utc_now_iso()
+        started_at = _pst_now_iso()
         station_start = datetime.now(timezone.utc)
 
         status_df = _upsert_status(
@@ -471,6 +472,7 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
                     station_slug=station_slug,
                     station_name=station_name,
                     output_dir=paths.domain_dir,
+                    output_format=config.input_format,
                 )
                 pd.DataFrame(domain_rows).to_csv(paths.domain_manifest_path, index=False)
 
@@ -514,7 +516,7 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
                     "output_path": str(paths.cleaned_path if config.write_flags.write_cleaned_station else paths.station_output_dir),
                     "status": "completed",
                     "started_at": started_at,
-                    "completed_at": _utc_now_iso(),
+                    "completed_at": _pst_now_iso(),
                     "elapsed_seconds": round(float(elapsed_seconds), 6),
                     "row_count_raw": row_count_raw,
                     "row_count_cleaned": row_count_cleaned,
@@ -548,7 +550,7 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
                     "input_path": str(input_path),
                     "status": "failed",
                     "started_at": started_at,
-                    "completed_at": _utc_now_iso(),
+                    "completed_at": _pst_now_iso(),
                     "elapsed_seconds": round(float(elapsed_seconds), 6),
                     "success_marker_path": str(paths.success_marker_path),
                     "expected_outputs": _json_compact([str(path) for path in expected_outputs]),
@@ -701,7 +703,7 @@ def _prepare_manifest(
 
 def _discover_stations(config: CleaningRunConfig) -> list[dict[str, Any]]:
     expected_file = MODE_TO_RAW_FILE[config.mode]
-    discovered_at = _utc_now_iso()
+    discovered_at = _pst_now_iso()
 
     rows: list[dict[str, Any]] = []
     for child in sorted(config.input_root.iterdir(), key=lambda path: path.name):
@@ -849,7 +851,7 @@ def _write_success_marker(
         "station_id": station_id,
         "input_path": str(input_path.resolve()),
         "input_format": input_format,
-        "completed_at": _utc_now_iso(),
+        "completed_at": _pst_now_iso(),
         "expected_outputs": [str(path.resolve()) for path in expected_outputs],
         "row_count_raw": int(row_count_raw),
         "row_count_cleaned": int(row_count_cleaned),
@@ -911,9 +913,33 @@ def _write_cleaned_station(cleaned: pd.DataFrame, output_path: Path, input_forma
         cleaned.to_csv(output_path, index=False)
         return
     if input_format == "parquet":
-        cleaned.to_parquet(output_path, index=False)
+        _normalize_object_columns_for_parquet(cleaned).to_parquet(output_path, index=False)
         return
     raise ValueError(f"Unsupported input format: {input_format}")
+
+
+def _normalize_object_columns_for_parquet(frame: pd.DataFrame) -> pd.DataFrame:
+    if frame.empty:
+        return frame
+
+    normalized = frame.copy()
+    for column in normalized.columns:
+        series = normalized[column]
+        if not pd.api.types.is_object_dtype(series):
+            continue
+        normalized[column] = series.map(_coerce_to_nullable_text).astype("string")
+
+    return normalized
+
+
+def _coerce_to_nullable_text(value: object) -> object:
+    if value is None:
+        return pd.NA
+    if isinstance(value, float) and pd.isna(value):
+        return pd.NA
+    if isinstance(value, (bytes, bytearray)):
+        return value.decode("utf-8", errors="replace")
+    return str(value)
 
 
 def _station_name(cleaned: pd.DataFrame, station_id: str) -> str:
@@ -935,8 +961,8 @@ def _write_station_reports_from_memory(
     context = ResearchReportContext(
         station_id=station_id,
         station_name=station_name,
-        access_date=_utc_today(),
-        run_date_utc=_utc_now_iso(),
+        access_date=_pst_today(),
+        run_date_utc=_pst_now_iso(),
         version=__version__,
         authors="Balaji Kesavan",
     )
@@ -1265,12 +1291,12 @@ def _family_from_qc_flag_column(internal_col: str) -> str | None:
     return None
 
 
-def _utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+def _pst_now_iso() -> str:
+    return datetime.now(PST).isoformat()
 
 
-def _utc_today() -> str:
-    return datetime.now(timezone.utc).date().isoformat()
+def _pst_today() -> str:
+    return datetime.now(PST).date().isoformat()
 
 
 def _ensure_dir(path: Path) -> None:

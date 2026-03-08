@@ -418,6 +418,70 @@ def test_batch_mode_does_not_write_into_input_tree(tmp_path: Path) -> None:
     assert station_files == ["LocationData_Raw.parquet"]
 
 
+def test_parquet_write_handles_mixed_object_columns(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_root = tmp_path / "parquet_inputs"
+    station_id = "01234567890"
+    _write_raw_parquet(input_root / station_id, station_id)
+
+    def fake_clean_canonical_dataset(raw: pd.DataFrame) -> pd.DataFrame:
+        return pd.DataFrame(
+            {
+                "station_id": [station_id, station_id],
+                "wind_type_code": ["N", 1.0],
+                "qc_note": [None, "ok"],
+            }
+        )
+
+    monkeypatch.setattr(cleaning_runner, "_clean_canonical_dataset", fake_clean_canonical_dataset)
+
+    config = _config(
+        tmp_path,
+        mode="batch_parquet_dir",
+        input_format="parquet",
+        run_id="run_parquet_mixed_object",
+        input_root=input_root,
+        write_flags=_flags(cleaned=True, quality=False, domain=False, reports=False, global_summary=False),
+    )
+    result = run_cleaning_run(config)
+
+    assert result["failed"] == 0
+    cleaned_path = config.output_root / station_id / "LocationData_Cleaned.parquet"
+    assert cleaned_path.exists()
+
+    cleaned = pd.read_parquet(cleaned_path)
+    assert cleaned["wind_type_code"].tolist() == ["N", "1.0"]
+
+
+def test_parquet_mode_writes_domain_split_parquet_files(tmp_path: Path) -> None:
+    input_root = tmp_path / "parquet_inputs"
+    station_id = "01234567890"
+    _write_raw_parquet(input_root / station_id, station_id)
+
+    config = _config(
+        tmp_path,
+        mode="test_parquet_dir",
+        input_format="parquet",
+        run_id="run_parquet_domain_splits",
+        input_root=input_root,
+        write_flags=_flags(cleaned=True, quality=True, domain=True, reports=False, global_summary=False),
+    )
+    result = run_cleaning_run(config)
+
+    assert result["failed"] == 0
+    domain_manifest_path = config.output_root / "domain_splits" / station_id / "station_split_manifest.csv"
+    assert domain_manifest_path.exists()
+
+    domain_manifest = pd.read_csv(domain_manifest_path)
+    assert not domain_manifest.empty
+    files = domain_manifest["file"].astype(str).tolist()
+    assert all(path.endswith(".parquet") for path in files)
+    for path in files:
+        assert Path(path).exists()
+
+
 def test_input_size_bytes_is_optional_best_effort(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

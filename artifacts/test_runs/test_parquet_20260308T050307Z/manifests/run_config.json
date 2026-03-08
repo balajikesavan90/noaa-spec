@@ -1,0 +1,23 @@
+{
+  "config_fingerprint": "{\"input_format\":\"parquet\",\"input_root\":\"/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/output\",\"limit\":null,\"manifest_first\":false,\"mode\":\"test_parquet_dir\",\"roots\":{\"manifest_root\":\"/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/artifacts/test_runs/test_parquet_20260308T050307Z/manifests\",\"output_root\":\"/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/artifacts/test_runs/test_parquet_20260308T050307Z/cleaned\",\"quality_profile_root\":\"/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/artifacts/test_runs/test_parquet_20260308T050307Z/quality_profiles\",\"reports_root\":\"/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/artifacts/test_runs/test_parquet_20260308T050307Z/reports\"},\"station_filters\":[],\"write_flags\":{\"write_cleaned_station\":true,\"write_domain_splits\":true,\"write_global_summary\":false,\"write_station_quality_profile\":true,\"write_station_reports\":true}}",
+  "input_format": "parquet",
+  "input_root": "/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/output",
+  "limit": null,
+  "manifest_first": false,
+  "mode": "test_parquet_dir",
+  "roots": {
+    "manifest_root": "/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/artifacts/test_runs/test_parquet_20260308T050307Z/manifests",
+    "output_root": "/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/artifacts/test_runs/test_parquet_20260308T050307Z/cleaned",
+    "quality_profile_root": "/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/artifacts/test_runs/test_parquet_20260308T050307Z/quality_profiles",
+    "reports_root": "/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/artifacts/test_runs/test_parquet_20260308T050307Z/reports"
+  },
+  "run_id": "test_parquet_20260308T050307Z",
+  "station_filters": [],
+  "write_flags": {
+    "write_cleaned_station": true,
+    "write_domain_splits": true,
+    "write_global_summary": false,
+    "write_station_quality_profile": true,
+    "write_station_reports": true
+  }
+}
