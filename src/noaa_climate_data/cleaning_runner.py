@@ -19,18 +19,11 @@ from . import __version__
 from .cleaning import clean_noaa_dataframe
 from .constants import to_internal_column
 from .domain_split import sanitize_station_slug, split_station_cleaned_by_domain
-from .pipeline import (
-    _aggregate_numeric,
-    _apply_quality_filters_for_aggregation,
-    _best_hour,
-    _drop_metadata_columns,
-    _extract_time_columns,
-    _filter_full_months,
-    _filter_full_years,
-)
+from .pipeline import _extract_time_columns
 from .research_reports import (
     ResearchReportContext,
-    generate_aggregation_report,
+    domain_quality_report_names,
+    generate_domain_quality_reports,
     generate_quality_report,
     write_research_reports,
 )
@@ -768,16 +761,21 @@ def _expected_output_paths(config: CleaningRunConfig, paths: StationPaths) -> li
     if config.write_flags.write_station_quality_profile:
         expected.append(paths.quality_profile_path)
     if config.write_flags.write_station_reports:
-        expected.extend(
-            [
-                paths.reports_dir / "LocationData_QualityReport.json",
-                paths.reports_dir / "LocationData_QualityReport.md",
-                paths.reports_dir / "LocationData_QualitySummary.csv",
-                paths.reports_dir / "LocationData_AggregationReport.json",
-                paths.reports_dir / "LocationData_AggregationReport.md",
-            ]
-        )
+        expected.extend(_station_report_expected_paths(paths.reports_dir))
     return [path.resolve() for path in expected]
+
+
+def _station_report_expected_paths(reports_dir: Path) -> list[Path]:
+    domain_quality_dir = reports_dir / "domain_quality"
+    expected = [
+        reports_dir / "LocationData_QualityReport.json",
+        reports_dir / "LocationData_QualityReport.md",
+        reports_dir / "LocationData_QualitySummary.csv",
+    ]
+    for domain_name in domain_quality_report_names():
+        expected.append(domain_quality_dir / f"LocationData_DomainQuality_{domain_name}.json")
+        expected.append(domain_quality_dir / f"LocationData_DomainQuality_{domain_name}.md")
+    return expected
 
 
 def _status_row(status_df: pd.DataFrame, station_id: str) -> dict[str, Any] | None:
@@ -967,56 +965,17 @@ def _write_station_reports_from_memory(
         authors="Balaji Kesavan",
     )
 
-    hourly, monthly, yearly = _rollups_from_cleaned(cleaned)
-
     quality_report, quality_summary = generate_quality_report(raw, cleaned, context)
-    aggregation_report = generate_aggregation_report(
-        cleaned,
-        hourly,
-        monthly,
-        yearly,
-        context,
-        aggregation_strategy="best_hour",
-        fixed_hour=None,
-        min_days_per_month=20,
-        min_months_per_year=12,
-    )
+    domain_quality_reports = generate_domain_quality_reports(cleaned, context)
 
     report_paths = write_research_reports(
         reports_dir,
         quality_report,
         quality_summary,
-        aggregation_report,
+        aggregation_report=None,
+        domain_quality_reports=domain_quality_reports,
     )
     return [path.resolve() for path in report_paths.values()]
-
-
-def _rollups_from_cleaned(cleaned: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    if cleaned.empty:
-        return cleaned, cleaned, cleaned
-
-    hourly = cleaned
-    best_hour = _best_hour(hourly)
-    if best_hour is not None and "Hour" in hourly.columns:
-        hourly = hourly[hourly["Hour"] == best_hour]
-
-    hourly_agg = _apply_quality_filters_for_aggregation(hourly)
-    if {"Year", "MonthNum", "Day"}.issubset(hourly_agg.columns):
-        hourly_agg = _filter_full_months(hourly_agg, min_days=20)
-        hourly_agg = _filter_full_years(hourly_agg, min_months=12)
-
-    month_group = ["Year", "MonthNum"]
-    year_group = ["Year"]
-    if "ID" in cleaned.columns:
-        month_group = ["ID"] + month_group
-        year_group = ["ID"] + year_group
-
-    monthly = _aggregate_numeric(hourly_agg, month_group)
-    yearly = _aggregate_numeric(hourly_agg, year_group)
-
-    monthly = _drop_metadata_columns(monthly)
-    yearly = _drop_metadata_columns(yearly)
-    return hourly, monthly, yearly
 
 
 def _build_global_summary_from_sidecars(

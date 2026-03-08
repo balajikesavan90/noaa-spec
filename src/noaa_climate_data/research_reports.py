@@ -20,6 +20,7 @@ import pandas as pd
 
 from . import __version__
 from .constants import get_agg_func, get_field_rule, is_quality_column, to_internal_column
+from .domain_split import DOMAIN_RULES, classify_columns
 from .pipeline import _best_hour, _filter_full_months, _filter_full_years
 
 
@@ -371,6 +372,87 @@ def generate_quality_report(
     return report, missingness
 
 
+def domain_quality_report_names() -> tuple[str, ...]:
+    return tuple(name for name, _ in DOMAIN_RULES) + ("other",)
+
+
+def generate_domain_quality_reports(
+    cleaned: pd.DataFrame,
+    context: ResearchReportContext,
+) -> dict[str, tuple[dict[str, object], pd.DataFrame]]:
+    rows_total = int(len(cleaned))
+    _, domain_columns = classify_columns(list(cleaned.columns))
+    metric_columns = set(_metric_columns(cleaned))
+
+    reports: dict[str, tuple[dict[str, object], pd.DataFrame]] = {}
+    for domain_name in domain_quality_report_names():
+        selected_columns = sorted(domain_columns.get(domain_name, []))
+        selected_metric_columns = [
+            column for column in selected_columns if column in metric_columns
+        ]
+
+        if selected_metric_columns:
+            domain_frame = cleaned[selected_metric_columns]
+            rows_with_any_metric = int(domain_frame.notna().any(axis=1).sum())
+            missingness = pd.DataFrame(
+                {
+                    "column": selected_metric_columns,
+                    "missing_count": [
+                        int(domain_frame[column].isna().sum())
+                        for column in selected_metric_columns
+                    ],
+                    "rows": rows_total,
+                }
+            )
+            if rows_total > 0:
+                missingness["missing_pct"] = (
+                    missingness["missing_count"] / rows_total
+                ).round(6)
+            else:
+                missingness["missing_pct"] = 0.0
+            missingness = missingness.sort_values(
+                ["missing_pct", "column"],
+                ascending=[False, True],
+            ).reset_index(drop=True)
+        else:
+            rows_with_any_metric = 0
+            missingness = pd.DataFrame(
+                columns=["column", "missing_count", "rows", "missing_pct"]
+            )
+
+        fraction_rows_with_any_metric = (
+            round(rows_with_any_metric / rows_total, 6) if rows_total > 0 else 0.0
+        )
+
+        report = {
+            "station": {
+                "station_id": context.station_id,
+                "station_name": context.station_name,
+            },
+            "metadata": {
+                "report_type": "domain_data_quality",
+                "domain": domain_name,
+                "generated_at_utc": context.run_date_utc,
+                "data_access_date": context.access_date,
+                "version": context.version,
+            },
+            "domain_summary": {
+                "domain": domain_name,
+                "rows_total": rows_total,
+                "domain_columns_count": int(len(selected_columns)),
+                "domain_metric_columns_count": int(len(selected_metric_columns)),
+                "rows_with_any_domain_metric": rows_with_any_metric,
+                "fraction_rows_with_any_domain_metric": fraction_rows_with_any_metric,
+            },
+            "domain_columns": selected_columns,
+            "domain_metric_columns": selected_metric_columns,
+            "citation": _citation_text(context),
+        }
+        reports[domain_name] = (report, missingness)
+
+    return reports
+
+
 def _aggregation_function_rows(cleaned: pd.DataFrame) -> list[dict[str, object]]:
     rows = []
     for col in cleaned.columns:
@@ -556,52 +638,115 @@ def _aggregation_report_markdown(report: dict[str, object]) -> str:
     return "\n".join(lines)
 
 
+def _domain_quality_report_markdown(report: dict[str, object], missingness: pd.DataFrame) -> str:
+    summary = report["domain_summary"]
+    lines = [
+        "# Domain Data Quality Report",
+        "",
+        f"- Station ID: {report['station']['station_id']}",
+        f"- Station Name: {report['station']['station_name']}",
+        f"- Domain: {report['metadata']['domain']}",
+        f"- Generated: {report['metadata']['generated_at_utc']}",
+        f"- Data Access Date: {report['metadata']['data_access_date']}",
+        "",
+        "## Domain Summary",
+        "",
+        f"- Rows total: {summary['rows_total']}",
+        f"- Domain columns: {summary['domain_columns_count']}",
+        f"- Domain metric columns: {summary['domain_metric_columns_count']}",
+        f"- Rows with any domain metric: {summary['rows_with_any_domain_metric']}",
+        (
+            "- Fraction rows with any domain metric: "
+            f"{summary['fraction_rows_with_any_domain_metric']:.4f}"
+        ),
+        "",
+        "## Domain Missingness (Top 20 Metric Columns)",
+        "",
+        "| Column | Missing Count | Missing % |",
+        "|---|---:|---:|",
+    ]
+
+    for _, row in missingness.head(20).iterrows():
+        lines.append(
+            f"| {row['column']} | {int(row['missing_count'])} | {float(row['missing_pct']):.4f} |"
+        )
+
+    lines.extend(
+        [
+            "",
+            "## Citation",
+            "",
+            report["citation"],
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def write_research_reports(
     output_dir: Path,
     quality_report: dict[str, object],
     quality_summary: pd.DataFrame,
-    aggregation_report: dict[str, object],
+    aggregation_report: dict[str, object] | None = None,
+    domain_quality_reports: dict[str, tuple[dict[str, object], pd.DataFrame]] | None = None,
 ) -> dict[str, Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     quality_json = output_dir / "LocationData_QualityReport.json"
     quality_md = output_dir / "LocationData_QualityReport.md"
     quality_csv = output_dir / "LocationData_QualitySummary.csv"
-    aggregation_json = output_dir / "LocationData_AggregationReport.json"
-    aggregation_md = output_dir / "LocationData_AggregationReport.md"
 
     quality_json.write_text(json.dumps(quality_report, indent=2, default=_json_default), encoding="utf-8")
     quality_md.write_text(_quality_report_markdown(quality_report, quality_summary), encoding="utf-8")
     quality_summary.to_csv(quality_csv, index=False)
 
-    aggregation_json.write_text(json.dumps(aggregation_report, indent=2, default=_json_default), encoding="utf-8")
-    aggregation_md.write_text(_aggregation_report_markdown(aggregation_report), encoding="utf-8")
-
-    return {
+    report_paths: dict[str, Path] = {
         "quality_json": quality_json,
         "quality_md": quality_md,
         "quality_csv": quality_csv,
-        "aggregation_json": aggregation_json,
-        "aggregation_md": aggregation_md,
     }
+
+    if aggregation_report is not None:
+        aggregation_json = output_dir / "LocationData_AggregationReport.json"
+        aggregation_md = output_dir / "LocationData_AggregationReport.md"
+        aggregation_json.write_text(
+            json.dumps(aggregation_report, indent=2, default=_json_default),
+            encoding="utf-8",
+        )
+        aggregation_md.write_text(_aggregation_report_markdown(aggregation_report), encoding="utf-8")
+        report_paths["aggregation_json"] = aggregation_json
+        report_paths["aggregation_md"] = aggregation_md
+
+    if domain_quality_reports:
+        domain_quality_dir = output_dir / "domain_quality"
+        domain_quality_dir.mkdir(parents=True, exist_ok=True)
+        for domain_name in sorted(domain_quality_reports.keys()):
+            report, missingness = domain_quality_reports[domain_name]
+            domain_json = domain_quality_dir / f"LocationData_DomainQuality_{domain_name}.json"
+            domain_md = domain_quality_dir / f"LocationData_DomainQuality_{domain_name}.md"
+            domain_json.write_text(
+                json.dumps(report, indent=2, default=_json_default),
+                encoding="utf-8",
+            )
+            domain_md.write_text(
+                _domain_quality_report_markdown(report, missingness),
+                encoding="utf-8",
+            )
+            report_paths[f"domain_quality_json_{domain_name}"] = domain_json
+            report_paths[f"domain_quality_md_{domain_name}"] = domain_md
+
+    return report_paths
 
 
 def build_reports_for_station_dir(
     station_dir: Path,
     *,
-    aggregation_strategy: str,
-    fixed_hour: int | None,
-    min_days_per_month: int,
-    min_months_per_year: int,
     access_date: str | None = None,
     version: str = __version__,
     authors: str = "Balaji Kesavan",
 ) -> dict[str, Path]:
     raw_path = station_dir / "LocationData_Raw.csv"
     cleaned_path = station_dir / "LocationData_Cleaned.csv"
-    hourly_path = station_dir / "LocationData_Hourly.csv"
-    monthly_path = station_dir / "LocationData_Monthly.csv"
-    yearly_path = station_dir / "LocationData_Yearly.csv"
 
     required = [raw_path, cleaned_path]
     missing = [path for path in required if not path.exists()]
@@ -612,9 +757,6 @@ def build_reports_for_station_dir(
 
     raw = pd.read_csv(raw_path, low_memory=False)
     cleaned = pd.read_csv(cleaned_path, low_memory=False)
-    hourly = pd.read_csv(hourly_path, low_memory=False) if hourly_path.exists() else pd.DataFrame()
-    monthly = pd.read_csv(monthly_path, low_memory=False) if monthly_path.exists() else pd.DataFrame()
-    yearly = pd.read_csv(yearly_path, low_memory=False) if yearly_path.exists() else pd.DataFrame()
 
     station_id = station_dir.name
     station_name = None
@@ -633,15 +775,11 @@ def build_reports_for_station_dir(
     )
 
     quality_report, quality_summary = generate_quality_report(raw, cleaned, context)
-    aggregation_report = generate_aggregation_report(
-        cleaned,
-        hourly,
-        monthly,
-        yearly,
-        context,
-        aggregation_strategy=aggregation_strategy,
-        fixed_hour=fixed_hour,
-        min_days_per_month=min_days_per_month,
-        min_months_per_year=min_months_per_year,
+    domain_quality_reports = generate_domain_quality_reports(cleaned, context)
+    return write_research_reports(
+        station_dir,
+        quality_report,
+        quality_summary,
+        aggregation_report=None,
+        domain_quality_reports=domain_quality_reports,
     )
-    return write_research_reports(station_dir, quality_report, quality_summary, aggregation_report)

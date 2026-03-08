@@ -167,3 +167,12 @@ poetry run python -m noaa_climate_data.cli cleaning-run \
   --input-format csv \
   --no-write-domain-splits
 ```
+
+When `--write-station-reports` is enabled, cleaning-run writes:
+
+- `LocationData_QualityReport.json`
+- `LocationData_QualityReport.md`
+- `LocationData_QualitySummary.csv`
+- domain quality sidecars under `reports/<station_id>/domain_quality/`
+
+Cleaning-run station reports no longer write aggregation report artifacts.

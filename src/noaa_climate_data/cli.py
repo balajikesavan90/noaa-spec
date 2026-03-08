@@ -328,42 +328,12 @@ def _parse_args() -> argparse.Namespace:
 
     reports_parser = subparsers.add_parser(
         "research-reports",
-        help="Generate P3 quality and aggregation reports for a station folder",
+        help="Generate station quality and domain quality reports for a station folder",
     )
     reports_parser.add_argument(
         "station_dir",
         type=Path,
-        help="Station folder containing LocationData_Raw/Cleaned/Hourly/Monthly/Yearly.csv",
-    )
-    reports_parser.add_argument(
-        "--aggregation-strategy",
-        choices=[
-            "best_hour",
-            "fixed_hour",
-            "hour_day_month_year",
-            "weighted_hours",
-            "daily_min_max_mean",
-        ],
-        default="best_hour",
-        help="Aggregation strategy used when creating hourly/monthly/yearly outputs",
-    )
-    reports_parser.add_argument(
-        "--fixed-hour",
-        type=int,
-        default=None,
-        help="Fixed hour used if aggregation strategy was fixed_hour",
-    )
-    reports_parser.add_argument(
-        "--min-days-per-month",
-        type=int,
-        default=20,
-        help="Minimum days/month threshold used by completeness filters",
-    )
-    reports_parser.add_argument(
-        "--min-months-per-year",
-        type=int,
-        default=12,
-        help="Minimum months/year threshold used by completeness filters",
+        help="Station folder containing LocationData_Raw.csv and LocationData_Cleaned.csv",
     )
     reports_parser.add_argument(
         "--access-date",
@@ -723,10 +693,6 @@ def main() -> None:
     if args.command == "research-reports":
         build_reports_for_station_dir(
             args.station_dir,
-            aggregation_strategy=args.aggregation_strategy,
-            fixed_hour=args.fixed_hour,
-            min_days_per_month=args.min_days_per_month,
-            min_months_per_year=args.min_months_per_year,
             access_date=args.access_date,
             authors=args.authors,
         )
@@ -936,10 +902,6 @@ def main() -> None:
                         print(f"[{idx}/{total}] {station_dir.name}: generating research reports")
                         build_reports_for_station_dir(
                             station_dir,
-                            aggregation_strategy=args.aggregation_strategy,
-                            fixed_hour=args.fixed_hour,
-                            min_days_per_month=args.min_days_per_month,
-                            min_months_per_year=args.min_months_per_year,
                             access_date=args.access_date,
                             authors=args.authors,
                         )

@@ -13,6 +13,7 @@ from noaa_climate_data.cleaning_runner import (
     _discover_stations,
     run_cleaning_run,
 )
+from noaa_climate_data.research_reports import domain_quality_report_names
 
 
 def _sample_raw_df(station_id: str) -> pd.DataFrame:
@@ -512,3 +513,46 @@ def test_input_size_bytes_is_optional_best_effort(
     manifest = pd.read_csv(config.manifest_root / "run_manifest.csv", dtype=str)
     assert manifest["station_id"].astype(str).tolist() == [station_id]
     assert pd.isna(manifest.loc[0, "input_size_bytes"]) or manifest.loc[0, "input_size_bytes"] == ""
+
+
+def test_station_reports_write_domain_quality_reports_without_aggregation(tmp_path: Path) -> None:
+    input_root = tmp_path / "inputs"
+    station_id = "01234567890"
+    _write_raw_csv(input_root / station_id, station_id)
+
+    config = _config(
+        tmp_path,
+        mode="test_csv_dir",
+        input_format="csv",
+        run_id="run_station_reports_domain_quality",
+        input_root=input_root,
+        write_flags=_flags(
+            cleaned=False,
+            domain=False,
+            quality=False,
+            reports=True,
+            global_summary=False,
+        ),
+    )
+    result = run_cleaning_run(config)
+
+    assert result["failed"] == 0
+    reports_dir = config.reports_root / station_id
+    assert (reports_dir / "LocationData_QualityReport.json").exists()
+    assert (reports_dir / "LocationData_QualityReport.md").exists()
+    assert (reports_dir / "LocationData_QualitySummary.csv").exists()
+
+    assert not (reports_dir / "LocationData_AggregationReport.json").exists()
+    assert not (reports_dir / "LocationData_AggregationReport.md").exists()
+
+    domain_quality_dir = reports_dir / "domain_quality"
+    for domain_name in domain_quality_report_names():
+        assert (domain_quality_dir / f"LocationData_DomainQuality_{domain_name}.json").exists()
+        assert (domain_quality_dir / f"LocationData_DomainQuality_{domain_name}.md").exists()
+
+    success_payload = json.loads(
+        (config.output_root / station_id / "_SUCCESS.json").read_text(encoding="utf-8")
+    )
+    expected_outputs = success_payload.get("expected_outputs", [])
+    assert all("LocationData_AggregationReport" not in path for path in expected_outputs)
+    assert any("LocationData_DomainQuality_temperature.json" in path for path in expected_outputs)

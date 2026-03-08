@@ -373,14 +373,6 @@ class TestCliCommands:
                 "prog",
                 "research-reports",
                 str(station_dir),
-                "--aggregation-strategy",
-                "fixed_hour",
-                "--fixed-hour",
-                "6",
-                "--min-days-per-month",
-                "18",
-                "--min-months-per-year",
-                "10",
                 "--access-date",
                 "2026-02-28",
                 "--authors",
@@ -390,10 +382,6 @@ class TestCliCommands:
         cli.main()
 
         assert called["station_dir"].resolve() == station_dir.resolve()
-        assert called["aggregation_strategy"] == "fixed_hour"
-        assert called["fixed_hour"] == 6
-        assert called["min_days_per_month"] == 18
-        assert called["min_months_per_year"] == 10
         assert called["access_date"] == "2026-02-28"
         assert called["authors"] == "Test Author"
 
@@ -468,10 +456,6 @@ class TestCliCommands:
         assert process_called["min_months_per_year"] == 10
 
         assert report_called["station_dir"].resolve() == station_ok.resolve()
-        assert report_called["aggregation_strategy"] == "fixed_hour"
-        assert report_called["fixed_hour"] == 6
-        assert report_called["min_days_per_month"] == 18
-        assert report_called["min_months_per_year"] == 10
         assert report_called["access_date"] == "2026-02-28"
         assert report_called["authors"] == "Test Author"
 

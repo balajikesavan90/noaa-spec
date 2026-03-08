@@ -1,0 +1,537 @@
+{
+  "station": {
+    "station_id": "34880099999",
+    "station_name": "ASTRAHAN, RS"
+  },
+  "metadata": {
+    "report_type": "data_quality",
+    "generated_at_utc": "2026-03-07T22:38:39.743601-08:00",
+    "data_access_date": "2026-03-07",
+    "version": "0.1.0"
+  },
+  "row_counts": {
+    "raw_rows": 48045,
+    "cleaned_rows": 48045,
+    "dropped_rows": 0,
+    "dropped_fraction": 0.0,
+    "drop_reason_estimates": {
+      "invalid_or_missing_date": 0,
+      "unclassified_other": 0
+    }
+  },
+  "coverage_completeness": {
+    "raw": {
+      "hours": 48045,
+      "days": 6495,
+      "months": 240
+    },
+    "cleaned": {
+      "hours": 48045,
+      "days": 6495,
+      "months": 240
+    },
+    "retained_fraction": {
+      "hours": 1.0,
+      "days": 1.0,
+      "months": 1.0
+    }
+  },
+  "sentinel_replacement_counts": [
+    {
+      "column": "cloud_opaque_coverage",
+      "sentinel_replacements": 47950
+    },
+    {
+      "column": "pressure_change_24hr_hpa",
+      "sentinel_replacements": 47748
+    },
+    {
+      "column": "ceiling_determination_code",
+      "sentinel_replacements": 47604
+    },
+    {
+      "column": "altimeter_setting_hpa",
+      "sentinel_replacements": 38364
+    },
+    {
+      "column": "cloud_lowest_base_height_m",
+      "sentinel_replacements": 26797
+    },
+    {
+      "column": "cloud_high_genus_code",
+      "sentinel_replacements": 21576
+    },
+    {
+      "column": "ceiling_height_m",
+      "sentinel_replacements": 15959
+    },
+    {
+      "column": "cloud_mid_genus_code",
+      "sentinel_replacements": 15448
+    },
+    {
+      "column": "cloud_low_genus_code",
+      "sentinel_replacements": 12091
+    },
+    {
+      "column": "visibility_variability_code",
+      "sentinel_replacements": 11027
+    },
+    {
+      "column": "cloud_layer_base_height_m_1",
+      "sentinel_replacements": 10981
+    },
+    {
+      "column": "cloud_layer_type_code_1",
+      "sentinel_replacements": 8626
+    },
+    {
+      "column": "extreme_temp_period_hours_1",
+      "sentinel_replacements": 8583
+    },
+    {
+      "column": "precip_condition_code_1",
+      "sentinel_replacements": 7110
+    },
+    {
+      "column": "convective_cloud_code",
+      "sentinel_replacements": 6515
+    },
+    {
+      "column": "cloud_base_height_upper_m",
+      "sentinel_replacements": 6515
+    },
+    {
+      "column": "cloud_base_height_lower_m",
+      "sentinel_replacements": 6515
+    },
+    {
+      "column": "cloud_lowest_coverage",
+      "sentinel_replacements": 4807
+    },
+    {
+      "column": "cloud_layer_base_height_m_2",
+      "sentinel_replacements": 4241
+    },
+    {
+      "column": "cloud_layer_coverage_2",
+      "sentinel_replacements": 3890
+    },
+    {
+      "column": "ceiling_cavok_code",
+      "sentinel_replacements": 3864
+    },
+    {
+      "column": "wind_direction_deg",
+      "sentinel_replacements": 1763
+    },
+    {
+      "column": "cloud_layer_coverage_1",
+      "sentinel_replacements": 1567
+    },
+    {
+      "column": "precip_period_hours_1",
+      "sentinel_replacements": 1371
+    },
+    {
+      "column": "cloud_layer_coverage_3",
+      "sentinel_replacements": 1028
+    },
+    {
+      "column": "cloud_layer_base_height_m_3",
+      "sentinel_replacements": 1028
+    },
+    {
+      "column": "supp_wind_speed_quality_code_1",
+      "sentinel_replacements": 982
+    },
+    {
+      "column": "snow_water_condition_code_1",
+      "sentinel_replacements": 938
+    },
+    {
+      "column": "precip_amount_1",
+      "sentinel_replacements": 900
+    },
+    {
+      "column": "snow_water_equivalent_1",
+      "sentinel_replacements": 691
+    },
+    {
+      "column": "snow_depth_condition_code_1",
+      "sentinel_replacements": 578
+    },
+    {
+      "column": "supp_wind_period_hours_1",
+      "sentinel_replacements": 522
+    },
+    {
+      "column": "sea_level_pressure_hpa",
+      "sentinel_replacements": 318
+    },
+    {
+      "column": "wind_speed_ms",
+      "sentinel_replacements": 292
+    },
+    {
+      "column": "dew_point_c",
+      "sentinel_replacements": 291
+    },
+    {
+      "column": "supp_wind_period_hours_2",
+      "sentinel_replacements": 169
+    },
+    {
+      "column": "supp_wind_speed_quality_code_2",
+      "sentinel_replacements": 169
+    },
+    {
+      "column": "snow_depth_1",
+      "sentinel_replacements": 164
+    },
+    {
+      "column": "extreme_temp_c_1",
+      "sentinel_replacements": 114
+    },
+    {
+      "column": "temperature_c",
+      "sentinel_replacements": 111
+    },
+    {
+      "column": "supp_wind_direction_deg_1",
+      "sentinel_replacements": 101
+    },
+    {
+      "column": "visibility_m",
+      "sentinel_replacements": 41
+    },
+    {
+      "column": "cloud_total_coverage",
+      "sentinel_replacements": 28
+    },
+    {
+      "column": "pressure_tendency_code",
+      "sentinel_replacements": 25
+    },
+    {
+      "column": "wind_type_code",
+      "sentinel_replacements": 12
+    },
+    {
+      "column": "supp_wind_oa_period_hours_1",
+      "sentinel_replacements": 6
+    },
+    {
+      "column": "precip_condition_code_2",
+      "sentinel_replacements": 4
+    },
+    {
+      "column": "station_pressure_hpa",
+      "sentinel_replacements": 3
+    },
+    {
+      "column": "sea_surface_temperature_c",
+      "sentinel_replacements": 3
+    },
+    {
+      "column": "wave_period_seconds",
+      "sentinel_replacements": 3
+    },
+    {
+      "column": "sea_state_code",
+      "sentinel_replacements": 3
+    },
+    {
+      "column": "swell_period_seconds",
+      "sentinel_replacements": 3
+    },
+    {
+      "column": "swell_direction_deg",
+      "sentinel_replacements": 3
+    },
+    {
+      "column": "past_weather_period_hours_1",
+      "sentinel_replacements": 2
+    },
+    {
+      "column": "past_weather_period_hours_2",
+      "sentinel_replacements": 2
+    },
+    {
+      "column": "extreme_temp_period_hours_2",
+      "sentinel_replacements": 2
+    },
+    {
+      "column": "snow_accum_condition_code_1",
+      "sentinel_replacements": 2
+    },
+    {
+      "column": "present_weather_code_1",
+      "sentinel_replacements": 1
+    }
+  ],
+  "quality_flag_filtering_counts": [],
+  "applied_scale_factors": [
+    {
+      "field": "AA1",
+      "part": 2,
+      "column": "precip_amount_1",
+      "scale": 0.1
+    },
+    {
+      "field": "AA2",
+      "part": 2,
+      "column": "precip_amount_2",
+      "scale": 0.1
+    },
+    {
+      "field": "AJ1",
+      "part": 4,
+      "column": "snow_water_equivalent_1",
+      "scale": 0.1
+    },
+    {
+      "field": "DEW",
+      "part": 1,
+      "column": "dew_point_c",
+      "scale": 0.1
+    },
+    {
+      "field": "KA1",
+      "part": 1,
+      "column": "extreme_temp_period_hours_1",
+      "scale": 0.1
+    },
+    {
+      "field": "KA1",
+      "part": 3,
+      "column": "extreme_temp_c_1",
+      "scale": 0.1
+    },
+    {
+      "field": "KA2",
+      "part": 1,
+      "column": "extreme_temp_period_hours_2",
+      "scale": 0.1
+    },
+    {
+      "field": "KA2",
+      "part": 3,
+      "column": "extreme_temp_c_2",
+      "scale": 0.1
+    },
+    {
+      "field": "MA1",
+      "part": 1,
+      "column": "altimeter_setting_hpa",
+      "scale": 0.1
+    },
+    {
+      "field": "MA1",
+      "part": 3,
+      "column": "station_pressure_hpa",
+      "scale": 0.1
+    },
+    {
+      "field": "MD1",
+      "part": 3,
+      "column": "pressure_change_3hr_hpa",
+      "scale": 0.1
+    },
+    {
+      "field": "MD1",
+      "part": 5,
+      "column": "pressure_change_24hr_hpa",
+      "scale": 0.1
+    },
+    {
+      "field": "OA1",
+      "part": 3,
+      "column": "supp_wind_oa_speed_ms_1",
+      "scale": 0.1
+    },
+    {
+      "field": "OC1",
+      "part": 1,
+      "column": "wind_gust_ms",
+      "scale": 0.1
+    },
+    {
+      "field": "OD1",
+      "part": 4,
+      "column": "supp_wind_speed_ms_1",
+      "scale": 0.1
+    },
+    {
+      "field": "OD2",
+      "part": 4,
+      "column": "supp_wind_speed_ms_2",
+      "scale": 0.1
+    },
+    {
+      "field": "SA1",
+      "part": 1,
+      "column": "sea_surface_temperature_c",
+      "scale": 0.1
+    },
+    {
+      "field": "SLP",
+      "part": 1,
+      "column": "sea_level_pressure_hpa",
+      "scale": 0.1
+    },
+    {
+      "field": "TMP",
+      "part": 1,
+      "column": "temperature_c",
+      "scale": 0.1
+    },
+    {
+      "field": "UA1",
+      "part": 3,
+      "column": "wave_height_m",
+      "scale": 0.1
+    },
+    {
+      "field": "UG1",
+      "part": 2,
+      "column": "swell_height_m",
+      "scale": 0.1
+    },
+    {
+      "field": "WND",
+      "part": 4,
+      "column": "wind_speed_ms",
+      "scale": 0.1
+    }
+  ],
+  "notable_data_gaps": [
+    {
+      "column": "OA1",
+      "longest_missing_observations": 34248,
+      "gap_start_utc": "2004-11-24T15:00:00+00:00",
+      "gap_end_utc": "2019-12-31T21:00:00+00:00",
+      "gap_duration_hours": 132366.0
+    },
+    {
+      "column": "ME1",
+      "longest_missing_observations": 33876,
+      "gap_start_utc": "2005-01-15T00:00:00+00:00",
+      "gap_end_utc": "2019-12-31T21:00:00+00:00",
+      "gap_duration_hours": 131133.0
+    },
+    {
+      "column": "KA2",
+      "longest_missing_observations": 29668,
+      "gap_start_utc": "2000-01-15T00:00:00+00:00",
+      "gap_end_utc": "2010-08-05T03:00:00+00:00",
+      "gap_duration_hours": 92523.0
+    },
+    {
+      "column": "AA2",
+      "longest_missing_observations": 29436,
+      "gap_start_utc": "2005-02-26T21:00:00+00:00",
+      "gap_end_utc": "2016-11-17T00:00:00+00:00",
+      "gap_duration_hours": 102747.0
+    },
+    {
+      "column": "AW1",
+      "longest_missing_observations": 22280,
+      "gap_start_utc": "2009-03-06T18:00:00+00:00",
+      "gap_end_utc": "2019-12-31T21:00:00+00:00",
+      "gap_duration_hours": 94851.0
+    },
+    {
+      "column": "AZ1",
+      "longest_missing_observations": 11255,
+      "gap_start_utc": "2009-03-06T18:00:00+00:00",
+      "gap_end_utc": "2013-05-01T03:00:00+00:00",
+      "gap_duration_hours": 36393.0
+    },
+    {
+      "column": "AJ1",
+      "longest_missing_observations": 2765,
+      "gap_start_utc": "2001-12-18T06:00:00+00:00",
+      "gap_end_utc": "2002-12-12T03:00:00+00:00",
+      "gap_duration_hours": 8613.0
+    },
+    {
+      "column": "IA1",
+      "longest_missing_observations": 2705,
+      "gap_start_utc": "2000-01-01T00:00:00+00:00",
+      "gap_end_utc": "2000-12-11T03:00:00+00:00",
+      "gap_duration_hours": 8283.0
+    },
+    {
+      "column": "MA1",
+      "longest_missing_observations": 2577,
+      "gap_start_utc": "2000-01-01T00:00:00+00:00",
+      "gap_end_utc": "2000-11-24T21:00:00+00:00",
+      "gap_duration_hours": 7893.0
+    },
+    {
+      "column": "EQD",
+      "longest_missing_observations": 1171,
+      "gap_start_utc": "2014-06-04T12:00:00+00:00",
+      "gap_end_utc": "2014-10-31T12:00:00+00:00",
+      "gap_duration_hours": 3576.0
+    },
+    {
+      "column": "AA1",
+      "longest_missing_observations": 289,
+      "gap_start_utc": "2010-07-13T09:00:00+00:00",
+      "gap_end_utc": "2010-08-18T15:00:00+00:00",
+      "gap_duration_hours": 870.0
+    },
+    {
+      "column": "AY1",
+      "longest_missing_observations": 126,
+      "gap_start_utc": "2012-05-04T06:00:00+00:00",
+      "gap_end_utc": "2012-05-19T21:00:00+00:00",
+      "gap_duration_hours": 375.0
+    },
+    {
+      "column": "AY2",
+      "longest_missing_observations": 126,
+      "gap_start_utc": "2012-05-04T06:00:00+00:00",
+      "gap_end_utc": "2012-05-19T21:00:00+00:00",
+      "gap_duration_hours": 375.0
+    },
+    {
+      "column": "MW1",
+      "longest_missing_observations": 126,
+      "gap_start_utc": "2012-05-04T06:00:00+00:00",
+      "gap_end_utc": "2012-05-19T21:00:00+00:00",
+      "gap_duration_hours": 375.0
+    },
+    {
+      "column": "GA1",
+      "longest_missing_observations": 101,
+      "gap_start_utc": "2000-12-02T09:00:00+00:00",
+      "gap_end_utc": "2000-12-15T03:00:00+00:00",
+      "gap_duration_hours": 306.0
+    },
+    {
+      "column": "KA1",
+      "longest_missing_observations": 24,
+      "gap_start_utc": "2017-09-16T15:00:00+00:00",
+      "gap_end_utc": "2017-10-25T21:00:00+00:00",
+      "gap_duration_hours": 942.0
+    },
+    {
+      "column": "GF1",
+      "longest_missing_observations": 8,
+      "gap_start_utc": "2012-01-11T06:00:00+00:00",
+      "gap_end_utc": "2012-01-12T03:00:00+00:00",
+      "gap_duration_hours": 21.0
+    },
+    {
+      "column": "MD1",
+      "longest_missing_observations": 2,
+      "gap_start_utc": "2003-01-15T15:00:00+00:00",
+      "gap_end_utc": "2003-01-15T18:00:00+00:00",
+      "gap_duration_hours": 3.0
+    }
+  ],
+  "citation": "Balaji Kesavan. (2026). noaa-climate-data (Version 0.1.0). NOAA ISD Global Hourly data processed for station 34880099999. Retrieved 2026-03-07 from https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database"
+}

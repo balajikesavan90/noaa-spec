@@ -8,6 +8,8 @@ import pandas as pd
 
 from noaa_climate_data.research_reports import (
     ResearchReportContext,
+    build_reports_for_station_dir,
+    domain_quality_report_names,
     generate_aggregation_report,
     generate_quality_report,
     write_research_reports,
@@ -148,3 +150,32 @@ def test_write_research_reports_writes_expected_files(tmp_path: Path) -> None:
     assert paths["quality_csv"].exists()
     assert paths["aggregation_json"].exists()
     assert paths["aggregation_md"].exists()
+
+
+def test_build_reports_for_station_dir_writes_domain_quality_without_aggregation(
+    tmp_path: Path,
+) -> None:
+    station_dir = tmp_path / "01234567890"
+    station_dir.mkdir(parents=True)
+    _sample_raw().to_csv(station_dir / "LocationData_Raw.csv", index=False)
+    _sample_cleaned().to_csv(station_dir / "LocationData_Cleaned.csv", index=False)
+
+    paths = build_reports_for_station_dir(
+        station_dir,
+        access_date="2026-02-28",
+        authors="Test Author",
+    )
+
+    assert paths["quality_json"].exists()
+    assert paths["quality_md"].exists()
+    assert paths["quality_csv"].exists()
+    assert "aggregation_json" not in paths
+    assert "aggregation_md" not in paths
+
+    assert not (station_dir / "LocationData_AggregationReport.json").exists()
+    assert not (station_dir / "LocationData_AggregationReport.md").exists()
+
+    domain_quality_dir = station_dir / "domain_quality"
+    for domain_name in domain_quality_report_names():
+        assert (domain_quality_dir / f"LocationData_DomainQuality_{domain_name}.json").exists()
+        assert (domain_quality_dir / f"LocationData_DomainQuality_{domain_name}.md").exists()

@@ -243,6 +243,9 @@ Mode expectations:
 - `batch_parquet_dir` reads `LocationData_Raw.parquet` and writes cleaned parquet outputs
   with batch defaults (domain splits off, global summary on).
 
+Optional station reports (`--write-station-reports`) write station-level quality artifacts plus
+domain-specific quality reports under `reports/<station_id>/domain_quality/`.
+
 If your station folders currently only have `LocationData_Raw.csv`, create parquet copies first:
 
 ```bash

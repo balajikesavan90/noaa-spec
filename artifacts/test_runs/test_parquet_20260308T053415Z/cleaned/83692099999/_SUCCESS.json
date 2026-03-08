@@ -1,0 +1,26 @@
+{
+  "completed_at": "2026-03-07T23:20:16.662019-08:00",
+  "expected_outputs": [
+    "/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/artifacts/test_runs/test_parquet_20260308T053415Z/cleaned/83692099999/LocationData_Cleaned.parquet",
+    "/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/artifacts/test_runs/test_parquet_20260308T053415Z/cleaned/domain_splits/83692099999/station_split_manifest.csv",
+    "/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/artifacts/test_runs/test_parquet_20260308T053415Z/quality_profiles/station_83692099999.json",
+    "/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/artifacts/test_runs/test_parquet_20260308T053415Z/reports/83692099999/LocationData_QualityReport.json",
+    "/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/artifacts/test_runs/test_parquet_20260308T053415Z/reports/83692099999/LocationData_QualityReport.md",
+    "/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/artifacts/test_runs/test_parquet_20260308T053415Z/reports/83692099999/LocationData_QualitySummary.csv",
+    "/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/artifacts/test_runs/test_parquet_20260308T053415Z/reports/83692099999/LocationData_AggregationReport.json",
+    "/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/artifacts/test_runs/test_parquet_20260308T053415Z/reports/83692099999/LocationData_AggregationReport.md"
+  ],
+  "input_format": "parquet",
+  "input_path": "/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/output/83692099999/LocationData_Raw.parquet",
+  "row_count_cleaned": 70661,
+  "row_count_raw": 70661,
+  "run_id": "test_parquet_20260308T053415Z",
+  "station_id": "83692099999",
+  "write_flags": {
+    "write_cleaned_station": true,
+    "write_domain_splits": true,
+    "write_global_summary": false,
+    "write_station_quality_profile": true,
+    "write_station_reports": true
+  }
+}
