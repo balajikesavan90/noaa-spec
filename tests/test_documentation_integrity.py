@@ -10,6 +10,7 @@ SPEC_COVERAGE_PATH = PROJECT_ROOT / "spec_coverage.csv"
 VALIDATION_PLAN_PATH = PROJECT_ROOT / "docs" / "PIPELINE_VALIDATION_PLAN.md"
 RUN_MODES_PATH = PROJECT_ROOT / "docs" / "CLEANING_RUN_MODES.md"
 ARTIFACT_BOUNDARY_POLICY_PATH = PROJECT_ROOT / "docs" / "ARTIFACT_BOUNDARY_POLICY.md"
+GITIGNORE_PATH = PROJECT_ROOT / ".gitignore"
 NOAA_INDEX_README_PATH = PROJECT_ROOT / "noaa_file_index" / "20260207" / "README.md"
 SUSPICIOUS_SUMMARY_PATH = (
     PROJECT_ROOT
@@ -214,3 +215,22 @@ def test_legacy_split_scripts_do_not_duplicate_domain_contract_rules():
     split_by_station_text = SPLIT_BY_STATION_SCRIPT_PATH.read_text(encoding="utf-8").lower()
     assert "deprecated" in split_by_station_text
     assert "cleaning-run" in split_by_station_text
+
+
+def test_gitignore_enforces_runtime_blocklist_and_release_allowlist():
+    gitignore_text = GITIGNORE_PATH.read_text(encoding="utf-8")
+
+    for expected_entry in (
+        "output/",
+        "artifacts/test_runs/",
+        "artifacts/parquet_runs/",
+        "!release/build_*/canonical_cleaned/**/*.csv",
+        "!release/build_*/canonical_cleaned/**/*.parquet",
+        "!release/build_*/domains/**/*.csv",
+        "!release/build_*/domains/**/*.parquet",
+        "!release/build_*/quality_reports/**/*.csv",
+        "!release/build_*/quality_reports/**/*.parquet",
+        "!release/build_*/manifests/**/*.csv",
+        "!release/build_*/manifests/**/*.parquet",
+    ):
+        assert expected_entry in gitignore_text

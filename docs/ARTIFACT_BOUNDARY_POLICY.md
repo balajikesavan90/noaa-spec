@@ -38,3 +38,14 @@ Tracked station report examples are stored at:
 - `docs/examples/noaa_demo/`
 
 This separation keeps publication boundaries explicit and prevents runtime state from being mistaken for release artifacts.
+
+## Tracking Policy (`.gitignore`)
+
+Repository tracking defaults:
+
+- CSV/Parquet runtime outputs are ignored globally.
+- Runtime roots (`output/`, `artifacts/test_runs/`, `artifacts/parquet_runs/`) are ignored.
+
+Release exception policy:
+
+- CSV/Parquet artifacts under `release/build_*/{canonical_cleaned,domains,quality_reports,manifests}/` are explicitly unignored and may be versioned when needed for deterministic publication snapshots.

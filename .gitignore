@@ -6,6 +6,27 @@ __pycache__/
 *.csv
 *.parquet
 
+# Runtime outputs remain ignored by default.
+output/
+artifacts/test_runs/
+artifacts/parquet_runs/
+
+# Release publication artifacts are explicitly trackable.
+!release/
+!release/build_*/
+!release/build_*/canonical_cleaned/
+!release/build_*/canonical_cleaned/**/*.csv
+!release/build_*/canonical_cleaned/**/*.parquet
+!release/build_*/domains/
+!release/build_*/domains/**/*.csv
+!release/build_*/domains/**/*.parquet
+!release/build_*/quality_reports/
+!release/build_*/quality_reports/**/*.csv
+!release/build_*/quality_reports/**/*.parquet
+!release/build_*/manifests/
+!release/build_*/manifests/**/*.csv
+!release/build_*/manifests/**/*.parquet
+
 # C extensions
 *.so
 
