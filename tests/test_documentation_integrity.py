@@ -1,5 +1,6 @@
 import csv
 import re
+import subprocess
 from pathlib import Path
 
 
@@ -180,3 +181,23 @@ def test_artifact_boundary_policy_declares_publication_and_runtime_surfaces():
 def test_station_report_examples_are_tracked_under_docs_examples():
     assert (PROJECT_ROOT / "docs" / "examples" / "station_reports").exists()
     assert (PROJECT_ROOT / "docs" / "examples" / "noaa_demo").exists()
+
+
+def test_operational_snapshots_are_not_tracked_in_publication_facing_paths():
+    tracked_test_runs = subprocess.run(
+        ["git", "ls-files", "artifacts/test_runs/**"],
+        cwd=PROJECT_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    assert tracked_test_runs == ""
+
+    tracked_timing_logs = subprocess.run(
+        ["git", "ls-files", "reprocess_timing*.log"],
+        cwd=PROJECT_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    assert tracked_timing_logs == ""
