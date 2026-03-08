@@ -69,8 +69,8 @@ Rows with `identifier=UNSPECIFIED` or `synthetic_unmapped` notes are excluded fr
 | Match strength | Count | % of metric rules |
 | --- | --- | --- |
 | exact_signature | 1560 | 44.1% |
-| exact_assertion | 1971 | 55.7% |
-| family_assertion | 5 | 0.1% |
+| exact_assertion | 1972 | 55.8% |
+| family_assertion | 4 | 0.1% |
 | wildcard_assertion | 0 | 0.0% |
 | none | 0 | 0.0% |
 
@@ -78,8 +78,8 @@ Rows with `identifier=UNSPECIFIED` or `synthetic_unmapped` notes are excluded fr
 
 - Wildcard policy: `wildcard_assertion` counts as tested-any only; it never counts as strict.
 - Tested-any rows matched by `exact_signature`: **1560** (44.1%)
-- Tested-any rows matched by `exact_assertion`: **1971** (55.7%)
-- Tested-any rows matched by `family_assertion`: **5** (0.1%)
+- Tested-any rows matched by `exact_assertion`: **1972** (55.8%)
+- Tested-any rows matched by `family_assertion`: **4** (0.1%)
 - Tested-any rows matched by `wildcard_assertion`: **0** (0.0%)
 - Unknown rule rows excluded from percentages: **0**
 - Arity rules tested (strict): **170/170** (100.0%)

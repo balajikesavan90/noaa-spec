@@ -39,12 +39,20 @@ from noaa_climate_data.constants import (
     SECTION_IDENTIFIER_WIDTH_RULE_IDENTIFIERS,
     SUMMARY_OF_DAY_PAST_WEATHER_CODE_DEFINITIONS,
     FieldPartRule,
+    _REPEATED_IDENTIFIER_RANGES,
     get_field_rule,
     get_token_width_rules,
     is_valid_identifier,
     to_friendly_column,
     to_internal_column,
 )
+
+REPEATED_FAMILY_SIBLINGS: list[tuple[str, int, int]] = [
+    (family, siblings[0], siblings[1])
+    for family, index_range in sorted(_REPEATED_IDENTIFIER_RANGES.items())
+    if len(index_range) >= 2
+    for siblings in [tuple(index_range)]
+]
 
 # ── 1. Missing-value sentinels ───────────────────────────────────────────
 
@@ -3271,19 +3279,68 @@ class TestCleanDataframeEdgeCases:
         assert cleaned.loc[0, "precip_5_to_45_min_period_minutes_1"] == pytest.approx(15.0)
         assert cleaned.loc[0, "precip_60_to_180_min_period_minutes_1"] == pytest.approx(60.0)
 
-    def test_od_prefix_specific_flags_do_not_collide_in_cleaned_dataframe(self):
+    @pytest.mark.parametrize(
+        "family,left_idx,right_idx",
+        REPEATED_FAMILY_SIBLINGS,
+    )
+    def test_repeated_family_siblings_map_to_distinct_cleaned_names(
+        self,
+        family: str,
+        left_idx: int,
+        right_idx: int,
+    ) -> None:
+        left_internal = f"{family}{left_idx}__part1"
+        right_internal = f"{family}{right_idx}__part1"
+        left_friendly = to_friendly_column(left_internal)
+        right_friendly = to_friendly_column(right_internal)
+
+        assert left_friendly != right_friendly
+        assert to_internal_column(left_friendly) == left_internal
+        assert to_internal_column(right_friendly) == right_internal
+
+    @pytest.mark.parametrize(
+        "column,value,expected_flag",
+        [
+            ("OD1", "9,99,999,0000,1", "qc_calm_direction_detected_OD1"),
+            ("OD2", "9,99,999,0000,1", "qc_calm_direction_detected_OD2"),
+            ("OE1", "1,24,00000,999,1200,4", "qc_calm_speed_detected_OE1"),
+            ("OE2", "1,24,00000,999,1200,4", "qc_calm_speed_detected_OE2"),
+        ],
+    )
+    def test_single_repeated_group_keeps_prefix_specific_qc_columns(
+        self,
+        column: str,
+        value: str,
+        expected_flag: str,
+    ) -> None:
+        cleaned = clean_noaa_dataframe(pd.DataFrame({column: [value]}), keep_raw=False)
+        assert cleaned.columns.is_unique
+        assert expected_flag in cleaned.columns
+        assert bool(cleaned.loc[0, expected_flag])
+
+    def test_multi_repeated_groups_keep_distinct_lineage(self):
         df = pd.DataFrame(
             {
                 "OD1": ["9,99,999,0000,1"],
                 "OD2": ["9,99,999,0000,1"],
+                "OE1": ["1,24,00000,999,1200,4"],
+                "OE2": ["1,24,00000,999,1200,4"],
+                "RH1": ["999,9,999,9,9"],
+                "RH2": ["999,9,999,9,9"],
             }
         )
         cleaned = clean_noaa_dataframe(df, keep_raw=False)
         assert cleaned.columns.is_unique
         assert "qc_calm_direction_detected_OD1" in cleaned.columns
         assert "qc_calm_direction_detected_OD2" in cleaned.columns
+        assert "qc_calm_speed_detected_OE1" in cleaned.columns
+        assert "qc_calm_speed_detected_OE2" in cleaned.columns
+        assert "relative_humidity_period_hours_1" in cleaned.columns
+        assert "relative_humidity_period_hours_2" in cleaned.columns
         assert cleaned.loc[0, "qc_calm_direction_detected_OD1"] == True
         assert cleaned.loc[0, "qc_calm_direction_detected_OD2"] == True
+        assert cleaned.loc[0, "qc_calm_speed_detected_OE1"] == True
+        assert cleaned.loc[0, "qc_calm_speed_detected_OE2"] == True
 
     def test_clean_noaa_dataframe_raises_on_duplicate_output_columns(
         self,
@@ -3303,9 +3360,11 @@ class TestCleanDataframeEdgeCases:
                 "AI1": ["060,0456,1,051010,1"],
             }
         )
-        with pytest.raises(ValueError, match="duplicate column names") as error:
+        with pytest.raises(ValueError, match="stage=post_rename") as error:
             clean_noaa_dataframe(df, keep_raw=False)
         assert "synthetic_collision" in str(error.value)
+        assert "AH1__part1" in str(error.value)
+        assert "AI1__part1" in str(error.value)
 
 
 class TestControlAndMandatoryNormalization:

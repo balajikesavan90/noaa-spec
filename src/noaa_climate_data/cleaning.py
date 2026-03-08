@@ -51,6 +51,15 @@ class ParsedField:
     quality: str | None
 
 
+# Cleaned-column naming contract:
+# - Parsed source fields retain full NOAA identifiers, including repeated suffixes
+#   (e.g., "OD1__part3", "OD2__part3").
+# - Per-field QC columns append "__qc_*" to those prefix-specific base columns.
+# - Prefix-bound custom QC flags preserve the full source prefix in the output
+#   name (e.g., "qc_calm_direction_detected_OD1", not a collapsed family key).
+# - Only true singleton semantics may use non-prefixed/global flags.
+
+
 def _strip_plus(value: str) -> str:
     return value[1:] if value.startswith("+") else value
 
@@ -1378,6 +1387,59 @@ def _annotate_control_field_qc_flags(df: pd.DataFrame) -> pd.DataFrame:
     return work
 
 
+def _find_duplicate_column_names(columns: Iterable[object]) -> list[str]:
+    index = pd.Index(list(columns))
+    duplicates = index[index.duplicated()].unique().tolist()
+    return sorted(str(name) for name in duplicates)
+
+
+def _rename_collisions_by_target(
+    source_columns: Iterable[str],
+    rename_map: dict[str, str],
+) -> dict[str, list[str]]:
+    by_target: dict[str, list[str]] = {}
+    for source in source_columns:
+        target = rename_map.get(source, source)
+        internal_source = to_internal_column(source)
+        by_target.setdefault(target, []).append(internal_source)
+
+    collisions: dict[str, list[str]] = {}
+    for target, internal_sources in by_target.items():
+        unique_sources = sorted(set(internal_sources))
+        if len(unique_sources) > 1:
+            collisions[str(target)] = unique_sources
+    return collisions
+
+
+def _assert_unique_cleaned_columns(
+    *,
+    columns: Iterable[object],
+    stage: str,
+    rename_collisions: dict[str, list[str]] | None = None,
+) -> None:
+    duplicate_names = _find_duplicate_column_names(columns)
+    if not duplicate_names:
+        return
+
+    message = (
+        f"Duplicate cleaned column names detected (stage={stage}): "
+        + ", ".join(duplicate_names)
+    )
+    if rename_collisions:
+        relevant = {
+            name: rename_collisions[name]
+            for name in duplicate_names
+            if name in rename_collisions
+        }
+        if relevant:
+            details = "; ".join(
+                f"{name} <- [{', '.join(sources)}]"
+                for name, sources in sorted(relevant.items())
+            )
+            message += f". rename_collisions={details}"
+    raise ValueError(message)
+
+
 def clean_noaa_dataframe(
     df: pd.DataFrame,
     keep_raw: bool = True,
@@ -1400,6 +1462,12 @@ def clean_noaa_dataframe(
     - `row_has_any_usable_metric`: Boolean - at least one metric passed QC
     - `usable_metric_count`: Integer - count of passed metrics
     - `usable_metric_fraction`: Float [0, 1] - fraction of metrics that passed
+
+    Naming contract:
+    - Distinct source identifiers remain distinct in cleaned names (`XX1` != `XX2`).
+    - Per-field QC columns are attached to those prefix-specific columns.
+    - Prefix-specific custom QC flags always include the full source prefix.
+    - Duplicate output columns are hard-failed with stage diagnostics.
 
     Args:
         df: Input DataFrame with NOAA Global Hourly data
@@ -1550,8 +1618,15 @@ def clean_noaa_dataframe(
         cleaned[column] = series.apply(lambda value: _cleanup_rule_missing_text(value, column))
 
     cleaned = _annotate_control_field_qc_flags(cleaned)
+    _assert_unique_cleaned_columns(columns=cleaned.columns, stage="pre_rename")
 
     rename_map = {col: to_friendly_column(col) for col in cleaned.columns}
+    rename_collisions = _rename_collisions_by_target(cleaned.columns, rename_map)
+    _assert_unique_cleaned_columns(
+        columns=[rename_map.get(col, col) for col in cleaned.columns],
+        stage="post_rename",
+        rename_collisions=rename_collisions,
+    )
     if any(key != value for key, value in rename_map.items()):
         cleaned = cleaned.rename(columns=rename_map)
 
@@ -1568,11 +1643,6 @@ def clean_noaa_dataframe(
             else 0.0
         )
 
-    if not cleaned.columns.is_unique:
-        duplicate_columns = sorted(set(cleaned.columns[cleaned.columns.duplicated()].tolist()))
-        raise ValueError(
-            "cleaned dataframe has duplicate column names: "
-            + ", ".join(duplicate_columns)
-        )
+    _assert_unique_cleaned_columns(columns=cleaned.columns, stage="final")
 
     return cleaned
