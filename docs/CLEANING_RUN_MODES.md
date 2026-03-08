@@ -63,8 +63,7 @@ Write roots:
 
 Recommended layout (auto-derived if not provided):
 
-- test runs: `artifacts/test_runs/<run_id>/...`
-- parquet runs: `artifacts/parquet_runs/<run_id>/...`
+- all modes: `release/build_<run_id>/{canonical_cleaned,domains,quality_reports,manifests}`
 
 ## Manifest-First and Cron-Job Coexistence
 
@@ -105,9 +104,9 @@ If status says completed but marker or outputs are missing, the station is recom
 Station quality profiles are computed in-memory from the cleaned DataFrame during processing.
 
 - no reread of cleaned outputs for profile generation
-- profile sidecars written as: `quality_profiles/station_<station_id>.json`
+- profile sidecars written under: `quality_reports/station_quality/station_<station_id>.json`
 
-Optional global summary (`reports/global_quality_summary.json`) is built from sidecars, not cleaned station datasets.
+Optional global summary (`quality_reports/global_quality_summary.json`) is built from sidecars, not cleaned station datasets.
 
 ## Common Commands
 

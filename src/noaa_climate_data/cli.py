@@ -436,8 +436,12 @@ def _parse_args() -> argparse.Namespace:
     reprocess_parser.add_argument(
         "--domain-output-dir",
         type=Path,
-        default=Path("output") / "NOAA Demo Data",
-        help="Directory where station-domain split CSV files are written",
+        default=None,
+        help=(
+            "Directory where station-domain split outputs are written "
+            "(default: <output-root>/domains or release/build_<id>/domains when "
+            "--output-root ends with canonical_cleaned)"
+        ),
     )
     reprocess_parser.add_argument(
         "--no-domain-split",
@@ -750,6 +754,14 @@ def main() -> None:
         output_root: Path = args.output_root
         if not output_root.exists() or not output_root.is_dir():
             raise FileNotFoundError(f"Output root not found or not a directory: {output_root}")
+        domain_output_dir: Path
+        if args.domain_output_dir is not None:
+            domain_output_dir = args.domain_output_dir
+        else:
+            if output_root.name == "canonical_cleaned":
+                domain_output_dir = output_root.parent / "domains"
+            else:
+                domain_output_dir = output_root / "domains"
 
         cleaning_logger = logging.getLogger("noaa_climate_data.cleaning")
         previous_cleaning_level = cleaning_logger.level
@@ -880,13 +892,13 @@ def main() -> None:
                         station_slug = sanitize_station_slug(station_name)
                         print(
                             f"[{idx}/{total}] {station_dir.name}: generating domain split files "
-                            f"in {args.domain_output_dir}"
+                            f"in {domain_output_dir}"
                         )
                         domain_rows = split_station_cleaned_by_domain(
                             outputs.cleaned,
                             station_slug=station_slug,
                             station_name=station_name,
-                            output_dir=args.domain_output_dir,
+                            output_dir=domain_output_dir,
                         )
                         domain_manifest_rows.extend(domain_rows)
                         station_mapping_rows.append(
@@ -931,11 +943,11 @@ def main() -> None:
                 domain_manifest_rows or columns_by_domain_rows or station_mapping_rows
             ):
                 if domain_manifest_rows:
-                    domain_manifest_path = args.domain_output_dir / "station_split_manifest.csv"
+                    domain_manifest_path = domain_output_dir / "station_split_manifest.csv"
                     pd.DataFrame(domain_manifest_rows).to_csv(domain_manifest_path, index=False)
                     print(f"domain split manifest: {domain_manifest_path}")
                 if columns_by_domain_rows:
-                    columns_by_domain_path = args.domain_output_dir / "columns_by_domain.csv"
+                    columns_by_domain_path = domain_output_dir / "columns_by_domain.csv"
                     pd.DataFrame(columns_by_domain_rows).to_csv(columns_by_domain_path, index=False)
                     print(f"columns by domain: {columns_by_domain_path}")
                 if station_mapping_rows:
@@ -945,7 +957,7 @@ def main() -> None:
                         if column not in mapping_df.columns:
                             mapping_df[column] = None
                     mapping_df = mapping_df[list(MAPPING_COLUMNS)]
-                    mapping_path = args.domain_output_dir / "station_metadata_mapping.csv"
+                    mapping_path = domain_output_dir / "station_metadata_mapping.csv"
                     mapping_df.to_csv(mapping_path, index=False)
                     print(f"station metadata mapping: {mapping_path}")
             print(

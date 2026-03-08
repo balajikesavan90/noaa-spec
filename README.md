@@ -208,6 +208,9 @@ This writes `LocationData_Cleaned.parquet` alongside the raw parquet and marks
 Use `cleaning-run` for resumable station batch processing with explicit input/output roots,
 run manifests, and status tracking.
 
+If write roots are omitted, outputs are written to the canonical release layout:
+`release/build_<run_id>/{canonical_cleaned,domains,quality_reports,manifests}`.
+
 CSV test mode (existing behavior):
 
 ```bash

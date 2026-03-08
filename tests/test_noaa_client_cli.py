@@ -461,10 +461,62 @@ class TestCliCommands:
 
         assert (station_ok / "LocationData_Cleaned.csv").exists()
         assert not (station_skip / "LocationData_Cleaned.csv").exists()
-        mapping_path = output_root / "NOAA Demo Data" / "station_metadata_mapping.csv"
+        mapping_path = output_root / "domains" / "station_metadata_mapping.csv"
         assert mapping_path.exists()
         mapping_df = pd.read_csv(mapping_path)
         assert {"station_id", "station_slug", "station_name", "LATITUDE", "LONGITUDE", "ELEVATION"}.issubset(mapping_df.columns)
+
+    def test_cli_reprocess_output_dir_defaults_domains_to_release_sibling(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        output_root = tmp_path / "release" / "build_TEST" / "canonical_cleaned"
+        station_ok = output_root / "01234567890"
+        station_ok.mkdir(parents=True)
+
+        pd.DataFrame({"DATE": ["2020-01-01T00:00:00"], "TMP": ["0100,1"]}).to_csv(
+            station_ok / "LocationData_Raw.csv",
+            index=False,
+        )
+
+        sample = pd.DataFrame({"value": [1]})
+
+        def fake_process_location_from_raw(raw: pd.DataFrame, **kwargs: object) -> LocationDataOutputs:
+            _ = kwargs
+            return LocationDataOutputs(
+                raw=sample,
+                cleaned=sample,
+                hourly=sample,
+                monthly=sample,
+                yearly=sample,
+            )
+
+        monkeypatch.setattr(cli, "process_location_from_raw", fake_process_location_from_raw)
+        monkeypatch.setattr(
+            cli,
+            "build_reports_for_station_dir",
+            lambda *_args, **_kwargs: {},
+        )
+
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "prog",
+                "reprocess-output-dir",
+                "--output-root",
+                str(output_root),
+                "--access-date",
+                "2026-02-28",
+            ],
+        )
+        cli.main()
+
+        domains_root = output_root.parent / "domains"
+        assert (domains_root / "station_split_manifest.csv").exists()
+        assert (domains_root / "station_metadata_mapping.csv").exists()
 
     def test_cli_cleaning_run_invokes_runner_with_batch_defaults(
         self,
