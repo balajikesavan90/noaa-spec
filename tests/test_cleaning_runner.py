@@ -533,14 +533,21 @@ def test_release_manifest_contains_canonical_domain_and_quality_artifact_rows(
         "creation_timestamp",
     }
     assert set(manifest["artifact_type"].astype(str)) >= {
+        "raw_source",
         "canonical_dataset",
         "domain_dataset",
         "quality_report",
     }
 
+    raw_source_row = manifest[manifest["artifact_type"] == "raw_source"].iloc[0].to_dict()
+    assert raw_source_row["build_id"] == config.run_id
+    assert json.loads(str(raw_source_row["input_lineage"])) == []
+
     canonical_row = manifest[manifest["artifact_type"] == "canonical_dataset"].iloc[0].to_dict()
     assert canonical_row["build_id"] == config.run_id
-    assert json.loads(str(canonical_row["input_lineage"])) == [str(raw_path.resolve())]
+    assert json.loads(str(canonical_row["input_lineage"])) == [
+        f"raw_source/{config.run_id}/{station_id}"
+    ]
 
     domain_rows = manifest[manifest["artifact_type"] == "domain_dataset"]
     assert not domain_rows.empty

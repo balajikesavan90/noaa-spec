@@ -1463,13 +1463,20 @@ def _build_release_manifest_rows(
     status_df: pd.DataFrame,
     quality_frames: dict[str, pd.DataFrame],
 ) -> list[dict[str, Any]]:
-    canonical_rows = _canonical_release_manifest_rows(config, status_df)
+    source_rows, source_artifact_ids_by_station = _source_release_manifest_rows(config, status_df)
+
+    canonical_rows = _canonical_release_manifest_rows(
+        config,
+        status_df,
+        source_artifact_ids_by_station=source_artifact_ids_by_station,
+    )
     canonical_artifact_ids = {str(row["artifact_id"]) for row in canonical_rows}
 
     domain_rows = _domain_release_manifest_rows(
         config,
         status_df,
         canonical_artifact_ids=canonical_artifact_ids,
+        source_artifact_ids_by_station=source_artifact_ids_by_station,
     )
     domain_artifact_ids = {str(row["artifact_id"]) for row in domain_rows}
 
@@ -1480,14 +1487,51 @@ def _build_release_manifest_rows(
         domain_artifact_ids=domain_artifact_ids,
     )
 
-    rows = canonical_rows + domain_rows + quality_rows
+    rows = source_rows + canonical_rows + domain_rows + quality_rows
     rows.sort(key=lambda row: str(row["artifact_id"]))
     return rows
+
+
+def _source_release_manifest_rows(
+    config: CleaningRunConfig,
+    status_df: pd.DataFrame,
+) -> tuple[list[dict[str, Any]], dict[str, str]]:
+    completed = status_df[status_df["status"].astype(str) == "completed"].copy()
+    rows: list[dict[str, Any]] = []
+    artifact_ids_by_station: dict[str, str] = {}
+    created_at = _pst_now_iso()
+
+    for record in completed.to_dict(orient="records"):
+        station_id = str(record.get("station_id", ""))
+        input_path = str(record.get("input_path", ""))
+        raw_path = Path(input_path) if input_path else None
+        if not station_id or raw_path is None or not raw_path.exists():
+            continue
+        artifact_id = f"raw_source/{config.run_id}/{station_id}"
+        artifact_ids_by_station[station_id] = artifact_id
+        rows.append(
+            {
+                "artifact_id": artifact_id,
+                "artifact_type": "raw_source",
+                "artifact_path": str(raw_path.resolve()),
+                "schema_version": RELEASE_MANIFEST_CONTRACT.schema_version,
+                "build_id": config.run_id,
+                "input_lineage": _json_compact([]),
+                "row_count": int(_coerce_int(record.get("row_count_raw", 0))),
+                "checksum": _checksum_for_output_bundle([raw_path]),
+                "creation_timestamp": created_at,
+            }
+        )
+
+    rows.sort(key=lambda row: str(row["artifact_id"]))
+    return rows, artifact_ids_by_station
 
 
 def _canonical_release_manifest_rows(
     config: CleaningRunConfig,
     status_df: pd.DataFrame,
+    *,
+    source_artifact_ids_by_station: dict[str, str],
 ) -> list[dict[str, Any]]:
     completed = status_df[status_df["status"].astype(str) == "completed"].copy()
     rows: list[dict[str, Any]] = []
@@ -1501,6 +1545,11 @@ def _canonical_release_manifest_rows(
         if not station_id or not input_path or not cleaned_path.exists():
             continue
         row_count = int(_coerce_int(record.get("row_count_cleaned", 0)))
+        source_artifact_id = source_artifact_ids_by_station.get(station_id, "")
+        if source_artifact_id:
+            lineage = [source_artifact_id]
+        else:
+            lineage = [str(Path(input_path).resolve())]
         rows.append(
             {
                 "artifact_id": f"canonical_dataset/{config.run_id}/{station_id}",
@@ -1508,7 +1557,7 @@ def _canonical_release_manifest_rows(
                 "artifact_path": str(cleaned_path.resolve()),
                 "schema_version": CANONICAL_DATASET_CONTRACT.schema_version,
                 "build_id": config.run_id,
-                "input_lineage": _json_compact([str(Path(input_path).resolve())]),
+                "input_lineage": _json_compact(lineage),
                 "row_count": row_count,
                 "checksum": _checksum_for_output_bundle([cleaned_path]),
                 "creation_timestamp": created_at,
@@ -1523,6 +1572,7 @@ def _domain_release_manifest_rows(
     status_df: pd.DataFrame,
     *,
     canonical_artifact_ids: set[str],
+    source_artifact_ids_by_station: dict[str, str],
 ) -> list[dict[str, Any]]:
     completed = status_df[status_df["status"].astype(str) == "completed"].copy()
     rows: list[dict[str, Any]] = []
@@ -1551,8 +1601,12 @@ def _domain_release_manifest_rows(
             if canonical_artifact_id in canonical_artifact_ids:
                 lineage = [canonical_artifact_id]
             else:
-                raw_input_path = input_paths_by_station.get(station_id, "")
-                lineage = [str(Path(raw_input_path).resolve())] if raw_input_path else []
+                source_artifact_id = source_artifact_ids_by_station.get(station_id, "")
+                if source_artifact_id:
+                    lineage = [source_artifact_id]
+                else:
+                    raw_input_path = input_paths_by_station.get(station_id, "")
+                    lineage = [str(Path(raw_input_path).resolve())] if raw_input_path else []
             rows.append(
                 {
                     "artifact_id": f"domain_dataset/{config.run_id}/{station_id}/{domain_name}",
@@ -1683,6 +1737,11 @@ def _validate_release_manifest_lineage(frame: pd.DataFrame) -> None:
         for record in artifacts
         if str(record.get("artifact_type", "")) == "canonical_dataset"
     }
+    source_ids = {
+        str(record.get("artifact_id", ""))
+        for record in artifacts
+        if str(record.get("artifact_type", "")) == "raw_source"
+    }
     domain_ids = {
         str(record.get("artifact_id", ""))
         for record in artifacts
@@ -1697,7 +1756,9 @@ def _validate_release_manifest_lineage(frame: pd.DataFrame) -> None:
         reference_ids = [
             value
             for value in lineage
-            if value.startswith("canonical_dataset/") or value.startswith("domain_dataset/")
+            if value.startswith("raw_source/")
+            or value.startswith("canonical_dataset/")
+            or value.startswith("domain_dataset/")
         ]
         unresolved = [value for value in reference_ids if value not in artifact_ids]
         if unresolved:
@@ -1705,11 +1766,24 @@ def _validate_release_manifest_lineage(frame: pd.DataFrame) -> None:
                 f"Release manifest lineage violation for {artifact_id}: unresolved lineage {unresolved}"
             )
 
+        if artifact_type == "canonical_dataset" and source_ids:
+            if not any(value in source_ids for value in lineage):
+                raise ValueError(
+                    f"Release manifest lineage violation for {artifact_id}: "
+                    "canonical artifacts must reference raw source artifacts"
+                )
+
         if artifact_type == "domain_dataset" and canonical_ids:
             if not any(value in canonical_ids for value in lineage):
                 raise ValueError(
                     f"Release manifest lineage violation for {artifact_id}: "
                     "domain artifacts must reference canonical artifacts"
+                )
+        if artifact_type == "domain_dataset" and not canonical_ids and source_ids:
+            if not any(value in source_ids for value in lineage):
+                raise ValueError(
+                    f"Release manifest lineage violation for {artifact_id}: "
+                    "domain artifacts must reference raw source artifacts when canonical artifacts are absent"
                 )
 
         if artifact_type == "quality_report" and canonical_ids:
