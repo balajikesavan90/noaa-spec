@@ -174,3 +174,55 @@ def test_ci_reproducibility_smoke_for_fixture_build_signatures(tmp_path: Path) -
 
     assert forced_config.run_id == run_id
     assert second_signatures == first_signatures
+
+
+def test_ci_smoke_end_to_end_artifact_graph_generation(tmp_path: Path) -> None:
+    run_id = "20260101T120003Z"
+    config, _station_id = _run_fixture_build(tmp_path, run_id=run_id, force=False)
+
+    release_manifest = pd.read_csv(config.manifest_root / "release_manifest.csv", dtype=str)
+    assert not release_manifest.empty
+    assert set(release_manifest["artifact_type"].astype(str)) >= {
+        "raw_source",
+        "canonical_dataset",
+        "domain_dataset",
+        "quality_report",
+    }
+
+    for artifact_path in release_manifest["artifact_path"].astype(str):
+        assert Path(artifact_path).exists()
+
+    artifact_ids = set(release_manifest["artifact_id"].astype(str))
+    raw_ids = {
+        str(row["artifact_id"])
+        for row in release_manifest.to_dict(orient="records")
+        if str(row["artifact_type"]) == "raw_source"
+    }
+    canonical_ids = {
+        str(row["artifact_id"])
+        for row in release_manifest.to_dict(orient="records")
+        if str(row["artifact_type"]) == "canonical_dataset"
+    }
+    domain_ids = {
+        str(row["artifact_id"])
+        for row in release_manifest.to_dict(orient="records")
+        if str(row["artifact_type"]) == "domain_dataset"
+    }
+
+    assert raw_ids
+    assert canonical_ids
+    assert domain_ids
+
+    for row in release_manifest[release_manifest["artifact_type"] == "canonical_dataset"].to_dict(orient="records"):
+        lineage = json.loads(str(row["input_lineage"]))
+        assert any(entry in raw_ids for entry in lineage)
+
+    for row in release_manifest[release_manifest["artifact_type"] == "domain_dataset"].to_dict(orient="records"):
+        lineage = json.loads(str(row["input_lineage"]))
+        assert any(entry in canonical_ids for entry in lineage)
+
+    for row in release_manifest[release_manifest["artifact_type"] == "quality_report"].to_dict(orient="records"):
+        lineage = json.loads(str(row["input_lineage"]))
+        assert any(entry in canonical_ids for entry in lineage)
+        assert any(entry in domain_ids for entry in lineage)
+        assert all(entry in artifact_ids for entry in lineage)
