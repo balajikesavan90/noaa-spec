@@ -21,7 +21,8 @@ from .cleaning import clean_noaa_dataframe
 from .contract_validation import validate_no_sentinel_leakage
 from .contracts import REQUIRED_ARTIFACT_METADATA_FIELDS, SUCCESS_MARKER_SCHEMA_VERSION
 from .constants import to_internal_column
-from .domain_split import sanitize_station_slug, split_station_cleaned_by_domain
+from .domain_split import sanitize_station_slug
+from .domains.publisher import write_domain_datasets_from_registry
 from .pipeline import _extract_time_columns
 from .research_reports import (
     ResearchReportContext,
@@ -458,7 +459,7 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
                 _ensure_dir(paths.domain_dir)
                 station_name = _station_name(cleaned_df, station_id)
                 station_slug = sanitize_station_slug(station_name)
-                domain_rows = split_station_cleaned_by_domain(
+                domain_rows = write_domain_datasets_from_registry(
                     cleaned_df,
                     station_slug=station_slug,
                     station_name=station_name,

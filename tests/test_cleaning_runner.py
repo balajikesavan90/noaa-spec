@@ -15,6 +15,7 @@ from noaa_climate_data.cleaning_runner import (
     default_roots_for_mode,
     run_cleaning_run,
 )
+from noaa_climate_data.domains.registry import domain_names
 from noaa_climate_data.research_reports import domain_quality_report_names
 
 
@@ -528,6 +529,7 @@ def test_parquet_mode_writes_domain_split_parquet_files(tmp_path: Path) -> None:
 
     domain_manifest = pd.read_csv(domain_manifest_path)
     assert not domain_manifest.empty
+    assert set(domain_manifest["domain"].astype(str)).issubset(set(domain_names()))
     files = domain_manifest["file"].astype(str).tolist()
     assert all(path.endswith(".parquet") for path in files)
     for path in files:
