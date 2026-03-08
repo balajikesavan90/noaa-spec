@@ -295,6 +295,8 @@ def default_roots_for_mode(mode: str, run_id: str) -> dict[str, Path]:
 def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
     _validate_config(config)
 
+    run_started_at = datetime.now(timezone.utc)
+
     _ensure_dir(config.output_root)
     _ensure_dir(config.reports_root)
     _ensure_dir(config.quality_profile_root)
@@ -529,7 +531,10 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
             _write_status(run_status_path, status_df)
 
             processed += 1
-            print(f"[{idx}/{len(manifest_rows)}] DONE {station_id}")
+            print(
+                f"[{idx}/{len(manifest_rows)}] DONE {station_id} "
+                f"(elapsed={elapsed_seconds:.3f}s)"
+            )
         except Exception as exc:  # pragma: no cover - branch validated by tests
             failed += 1
             elapsed_seconds = (
@@ -551,7 +556,10 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
                 },
             )
             _write_status(run_status_path, status_df)
-            print(f"[{idx}/{len(manifest_rows)}] FAIL {station_id}: {exc}")
+            print(
+                f"[{idx}/{len(manifest_rows)}] FAIL {station_id}: {exc} "
+                f"(elapsed={elapsed_seconds:.3f}s)"
+            )
 
     if config.write_flags.write_global_summary:
         print("Global summary: begin")
@@ -561,9 +569,14 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
         _write_json(global_summary_path, summary)
         print(f"Global summary: wrote {global_summary_path}")
 
+    total_elapsed_seconds = (datetime.now(timezone.utc) - run_started_at).total_seconds()
+    total_elapsed_minutes = total_elapsed_seconds / 60.0
+
     print(
         "cleaning-run summary: "
-        f"processed={processed} skipped={skipped} failed={failed} total={len(manifest_rows)}"
+        f"processed={processed} skipped={skipped} failed={failed} total={len(manifest_rows)} "
+        f"elapsed_seconds={total_elapsed_seconds:.3f} "
+        f"elapsed_minutes={total_elapsed_minutes:.3f}"
     )
     return {
         "processed": processed,
