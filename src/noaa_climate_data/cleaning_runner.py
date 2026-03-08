@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -88,6 +89,17 @@ QC_REASON_TO_FAMILY = {
     "OUT_OF_RANGE": "range_validation",
     "MALFORMED_TOKEN": "width_validation",
 }
+
+REQUIRED_RELEASE_METADATA_FIELDS = (
+    "artifact_id",
+    "schema_version",
+    "build_id",
+    "input_lineage",
+    "row_count",
+    "checksum",
+    "creation_timestamp",
+)
+SUCCESS_MARKER_SCHEMA_VERSION = "1.0.0"
 
 
 @dataclass(frozen=True)
@@ -844,12 +856,23 @@ def _write_success_marker(
     write_flags: RunWriteFlags,
 ) -> None:
     _ensure_dir(success_path.parent)
+    creation_timestamp = _pst_now_iso()
+    input_lineage = [str(input_path.resolve())]
+    artifact_id = f"station_bundle/{run_id}/{station_id}"
+    checksum = _checksum_for_output_bundle(expected_outputs)
     payload = {
         "run_id": run_id,
         "station_id": station_id,
+        "artifact_id": artifact_id,
+        "schema_version": SUCCESS_MARKER_SCHEMA_VERSION,
+        "build_id": run_id,
+        "input_lineage": input_lineage,
+        "row_count": int(row_count_cleaned),
+        "checksum": checksum,
+        "creation_timestamp": creation_timestamp,
         "input_path": str(input_path.resolve()),
         "input_format": input_format,
-        "completed_at": _pst_now_iso(),
+        "completed_at": creation_timestamp,
         "expected_outputs": [str(path.resolve()) for path in expected_outputs],
         "row_count_raw": int(row_count_raw),
         "row_count_cleaned": int(row_count_cleaned),
@@ -861,7 +884,29 @@ def _write_success_marker(
             "write_global_summary": write_flags.write_global_summary,
         },
     }
+    _validate_release_metadata(payload)
     _write_json(success_path, payload)
+
+
+def _validate_release_metadata(payload: dict[str, Any]) -> None:
+    missing = [field for field in REQUIRED_RELEASE_METADATA_FIELDS if field not in payload]
+    if missing:
+        raise ValueError(f"Missing required release metadata fields: {missing}")
+
+
+def _checksum_for_output_bundle(paths: list[Path]) -> str:
+    digest = hashlib.sha256()
+    for path in sorted((item.resolve() for item in paths), key=lambda item: str(item)):
+        digest.update(str(path).encode("utf-8"))
+        digest.update(b"\0")
+        with path.open("rb") as handle:
+            while True:
+                chunk = handle.read(1024 * 1024)
+                if not chunk:
+                    break
+                digest.update(chunk)
+        digest.update(b"\0")
+    return digest.hexdigest()
 
 
 def _read_raw_input(path: Path, input_format: str) -> pd.DataFrame:

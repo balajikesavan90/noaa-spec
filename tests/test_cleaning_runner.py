@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import re
 
 import pandas as pd
 import pytest
@@ -307,6 +308,43 @@ def test_resumable_skip_requires_status_outputs_and_success_marker(tmp_path: Pat
 
     third = run_cleaning_run(config)
     assert third["processed"] == 1
+
+
+def test_success_marker_includes_required_release_metadata_fields(tmp_path: Path) -> None:
+    input_root = tmp_path / "inputs"
+    station_id = "01234567890"
+    _write_raw_csv(input_root / station_id, station_id)
+
+    config = _config(
+        tmp_path,
+        mode="test_csv_dir",
+        input_format="csv",
+        run_id="run_success_marker_metadata",
+        input_root=input_root,
+        write_flags=_flags(cleaned=True, quality=True),
+    )
+    run_cleaning_run(config)
+
+    success_payload = json.loads(
+        (config.output_root / station_id / "_SUCCESS.json").read_text(encoding="utf-8")
+    )
+
+    expected_fields = {
+        "artifact_id",
+        "schema_version",
+        "build_id",
+        "input_lineage",
+        "row_count",
+        "checksum",
+        "creation_timestamp",
+    }
+    assert expected_fields.issubset(success_payload.keys())
+    assert success_payload["build_id"] == config.run_id
+    assert success_payload["row_count"] == success_payload["row_count_cleaned"]
+    assert success_payload["input_lineage"] == [
+        str((input_root / station_id / "LocationData_Raw.csv").resolve())
+    ]
+    assert re.fullmatch(r"[0-9a-f]{64}", str(success_payload["checksum"]))
 
 
 def test_quality_profile_generated_without_rereading_cleaned_outputs(
