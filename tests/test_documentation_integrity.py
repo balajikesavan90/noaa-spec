@@ -7,6 +7,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 README_PATH = PROJECT_ROOT / "README.md"
 SPEC_COVERAGE_PATH = PROJECT_ROOT / "spec_coverage.csv"
 VALIDATION_PLAN_PATH = PROJECT_ROOT / "docs" / "PIPELINE_VALIDATION_PLAN.md"
+RUN_MODES_PATH = PROJECT_ROOT / "docs" / "CLEANING_RUN_MODES.md"
 NOAA_INDEX_README_PATH = PROJECT_ROOT / "noaa_file_index" / "20260207" / "README.md"
 SUSPICIOUS_SUMMARY_PATH = (
     PROJECT_ROOT
@@ -139,3 +140,16 @@ def test_readme_excludes_known_stale_quantitative_claims():
         assert stale_phrase.lower() not in lowered, (
             f"Stale README phrase should not appear: {stale_phrase}"
         )
+
+
+def test_cleaning_run_docs_enforce_release_contract_paths():
+    readme_text = README_PATH.read_text(encoding="utf-8")
+    run_modes_text = RUN_MODES_PATH.read_text(encoding="utf-8")
+
+    expected_layout = "release/build_<run_id>/{canonical_cleaned,domains,quality_reports,manifests}"
+    assert expected_layout in readme_text
+    assert expected_layout in run_modes_text
+
+    for legacy_path in ("artifacts/test_runs", "artifacts/parquet_runs"):
+        assert legacy_path not in readme_text
+        assert legacy_path not in run_modes_text
