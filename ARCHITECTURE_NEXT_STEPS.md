@@ -214,7 +214,7 @@ These gates block publishability. Complete these before Priority 1-5.
 
 - [x] Add CI schema validation for all artifact types (`canonical_dataset`, `domain_dataset`, `quality_report`, `release_manifest`).
 - [x] Add stale artifact detection between domain registry definitions, schemas, and generated outputs.
-- [ ] Add reproducibility smoke tests that validate deterministic signatures for a bounded fixture build.
+- [x] Add reproducibility smoke tests that validate deterministic signatures for a bounded fixture build.
 - [ ] Add smoke tests for end-to-end artifact graph generation (canonical -> domains -> quality -> manifests).
 - [ ] Continue strict protection of parser/spec coverage guarantees established in `NEXT_STEPS.md`.
 
