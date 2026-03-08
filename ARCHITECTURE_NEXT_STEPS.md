@@ -157,9 +157,9 @@ These gates block publishability. Complete these before Priority 1-5.
 
 ### Priority 1 - Dataset Contracts and Schema Discipline
 
-- [ ] Freeze explicit contracts for `canonical_dataset`, each `domain_dataset`, each `quality_report` type, and `release_manifest`.
+- [x] Freeze explicit contracts for `canonical_dataset`, each `domain_dataset`, each `quality_report` type, and `release_manifest`.
   - [x] Add versioned publication artifact contract declarations in `src/noaa_climate_data/contracts.py`.
-  - [ ] Publish externalized contract artifacts (for example schema files) alongside runtime declarations.
+  - [x] Publish externalized contract artifacts (for example schema files) alongside runtime declarations.
 - [ ] Define and version canonical and domain schemas with stable column names, explicit null semantics, and provenance columns.
   - [x] Declare `1.0.0` schema versions and null-semantics statements for canonical/domain/quality/manifest artifact types.
   - [ ] Add field-level canonical schema contract publication and validation.
