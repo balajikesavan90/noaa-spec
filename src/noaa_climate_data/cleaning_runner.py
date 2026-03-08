@@ -19,7 +19,14 @@ import pandas as pd
 from . import __version__
 from .cleaning import clean_noaa_dataframe
 from .contract_validation import validate_no_sentinel_leakage
-from .contracts import REQUIRED_ARTIFACT_METADATA_FIELDS, SUCCESS_MARKER_SCHEMA_VERSION
+from .contracts import (
+    CANONICAL_DATASET_CONTRACT,
+    DOMAIN_DATASET_CONTRACT,
+    QUALITY_REPORT_CONTRACT,
+    REQUIRED_ARTIFACT_METADATA_FIELDS,
+    RELEASE_MANIFEST_CONTRACT,
+    SUCCESS_MARKER_SCHEMA_VERSION,
+)
 from .constants import to_internal_column
 from .deterministic_io import write_deterministic_csv, write_deterministic_parquet
 from .domain_split import sanitize_station_slug
@@ -74,6 +81,18 @@ RUN_STATUS_COLUMNS = [
     "success_marker_path",
     "expected_outputs",
     "error_message",
+]
+
+RELEASE_MANIFEST_COLUMNS = [
+    "artifact_id",
+    "artifact_type",
+    "artifact_path",
+    "schema_version",
+    "build_id",
+    "input_lineage",
+    "row_count",
+    "checksum",
+    "creation_timestamp",
 ]
 
 RULE_FAMILIES = [
@@ -589,6 +608,15 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
     _write_quality_reports_summary(summary_path, quality_frames, config.run_id)
     print(f"Quality artifact: wrote {summary_path}")
 
+    release_manifest_path = config.manifest_root / "release_manifest.csv"
+    release_manifest_rows = _build_release_manifest_rows(
+        config=config,
+        status_df=status_df,
+        quality_frames=quality_frames,
+    )
+    _write_release_manifest(release_manifest_path, release_manifest_rows)
+    print(f"Release manifest: wrote {release_manifest_path}")
+
     total_elapsed_seconds = (datetime.now(timezone.utc) - run_started_at).total_seconds()
     total_elapsed_minutes = total_elapsed_seconds / 60.0
 
@@ -605,6 +633,7 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
         "total": len(manifest_rows),
         "run_manifest": run_manifest_path,
         "run_status": run_status_path,
+        "release_manifest": release_manifest_path,
     }
 
 
@@ -1335,6 +1364,136 @@ def _build_domain_usability_rows(
     return rows
 
 
+def _build_release_manifest_rows(
+    *,
+    config: CleaningRunConfig,
+    status_df: pd.DataFrame,
+    quality_frames: dict[str, pd.DataFrame],
+) -> list[dict[str, Any]]:
+    canonical_rows = _canonical_release_manifest_rows(config, status_df)
+    canonical_artifact_ids = {str(row["artifact_id"]) for row in canonical_rows}
+
+    domain_rows = _domain_release_manifest_rows(config, status_df)
+    domain_artifact_ids = {str(row["artifact_id"]) for row in domain_rows}
+
+    quality_rows = _quality_release_manifest_rows(
+        config=config,
+        quality_frames=quality_frames,
+        canonical_artifact_ids=canonical_artifact_ids,
+        domain_artifact_ids=domain_artifact_ids,
+    )
+
+    rows = canonical_rows + domain_rows + quality_rows
+    rows.sort(key=lambda row: str(row["artifact_id"]))
+    return rows
+
+
+def _canonical_release_manifest_rows(
+    config: CleaningRunConfig,
+    status_df: pd.DataFrame,
+) -> list[dict[str, Any]]:
+    completed = status_df[status_df["status"].astype(str) == "completed"].copy()
+    rows: list[dict[str, Any]] = []
+    cleaned_ext = "csv" if config.input_format == "csv" else "parquet"
+    created_at = _pst_now_iso()
+
+    for record in completed.to_dict(orient="records"):
+        station_id = str(record.get("station_id", ""))
+        input_path = str(record.get("input_path", ""))
+        cleaned_path = config.output_root / station_id / f"LocationData_Cleaned.{cleaned_ext}"
+        if not station_id or not input_path or not cleaned_path.exists():
+            continue
+        row_count = int(_coerce_int(record.get("row_count_cleaned", 0)))
+        rows.append(
+            {
+                "artifact_id": f"canonical_dataset/{config.run_id}/{station_id}",
+                "artifact_type": "canonical_dataset",
+                "artifact_path": str(cleaned_path.resolve()),
+                "schema_version": CANONICAL_DATASET_CONTRACT.schema_version,
+                "build_id": config.run_id,
+                "input_lineage": _json_compact([str(Path(input_path).resolve())]),
+                "row_count": row_count,
+                "checksum": _checksum_for_output_bundle([cleaned_path]),
+                "creation_timestamp": created_at,
+            }
+        )
+    rows.sort(key=lambda row: str(row["artifact_id"]))
+    return rows
+
+
+def _domain_release_manifest_rows(
+    config: CleaningRunConfig,
+    status_df: pd.DataFrame,
+) -> list[dict[str, Any]]:
+    completed = status_df[status_df["status"].astype(str) == "completed"].copy()
+    rows: list[dict[str, Any]] = []
+    created_at = _pst_now_iso()
+
+    for station_id in sorted(set(completed["station_id"].astype(str).tolist())):
+        manifest_path = config.output_root.parent / "domains" / station_id / "station_split_manifest.csv"
+        if not manifest_path.exists():
+            continue
+        try:
+            domain_manifest = pd.read_csv(manifest_path)
+        except Exception:
+            continue
+
+        for record in domain_manifest.to_dict(orient="records"):
+            domain_name = str(record.get("domain", ""))
+            file_path = Path(str(record.get("file", "")))
+            if not domain_name or not file_path.exists():
+                continue
+            rows.append(
+                {
+                    "artifact_id": f"domain_dataset/{config.run_id}/{station_id}/{domain_name}",
+                    "artifact_type": "domain_dataset",
+                    "artifact_path": str(file_path.resolve()),
+                    "schema_version": DOMAIN_DATASET_CONTRACT.schema_version,
+                    "build_id": config.run_id,
+                    "input_lineage": _json_compact(
+                        [f"canonical_dataset/{config.run_id}/{station_id}"]
+                    ),
+                    "row_count": int(_coerce_int(record.get("rows", 0))),
+                    "checksum": _checksum_for_output_bundle([file_path]),
+                    "creation_timestamp": created_at,
+                }
+            )
+    rows.sort(key=lambda row: str(row["artifact_id"]))
+    return rows
+
+
+def _quality_release_manifest_rows(
+    *,
+    config: CleaningRunConfig,
+    quality_frames: dict[str, pd.DataFrame],
+    canonical_artifact_ids: set[str],
+    domain_artifact_ids: set[str],
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    lineage = sorted(canonical_artifact_ids | domain_artifact_ids)
+    created_at = _pst_now_iso()
+
+    for report_type, frame in sorted(quality_frames.items()):
+        artifact_path = config.reports_root / f"{report_type}.csv"
+        if not artifact_path.exists():
+            continue
+        rows.append(
+            {
+                "artifact_id": f"quality_report/{config.run_id}/{report_type}",
+                "artifact_type": "quality_report",
+                "artifact_path": str(artifact_path.resolve()),
+                "schema_version": QUALITY_REPORT_CONTRACT.schema_version,
+                "build_id": config.run_id,
+                "input_lineage": _json_compact(lineage),
+                "row_count": int(len(frame)),
+                "checksum": _checksum_for_output_bundle([artifact_path]),
+                "creation_timestamp": created_at,
+            }
+        )
+    rows.sort(key=lambda row: str(row["artifact_id"]))
+    return rows
+
+
 def _year_series(cleaned: pd.DataFrame) -> pd.Series:
     if "Year" in cleaned.columns:
         return pd.to_numeric(cleaned["Year"], errors="coerce")
@@ -1379,6 +1538,29 @@ def _write_quality_reports_summary(
     lines.append("")
     _ensure_dir(output_path.parent)
     output_path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def _write_release_manifest(path: Path, rows: list[dict[str, Any]]) -> None:
+    frame = pd.DataFrame(rows)
+    for column in RELEASE_MANIFEST_COLUMNS:
+        if column not in frame.columns:
+            frame[column] = pd.NA
+    if frame.empty:
+        frame = pd.DataFrame(columns=RELEASE_MANIFEST_COLUMNS)
+    else:
+        frame = frame[RELEASE_MANIFEST_COLUMNS]
+    write_deterministic_csv(frame, path, sort_by=("artifact_id",))
+    _validate_release_manifest_frame(frame)
+
+
+def _validate_release_manifest_frame(frame: pd.DataFrame) -> None:
+    missing = [
+        column
+        for column in RELEASE_MANIFEST_CONTRACT.required_columns
+        if column not in frame.columns
+    ]
+    if missing:
+        raise ValueError(f"Release manifest contract violation: missing columns {missing}")
 
 
 def _verify_outputs_exist(paths: list[Path]) -> None:
@@ -1444,6 +1626,23 @@ def _status_field_value(value: Any) -> str:
     if value is None:
         return ""
     return str(value)
+
+
+def _coerce_int(value: Any) -> int:
+    if value is None:
+        return 0
+    try:
+        if pd.isna(value):
+            return 0
+    except TypeError:
+        pass
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        try:
+            return int(float(str(value)))
+        except (TypeError, ValueError):
+            return 0
 
 
 def _write_manifest(path: Path, rows: list[dict[str, Any]]) -> None:

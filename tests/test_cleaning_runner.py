@@ -445,6 +445,65 @@ def test_mandatory_quality_artifacts_are_written_with_station_quality_profiles(
     assert "Quality Reports Summary" in summary_md.read_text(encoding="utf-8")
 
 
+def test_release_manifest_contains_canonical_domain_and_quality_artifact_rows(
+    tmp_path: Path,
+) -> None:
+    input_root = tmp_path / "inputs"
+    station_id = "01234567890"
+    raw_path = _write_raw_csv(input_root / station_id, station_id)
+
+    config = _config(
+        tmp_path,
+        mode="test_csv_dir",
+        input_format="csv",
+        run_id="run_release_manifest",
+        input_root=input_root,
+        write_flags=_flags(cleaned=True, domain=True, quality=True, reports=False, global_summary=False),
+    )
+    result = run_cleaning_run(config)
+
+    release_manifest_path = config.manifest_root / "release_manifest.csv"
+    assert result["release_manifest"] == release_manifest_path
+    assert release_manifest_path.exists()
+
+    manifest = pd.read_csv(release_manifest_path, dtype=str)
+    assert set(manifest.columns) == {
+        "artifact_id",
+        "artifact_type",
+        "artifact_path",
+        "schema_version",
+        "build_id",
+        "input_lineage",
+        "row_count",
+        "checksum",
+        "creation_timestamp",
+    }
+    assert set(manifest["artifact_type"].astype(str)) >= {
+        "canonical_dataset",
+        "domain_dataset",
+        "quality_report",
+    }
+
+    canonical_row = manifest[manifest["artifact_type"] == "canonical_dataset"].iloc[0].to_dict()
+    assert canonical_row["build_id"] == config.run_id
+    assert json.loads(str(canonical_row["input_lineage"])) == [str(raw_path.resolve())]
+
+    domain_rows = manifest[manifest["artifact_type"] == "domain_dataset"]
+    assert not domain_rows.empty
+    domain_lineage = json.loads(str(domain_rows.iloc[0]["input_lineage"]))
+    assert domain_lineage == [f"canonical_dataset/{config.run_id}/{station_id}"]
+
+    quality_rows = manifest[manifest["artifact_type"] == "quality_report"]
+    expected_quality_ids = {
+        f"quality_report/{config.run_id}/field_completeness",
+        f"quality_report/{config.run_id}/sentinel_frequency",
+        f"quality_report/{config.run_id}/quality_code_exclusions",
+        f"quality_report/{config.run_id}/domain_usability_summary",
+        f"quality_report/{config.run_id}/station_year_quality",
+    }
+    assert expected_quality_ids.issubset(set(quality_rows["artifact_id"].astype(str)))
+
+
 def test_mandatory_quality_artifacts_written_even_when_quality_profiles_disabled(
     tmp_path: Path,
 ) -> None:
