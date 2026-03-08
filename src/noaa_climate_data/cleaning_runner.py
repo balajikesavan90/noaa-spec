@@ -563,6 +563,14 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
         _write_json(global_summary_path, summary)
         print(f"Global summary: wrote {global_summary_path}")
 
+    if config.write_flags.write_station_quality_profile:
+        quality_frames = _build_mandatory_quality_artifact_frames(config, status_df)
+        for artifact_name, frame in quality_frames.items():
+            output_path = config.reports_root / f"{artifact_name}.csv"
+            _ensure_dir(config.reports_root)
+            frame.to_csv(output_path, index=False)
+            print(f"Quality artifact: wrote {output_path}")
+
     total_elapsed_seconds = (datetime.now(timezone.utc) - run_started_at).total_seconds()
     total_elapsed_minutes = total_elapsed_seconds / 60.0
 
@@ -1015,25 +1023,7 @@ def _build_global_summary_from_sidecars(
     config: CleaningRunConfig,
     status_df: pd.DataFrame,
 ) -> dict[str, Any]:
-    completed = status_df[status_df["status"].astype(str) == "completed"].copy()
-    profile_paths = sorted(
-        {
-            str(path)
-            for path in completed["station_quality_profile_path"].dropna().astype(str)
-            if path
-        }
-    )
-
-    profiles: list[dict[str, Any]] = []
-    for path_text in profile_paths:
-        path = Path(path_text)
-        if not path.exists():
-            continue
-        try:
-            payload = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            continue
-        profiles.append(payload)
+    profiles = _load_station_quality_profiles(status_df)
 
     total_stations = len(profiles)
     total_rows = int(sum(int(profile.get("rows_total", 0)) for profile in profiles))
@@ -1080,6 +1070,197 @@ def _build_global_summary_from_sidecars(
         "top_identifiers_by_qc_rate": top_identifiers[:10],
         "rule_family_impact_totals": rule_family_totals,
     }
+
+
+def _load_station_quality_profiles(status_df: pd.DataFrame) -> list[dict[str, Any]]:
+    completed = status_df[status_df["status"].astype(str) == "completed"].copy()
+    profile_paths = sorted(
+        {
+            str(path)
+            for path in completed["station_quality_profile_path"].dropna().astype(str)
+            if path
+        }
+    )
+
+    profiles: list[dict[str, Any]] = []
+    for path_text in profile_paths:
+        path = Path(path_text)
+        if not path.exists():
+            continue
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        profiles.append(payload)
+    profiles.sort(key=lambda item: str(item.get("station_id", "")))
+    return profiles
+
+
+def _build_mandatory_quality_artifact_frames(
+    config: CleaningRunConfig,
+    status_df: pd.DataFrame,
+) -> dict[str, pd.DataFrame]:
+    profiles = _load_station_quality_profiles(status_df)
+
+    field_completeness_rows: list[dict[str, Any]] = []
+    sentinel_frequency_rows: list[dict[str, Any]] = []
+    quality_code_rows: list[dict[str, Any]] = []
+    domain_usability_rows: list[dict[str, Any]] = []
+
+    for profile in profiles:
+        station_id = str(profile.get("station_id", ""))
+        rows_total = int(profile.get("rows_total", 0))
+        rows_with_qc = int(profile.get("rows_with_qc_flags", 0))
+        completeness_ratio = (
+            float(rows_total - rows_with_qc) / float(rows_total) if rows_total > 0 else 0.0
+        )
+        field_completeness_rows.append(
+            {
+                "run_id": config.run_id,
+                "station_id": station_id,
+                "rows_total": rows_total,
+                "rows_with_qc_flags": rows_with_qc,
+                "field_completeness_ratio": completeness_ratio,
+            }
+        )
+
+        family_counts = profile.get("rule_family_impact_counts", {})
+        sentinel_events = int(family_counts.get("sentinel_handling", 0)) if isinstance(family_counts, dict) else 0
+        quality_code_events = int(family_counts.get("quality_code_handling", 0)) if isinstance(family_counts, dict) else 0
+
+        sentinel_frequency_rows.append(
+            {
+                "run_id": config.run_id,
+                "station_id": station_id,
+                "rows_total": rows_total,
+                "sentinel_events": sentinel_events,
+                "sentinel_frequency": (float(sentinel_events) / float(rows_total) if rows_total > 0 else 0.0),
+            }
+        )
+        quality_code_rows.append(
+            {
+                "run_id": config.run_id,
+                "station_id": station_id,
+                "rows_total": rows_total,
+                "quality_code_exclusions": quality_code_events,
+                "quality_code_exclusion_rate": (
+                    float(quality_code_events) / float(rows_total) if rows_total > 0 else 0.0
+                ),
+            }
+        )
+        domain_usability_rows.append(
+            {
+                "run_id": config.run_id,
+                "station_id": station_id,
+                "rows_total": rows_total,
+                "usable_row_rate": (
+                    1.0 - float(profile.get("fraction_rows_impacted", 0.0)) if rows_total > 0 else 0.0
+                ),
+            }
+        )
+
+    field_completeness = _sorted_quality_frame(
+        field_completeness_rows,
+        ["run_id", "station_id", "rows_total", "rows_with_qc_flags", "field_completeness_ratio"],
+    )
+    sentinel_frequency = _sorted_quality_frame(
+        sentinel_frequency_rows,
+        ["run_id", "station_id", "rows_total", "sentinel_events", "sentinel_frequency"],
+    )
+    quality_code_exclusions = _sorted_quality_frame(
+        quality_code_rows,
+        ["run_id", "station_id", "rows_total", "quality_code_exclusions", "quality_code_exclusion_rate"],
+    )
+    domain_usability_summary = _sorted_quality_frame(
+        domain_usability_rows,
+        ["run_id", "station_id", "rows_total", "usable_row_rate"],
+    )
+    station_year_quality = _build_station_year_quality_frame(config, status_df)
+
+    return {
+        "field_completeness": field_completeness,
+        "sentinel_frequency": sentinel_frequency,
+        "quality_code_exclusions": quality_code_exclusions,
+        "domain_usability_summary": domain_usability_summary,
+        "station_year_quality": station_year_quality,
+    }
+
+
+def _sorted_quality_frame(rows: list[dict[str, Any]], columns: list[str]) -> pd.DataFrame:
+    if not rows:
+        return pd.DataFrame(columns=columns)
+    return pd.DataFrame(rows).sort_values("station_id").reset_index(drop=True)
+
+
+def _build_station_year_quality_frame(
+    config: CleaningRunConfig,
+    status_df: pd.DataFrame,
+) -> pd.DataFrame:
+    rows: list[dict[str, Any]] = []
+    completed = status_df[status_df["status"].astype(str) == "completed"].copy()
+    station_ids = sorted(set(completed["station_id"].astype(str).tolist()))
+    cleaned_ext = "csv" if config.input_format == "csv" else "parquet"
+
+    for station_id in station_ids:
+        cleaned_path = config.output_root / station_id / f"LocationData_Cleaned.{cleaned_ext}"
+        if not cleaned_path.exists():
+            continue
+        try:
+            cleaned = _read_raw_input(cleaned_path, config.input_format)
+        except Exception:
+            continue
+        if cleaned.empty:
+            continue
+
+        year_series = _year_series(cleaned)
+        usable_series = _usable_row_series(cleaned)
+        frame = pd.DataFrame({"year": year_series, "usable": usable_series})
+        frame = frame.dropna(subset=["year"])
+        if frame.empty:
+            continue
+
+        grouped = frame.groupby("year", dropna=True)
+        for year_value, group in grouped:
+            rows_total = int(len(group))
+            usable_rows = int(group["usable"].astype(bool).sum())
+            rows.append(
+                {
+                    "run_id": config.run_id,
+                    "station_id": station_id,
+                    "year": int(year_value),
+                    "rows_total": rows_total,
+                    "usable_rows": usable_rows,
+                    "usable_row_rate": (float(usable_rows) / float(rows_total) if rows_total > 0 else 0.0),
+                }
+            )
+
+    if not rows:
+        return pd.DataFrame(
+            columns=["run_id", "station_id", "year", "rows_total", "usable_rows", "usable_row_rate"]
+        )
+    return pd.DataFrame(rows).sort_values(["station_id", "year"]).reset_index(drop=True)
+
+
+def _year_series(cleaned: pd.DataFrame) -> pd.Series:
+    if "Year" in cleaned.columns:
+        return pd.to_numeric(cleaned["Year"], errors="coerce")
+    if "YEAR" in cleaned.columns:
+        return pd.to_numeric(cleaned["YEAR"], errors="coerce")
+    if "DATE" in cleaned.columns:
+        parsed = pd.to_datetime(cleaned["DATE"], errors="coerce")
+        return pd.to_numeric(parsed.dt.year, errors="coerce")
+    return pd.Series([pd.NA] * len(cleaned), index=cleaned.index, dtype="object")
+
+
+def _usable_row_series(cleaned: pd.DataFrame) -> pd.Series:
+    if "row_has_any_usable_metric" in cleaned.columns:
+        return cleaned["row_has_any_usable_metric"].fillna(False).astype(bool)
+    metric_candidates = cleaned.select_dtypes(include=["number", "boolean"]).columns.tolist()
+    excluded = {"YEAR", "Year", "MonthNum", "Day", "Hour"}
+    metric_columns = [column for column in metric_candidates if column not in excluded]
+    if not metric_columns:
+        return pd.Series(False, index=cleaned.index, dtype="bool")
+    return cleaned[metric_columns].notna().any(axis=1)
 
 
 def _verify_outputs_exist(paths: list[Path]) -> None:
