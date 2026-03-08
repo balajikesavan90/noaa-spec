@@ -12,6 +12,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import subprocess
 from typing import Any
 
 import pandas as pd
@@ -325,6 +326,7 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
     run_config_path = config.manifest_root / "run_config.json"
     run_manifest_path = config.manifest_root / "run_manifest.csv"
     run_status_path = config.manifest_root / "run_status.csv"
+    build_metadata_path = config.manifest_root / "build_metadata.json"
 
     config_payload = _run_config_payload(config)
     _validate_or_write_run_config(
@@ -337,6 +339,16 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
         config=config,
         run_manifest_path=run_manifest_path,
         run_status_path=run_status_path,
+    )
+    build_metadata_payload = _build_metadata_payload(
+        config=config,
+        config_payload=config_payload,
+        manifest_rows=manifest_rows,
+    )
+    _validate_or_write_build_metadata(
+        build_metadata_path=build_metadata_path,
+        payload=build_metadata_payload,
+        manifest_refresh=config.manifest_refresh,
     )
 
     status_df = _load_status(run_status_path)
@@ -634,6 +646,7 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
         "run_manifest": run_manifest_path,
         "run_status": run_status_path,
         "release_manifest": release_manifest_path,
+        "build_metadata": build_metadata_path,
     }
 
 
@@ -729,6 +742,51 @@ def _validate_or_write_run_config(
                 f"Diff: {diff}"
             )
     _write_json(run_config_path, config_payload)
+
+
+def _build_metadata_payload(
+    *,
+    config: CleaningRunConfig,
+    config_payload: dict[str, Any],
+    manifest_rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    station_ids = sorted(str(row.get("station_id", "")) for row in manifest_rows)
+    input_paths = sorted(str(row.get("input_path", "")) for row in manifest_rows)
+    payload = {
+        "build_id": config.run_id,
+        "build_timestamp": _build_timestamp_from_run_id(config.run_id),
+        "code_revision": _resolve_code_revision(),
+        "config_identity": str(config_payload.get("config_fingerprint", "")),
+        "source_scope": {
+            "mode": config.mode,
+            "input_root": str(config.input_root.resolve()),
+            "input_format": config.input_format,
+            "manifest_station_count": len(manifest_rows),
+            "station_ids": station_ids,
+            "input_paths": input_paths,
+        },
+    }
+    return payload
+
+
+def _validate_or_write_build_metadata(
+    *,
+    build_metadata_path: Path,
+    payload: dict[str, Any],
+    manifest_refresh: bool,
+) -> None:
+    incoming = _canonical_build_metadata_payload(payload)
+    if build_metadata_path.exists():
+        existing_raw = json.loads(build_metadata_path.read_text(encoding="utf-8"))
+        existing = _canonical_build_metadata_payload(existing_raw)
+        if incoming != existing and not manifest_refresh:
+            diff = _config_diff(existing, incoming)
+            raise ValueError(
+                "run_id already exists with different build metadata. "
+                "Use a new --run-id or pass --manifest-refresh to rebuild metadata artifacts. "
+                f"Diff: {diff}"
+            )
+    _write_json(build_metadata_path, payload)
 
 
 def _prepare_manifest(
@@ -1854,12 +1912,52 @@ def _canonical_config_payload(payload: dict[str, Any]) -> dict[str, Any]:
     return canonical
 
 
+def _canonical_build_metadata_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    source_scope = dict(payload.get("source_scope", {}))
+    return {
+        "build_id": str(payload.get("build_id", "")),
+        "build_timestamp": str(payload.get("build_timestamp", "")),
+        "code_revision": str(payload.get("code_revision", "")),
+        "config_identity": str(payload.get("config_identity", "")),
+        "source_scope": {
+            "mode": str(source_scope.get("mode", "")),
+            "input_root": str(source_scope.get("input_root", "")),
+            "input_format": str(source_scope.get("input_format", "")),
+            "manifest_station_count": int(_coerce_int(source_scope.get("manifest_station_count", 0))),
+            "station_ids": sorted(str(value) for value in source_scope.get("station_ids", [])),
+            "input_paths": sorted(str(value) for value in source_scope.get("input_paths", [])),
+        },
+    }
+
+
 def _config_diff(existing: dict[str, Any], incoming: dict[str, Any]) -> str:
     diffs: list[str] = []
     for key in sorted(set(existing.keys()) | set(incoming.keys())):
         if existing.get(key) != incoming.get(key):
             diffs.append(f"{key}: existing={existing.get(key)!r} incoming={incoming.get(key)!r}")
     return "; ".join(diffs)
+
+
+def _build_timestamp_from_run_id(run_id: str) -> str:
+    try:
+        parsed = datetime.strptime(run_id, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+        return parsed.isoformat()
+    except ValueError:
+        return run_id
+
+
+def _resolve_code_revision() -> str:
+    try:
+        proc = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            capture_output=True,
+            check=True,
+            text=True,
+        )
+    except (subprocess.SubprocessError, FileNotFoundError):
+        return "unknown"
+    revision = proc.stdout.strip()
+    return revision or "unknown"
 
 
 def _identifier_from_qc_reason_column(internal_col: str) -> str | None:

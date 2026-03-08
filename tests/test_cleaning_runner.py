@@ -283,6 +283,42 @@ def test_run_config_fingerprint_enforced_and_refreshable(tmp_path: Path) -> None
     assert run_config["write_flags"]["write_domain_splits"] is True
 
 
+def test_build_metadata_captures_reproducibility_fields(tmp_path: Path) -> None:
+    input_root = tmp_path / "inputs"
+    station_id = "01234567890"
+    raw_path = _write_raw_csv(input_root / station_id, station_id)
+
+    config = _config(
+        tmp_path,
+        mode="test_csv_dir",
+        input_format="csv",
+        run_id="20260101T120000Z",
+        input_root=input_root,
+        write_flags=_flags(cleaned=False, domain=False, quality=False),
+    )
+    result = run_cleaning_run(config)
+
+    build_metadata_path = config.manifest_root / "build_metadata.json"
+    assert result["build_metadata"] == build_metadata_path
+    assert build_metadata_path.exists()
+
+    payload = json.loads(build_metadata_path.read_text(encoding="utf-8"))
+    run_config = json.loads((config.manifest_root / "run_config.json").read_text(encoding="utf-8"))
+
+    assert payload["build_id"] == "20260101T120000Z"
+    assert payload["build_timestamp"] == "2026-01-01T12:00:00+00:00"
+    assert payload["config_identity"] == run_config["config_fingerprint"]
+    assert isinstance(payload["code_revision"], str)
+    assert payload["code_revision"]
+
+    source_scope = payload["source_scope"]
+    assert source_scope["mode"] == "test_csv_dir"
+    assert source_scope["input_format"] == "csv"
+    assert source_scope["manifest_station_count"] == 1
+    assert source_scope["station_ids"] == [station_id]
+    assert source_scope["input_paths"] == [str(raw_path.resolve())]
+
+
 def test_manifest_refresh_rebuilds_station_snapshot(tmp_path: Path) -> None:
     input_root = tmp_path / "inputs"
     _write_raw_parquet(input_root / "01234567890", "01234567890")
