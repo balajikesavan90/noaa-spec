@@ -129,8 +129,9 @@ These gates block publishability. Complete these before Priority 1-5.
 - [ ] Repair documentation integrity so all referenced docs/scripts/tests exist and all KPI claims reflect current generated artifacts.
   - [x] Restore README compatibility links by adding `QC_SIGNALS_ARCHITECTURE.md` and `CLEANING_RECOMMENDATIONS.md` entrypoints.
   - [x] Regenerate suspicious-coverage summary and align README suspicious KPI claims with `spec_coverage.csv`.
-  - [ ] Rewrite `docs/PIPELINE_VALIDATION_PLAN.md` so referenced scripts/tests/commands match current repository interfaces.
-  - [ ] Refresh `noaa_file_index/20260207/README.md` runtime status sections to remove placeholder cleaning/aggregation guidance.
+  - [x] Rewrite `docs/PIPELINE_VALIDATION_PLAN.md` so referenced scripts/tests/commands match current repository interfaces.
+  - [x] Refresh `noaa_file_index/20260207/README.md` runtime status sections to remove placeholder cleaning/aggregation guidance.
+  - [ ] Reconcile remaining README quantitative claims (test counts and milestone metrics) against current generated artifacts.
 - [ ] Promote `release/build_<build_id>/...` to the canonical publication surface and enforce it as the release contract path.
   - [x] Switch default `cleaning-run` roots to `release/build_<build_id>/{canonical_cleaned,quality_reports,manifests}`.
   - [x] Route default domain split outputs to `release/build_<build_id>/domains/<station_id>/`.
