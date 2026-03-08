@@ -282,18 +282,13 @@ def parse_station_filters(values: list[str] | None) -> tuple[str, ...]:
 
 
 def default_roots_for_mode(mode: str, run_id: str) -> dict[str, Path]:
-    if mode == "test_csv_dir":
-        base = Path("artifacts") / "test_runs" / run_id
-    elif mode == "test_parquet_dir":
-        base = Path("artifacts") / "test_runs" / run_id
-    elif mode == "batch_parquet_dir":
-        base = Path("artifacts") / "parquet_runs" / run_id
-    else:
+    if mode not in MODE_TO_RAW_FILE:
         raise ValueError(f"Unknown mode: {mode}")
+    base = Path("release") / f"build_{run_id}"
     return {
-        "output_root": base / "cleaned",
-        "reports_root": base / "reports",
-        "quality_profile_root": base / "quality_profiles",
+        "output_root": base / "canonical_cleaned",
+        "reports_root": base / "quality_reports",
+        "quality_profile_root": base / "quality_reports" / "station_quality",
         "manifest_root": base / "manifests",
     }
 
@@ -752,12 +747,13 @@ def _log_not_in_manifest_stations(
 def _station_paths(config: CleaningRunConfig, station_id: str) -> StationPaths:
     station_output_dir = (config.output_root / station_id).resolve()
     cleaned_ext = "csv" if config.input_format == "csv" else "parquet"
+    domains_root = config.output_root.parent / "domains"
 
     return StationPaths(
         station_output_dir=station_output_dir,
         cleaned_path=(station_output_dir / f"LocationData_Cleaned.{cleaned_ext}").resolve(),
-        domain_dir=(config.output_root / "domain_splits" / station_id).resolve(),
-        domain_manifest_path=(config.output_root / "domain_splits" / station_id / "station_split_manifest.csv").resolve(),
+        domain_dir=(domains_root / station_id).resolve(),
+        domain_manifest_path=(domains_root / station_id / "station_split_manifest.csv").resolve(),
         quality_profile_path=(config.quality_profile_root / f"station_{station_id}.json").resolve(),
         reports_dir=(config.reports_root / station_id).resolve(),
         success_marker_path=(station_output_dir / "_SUCCESS.json").resolve(),

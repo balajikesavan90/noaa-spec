@@ -517,10 +517,10 @@ class TestCliCommands:
         assert config.write_flags.write_station_reports is False
         assert config.write_flags.write_global_summary is True
         assert config.output_root.resolve() == (
-            tmp_path / "artifacts" / "parquet_runs" / "20250101T000000Z" / "cleaned"
+            tmp_path / "release" / "build_20250101T000000Z" / "canonical_cleaned"
         ).resolve()
         assert config.manifest_root.resolve() == (
-            tmp_path / "artifacts" / "parquet_runs" / "20250101T000000Z" / "manifests"
+            tmp_path / "release" / "build_20250101T000000Z" / "manifests"
         ).resolve()
 
     def test_cli_cleaning_run_honors_test_mode_flag_overrides(
@@ -616,10 +616,10 @@ class TestCliCommands:
         assert config.write_flags.write_station_reports is False
         assert config.write_flags.write_global_summary is False
         assert config.output_root.resolve() == (
-            tmp_path / "artifacts" / "test_runs" / "20250101T000000Z" / "cleaned"
+            tmp_path / "release" / "build_20250101T000000Z" / "canonical_cleaned"
         ).resolve()
         assert config.manifest_root.resolve() == (
-            tmp_path / "artifacts" / "test_runs" / "20250101T000000Z" / "manifests"
+            tmp_path / "release" / "build_20250101T000000Z" / "manifests"
         ).resolve()
 
     def test_cli_pdf_to_markdown_invokes_converter(

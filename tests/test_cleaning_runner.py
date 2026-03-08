@@ -12,6 +12,7 @@ from noaa_climate_data.cleaning_runner import (
     CleaningRunConfig,
     RunWriteFlags,
     _discover_stations,
+    default_roots_for_mode,
     run_cleaning_run,
 )
 from noaa_climate_data.research_reports import domain_quality_report_names
@@ -175,6 +176,18 @@ def test_mode_specific_file_discovery(tmp_path: Path) -> None:
     assert [row["station_id"] for row in csv_discovered] == ["01234567890"]
     assert [row["station_id"] for row in parquet_discovered] == ["09876543210"]
     assert [row["station_id"] for row in test_parquet_discovered] == ["09876543210"]
+
+
+def test_default_roots_for_mode_uses_release_build_layout() -> None:
+    run_id = "20260101T120000Z"
+    roots = default_roots_for_mode("batch_parquet_dir", run_id)
+
+    assert roots["output_root"] == Path("release") / f"build_{run_id}" / "canonical_cleaned"
+    assert roots["reports_root"] == Path("release") / f"build_{run_id}" / "quality_reports"
+    assert roots["quality_profile_root"] == (
+        Path("release") / f"build_{run_id}" / "quality_reports" / "station_quality"
+    )
+    assert roots["manifest_root"] == Path("release") / f"build_{run_id}" / "manifests"
 
 
 def test_manifest_snapshot_is_deterministic(tmp_path: Path) -> None:
@@ -510,7 +523,7 @@ def test_parquet_mode_writes_domain_split_parquet_files(tmp_path: Path) -> None:
     result = run_cleaning_run(config)
 
     assert result["failed"] == 0
-    domain_manifest_path = config.output_root / "domain_splits" / station_id / "station_split_manifest.csv"
+    domain_manifest_path = config.output_root.parent / "domains" / station_id / "station_split_manifest.csv"
     assert domain_manifest_path.exists()
 
     domain_manifest = pd.read_csv(domain_manifest_path)

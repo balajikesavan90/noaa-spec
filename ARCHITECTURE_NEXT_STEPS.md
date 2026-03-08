@@ -126,12 +126,15 @@ Layout, file naming, serialization settings, and manifest generation must be det
 
 These gates block publishability. Complete these before Priority 1-5.
 
-- Repair documentation integrity so all referenced docs/scripts/tests exist and all KPI claims reflect current generated artifacts.
-- Promote `release/build_<build_id>/...` to the canonical publication surface and enforce it as the release contract path.
-- Separate runtime outputs from publication artifacts, fixtures, and examples.
-- Remove or relocate operational run snapshots from publication-facing tracked locations.
-- Eliminate domain-contract drift by centralizing domain-rule definitions and removing duplicated logic paths.
-- Establish explicit artifact tracking policy (including `.gitignore` alignment) for release-grade CSV/Parquet datasets and manifests.
+- [ ] Repair documentation integrity so all referenced docs/scripts/tests exist and all KPI claims reflect current generated artifacts.
+- [ ] Promote `release/build_<build_id>/...` to the canonical publication surface and enforce it as the release contract path.
+  - [x] Switch default `cleaning-run` roots to `release/build_<build_id>/{canonical_cleaned,quality_reports,manifests}`.
+  - [x] Route default domain split outputs to `release/build_<build_id>/domains/<station_id>/`.
+  - [ ] Enforce release-path contract across remaining docs/runtime interfaces and remove legacy assumptions.
+- [ ] Separate runtime outputs from publication artifacts, fixtures, and examples.
+- [ ] Remove or relocate operational run snapshots from publication-facing tracked locations.
+- [ ] Eliminate domain-contract drift by centralizing domain-rule definitions and removing duplicated logic paths.
+- [ ] Establish explicit artifact tracking policy (including `.gitignore` alignment) for release-grade CSV/Parquet datasets and manifests.
 
 ### Priority 1 - Dataset Contracts and Schema Discipline
 
@@ -167,6 +170,8 @@ These gates block publishability. Complete these before Priority 1-5.
   - [ ] Add release-manifest artifact rows for canonical/domain/quality outputs with contract metadata.
   - [ ] Validate manifest lineage links across canonical -> domains -> quality artifacts.
 - [ ] Adopt the deterministic `release/build_<build_id>/...` layout as publication contract.
+  - [x] Default `cleaning-run` path generation now targets `release/build_<build_id>/`.
+  - [ ] Enforce canonical/domain/quality/manifest sibling layout for all write paths and modes.
 - [ ] Capture reproducible build metadata (code revision, config identity, build timestamp, source scope).
 - [ ] Ensure lineage links connect NOAA raw sources through canonical and domain outputs to released quality evidence.
 
