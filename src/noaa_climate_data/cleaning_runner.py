@@ -122,6 +122,25 @@ QUALITY_ARTIFACT_SORT_KEYS: dict[str, tuple[str, ...]] = {
     "station_year_quality": ("station_id", "year"),
 }
 
+TEST_MODES_WITH_HISTORICAL_ORDERING = {"test_csv_dir", "test_parquet_dir"}
+TEST_MODE_STATION_ORDER: tuple[str, ...] = (
+    "40435099999",
+    "94368099999",
+    "34880099999",
+    "27679099999",
+    "83692099999",
+    "57067099999",
+    "03041099999",
+    "82795099999",
+    "78724099999",
+    "16754399999",
+    "01116099999",
+)
+TEST_MODE_STATION_ORDER_INDEX = {
+    station_id: index for index, station_id in enumerate(TEST_MODE_STATION_ORDER)
+}
+
+
 @dataclass(frozen=True)
 class RunWriteFlags:
     write_cleaned_station: bool
@@ -870,7 +889,26 @@ def _discover_stations(config: CleaningRunConfig) -> list[dict[str, Any]]:
             }
         )
     rows.sort(key=lambda row: str(row["station_id"]))
+    rows = _order_test_mode_stations_by_speed_priority(config, rows)
     return rows
+
+
+def _order_test_mode_stations_by_speed_priority(
+    config: CleaningRunConfig,
+    rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    if config.mode not in TEST_MODES_WITH_HISTORICAL_ORDERING or not rows:
+        return rows
+    return sorted(
+        rows,
+        key=lambda row: (
+            TEST_MODE_STATION_ORDER_INDEX.get(
+                str(row["station_id"]),
+                len(TEST_MODE_STATION_ORDER_INDEX),
+            ),
+            str(row["station_id"]),
+        ),
+    )
 
 
 def _log_not_in_manifest_stations(

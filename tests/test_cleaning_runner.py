@@ -188,6 +188,50 @@ def test_mode_specific_file_discovery(tmp_path: Path) -> None:
     assert [row["station_id"] for row in test_parquet_discovered] == ["09876543210"]
 
 
+def test_test_mode_discovers_stations_by_hardcoded_speed_order(tmp_path: Path) -> None:
+    input_root = tmp_path / "inputs"
+    station_ids = ("01116099999", "03041099999", "16754399999", "27679099999", "01234567890")
+    for station_id in station_ids:
+        _write_raw_parquet(input_root / station_id, station_id)
+
+    config = _config(
+        tmp_path,
+        mode="test_parquet_dir",
+        input_format="parquet",
+        run_id="run_current",
+        input_root=input_root,
+        write_flags=_flags(cleaned=False, quality=False),
+    )
+
+    discovered = _discover_stations(config)
+    assert [row["station_id"] for row in discovered] == [
+        "27679099999",
+        "03041099999",
+        "16754399999",
+        "01116099999",
+        "01234567890",
+    ]
+
+
+def test_batch_mode_station_discovery_keeps_station_id_order(tmp_path: Path) -> None:
+    input_root = tmp_path / "inputs"
+    station_ids = ("01116099999", "03041099999", "16754399999")
+    for station_id in station_ids:
+        _write_raw_parquet(input_root / station_id, station_id)
+
+    config = _config(
+        tmp_path,
+        mode="batch_parquet_dir",
+        input_format="parquet",
+        run_id="run_batch",
+        input_root=input_root,
+        write_flags=_flags(cleaned=False, quality=False),
+    )
+
+    discovered = _discover_stations(config)
+    assert [row["station_id"] for row in discovered] == sorted(station_ids)
+
+
 def test_default_roots_for_mode_uses_release_build_layout() -> None:
     run_id = "20260101T120000Z"
     roots = default_roots_for_mode("batch_parquet_dir", run_id)
