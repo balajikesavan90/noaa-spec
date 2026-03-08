@@ -45,7 +45,11 @@ jobs:
       
       - name: Install project
         run: poetry install --no-interaction
-      
+
+      - name: Run publication schema validation gate
+        run: |
+          poetry run pytest tests/test_publication_schema_ci.py -v
+
       - name: Generate suspicious coverage summary
         run: |
           poetry run python tools/spec_coverage/export_suspicious_summary.py

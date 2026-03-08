@@ -1083,7 +1083,25 @@ def _clean_canonical_dataset(raw: pd.DataFrame) -> pd.DataFrame:
         cleaned = clean_noaa_dataframe(permissive, keep_raw=True, strict_mode=False)
         cleaned = _extract_time_columns(cleaned, allow_date_parsed_fallback=True)
 
-    return cleaned
+    return _normalize_canonical_contract_columns(cleaned)
+
+
+def _normalize_canonical_contract_columns(cleaned: pd.DataFrame) -> pd.DataFrame:
+    if cleaned.empty:
+        return cleaned
+
+    normalized = cleaned.copy()
+    if "station_id" not in normalized.columns and "STATION" in normalized.columns:
+        normalized["station_id"] = normalized["STATION"].astype(str)
+
+    if "YEAR" not in normalized.columns:
+        if "Year" in normalized.columns:
+            normalized["YEAR"] = pd.to_numeric(normalized["Year"], errors="coerce")
+        elif "DATE" in normalized.columns:
+            parsed = pd.to_datetime(normalized["DATE"], errors="coerce")
+            normalized["YEAR"] = pd.to_numeric(parsed.dt.year, errors="coerce")
+
+    return normalized
 
 
 def _write_cleaned_station(cleaned: pd.DataFrame, output_path: Path, input_format: str) -> None:
