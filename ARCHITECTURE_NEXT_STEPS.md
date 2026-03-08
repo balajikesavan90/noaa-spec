@@ -146,7 +146,10 @@ These gates block publishability. Complete these before Priority 1-5.
 - [x] Remove or relocate operational run snapshots from publication-facing tracked locations.
   - [x] Remove tracked operational snapshots under `artifacts/test_runs/**` from version control.
   - [x] Add tracked-surface regression test to assert `artifacts/test_runs/**` and root `reprocess_timing*.log` are not tracked.
-- [ ] Eliminate domain-contract drift by centralizing domain-rule definitions and removing duplicated logic paths.
+- [x] Eliminate domain-contract drift by centralizing domain-rule definitions and removing duplicated logic paths.
+  - [x] Delegate `scripts/split_cleaned_by_domain.py` column classification to `noaa_climate_data.domain_split` (`COMMON_COLUMNS` + `classify_columns`).
+  - [x] Hard-deprecate `scripts/split_domains_by_station.py` to remove parallel contract maintenance outside package-governed modules.
+  - [x] Add regression test to enforce absence of duplicate script-level domain rule registries.
 - [ ] Establish explicit artifact tracking policy (including `.gitignore` alignment) for release-grade CSV/Parquet datasets and manifests.
 
 ### Priority 1 - Dataset Contracts and Schema Discipline
