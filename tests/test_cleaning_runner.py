@@ -26,10 +26,29 @@ def _sample_raw_df(station_id: str) -> pd.DataFrame:
     )
 
 
+def _sample_raw_df_with_od_fields(station_id: str) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "STATION": [station_id],
+            "DATE": ["20200101"],
+            "TIME": ["0000"],
+            "OD1": ["9,99,999,0000,1"],
+            "OD2": ["9,99,999,0000,1"],
+        }
+    )
+
+
 def _write_raw_csv(station_dir: Path, station_id: str) -> Path:
     station_dir.mkdir(parents=True, exist_ok=True)
     raw_path = station_dir / "LocationData_Raw.csv"
     _sample_raw_df(station_id).to_csv(raw_path, index=False)
+    return raw_path
+
+
+def _write_raw_csv_with_od_fields(station_dir: Path, station_id: str) -> Path:
+    station_dir.mkdir(parents=True, exist_ok=True)
+    raw_path = station_dir / "LocationData_Raw.csv"
+    _sample_raw_df_with_od_fields(station_id).to_csv(raw_path, index=False)
     return raw_path
 
 
@@ -306,6 +325,40 @@ def test_quality_profile_generated_without_rereading_cleaned_outputs(
 
     profile_path = config.quality_profile_root / f"station_{station_id}.json"
     assert profile_path.exists()
+
+
+def test_runner_processes_od1_od2_without_duplicate_cleaned_columns(tmp_path: Path) -> None:
+    input_root = tmp_path / "inputs"
+    station_id = "01234567890"
+    _write_raw_csv_with_od_fields(input_root / station_id, station_id)
+
+    config = _config(
+        tmp_path,
+        mode="test_csv_dir",
+        input_format="csv",
+        run_id="run_od_flags",
+        input_root=input_root,
+        write_flags=_flags(cleaned=True, quality=True),
+    )
+    result = run_cleaning_run(config)
+
+    assert result["failed"] == 0
+    assert result["processed"] == 1
+
+    success_path = config.output_root / station_id / "_SUCCESS.json"
+    cleaned_path = config.output_root / station_id / "LocationData_Cleaned.csv"
+    profile_path = config.quality_profile_root / f"station_{station_id}.json"
+
+    assert success_path.exists()
+    assert cleaned_path.exists()
+    assert profile_path.exists()
+
+    cleaned = pd.read_csv(cleaned_path, low_memory=False)
+    assert cleaned.columns.is_unique
+    assert "qc_calm_direction_detected_OD1" in cleaned.columns
+    assert "qc_calm_direction_detected_OD2" in cleaned.columns
+    assert str(cleaned.loc[0, "qc_calm_direction_detected_OD1"]).lower() == "true"
+    assert str(cleaned.loc[0, "qc_calm_direction_detected_OD2"]).lower() == "true"
 
 
 def test_output_root_cannot_be_inside_input_root(tmp_path: Path) -> None:

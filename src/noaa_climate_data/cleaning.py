@@ -487,9 +487,9 @@ def _expand_parsed(
     if prefix == "WND":
         payload["qc_calm_wind_detected"] = False
     if prefix.startswith("OD"):
-        payload["qc_calm_direction_detected_OD"] = False
+        payload[f"qc_calm_direction_detected_{prefix}"] = False
     if prefix.startswith("OE"):
-        payload["qc_calm_speed_detected_OE"] = False
+        payload[f"qc_calm_speed_detected_{prefix}"] = False
     field_rule = get_field_rule(prefix)
     quality_value = None
     if allow_quality:
@@ -518,11 +518,11 @@ def _expand_parsed(
             payload[key] = value if value is not None else part.strip()
             continue
         if is_od_calm and idx == 3:
-            payload["qc_calm_direction_detected_OD"] = True
+            payload[f"qc_calm_direction_detected_{prefix}"] = True
             payload[key] = value if value is not None else part.strip()
             continue
         if is_oe_calm and idx == 4:
-            payload["qc_calm_speed_detected_OE"] = True
+            payload[f"qc_calm_speed_detected_{prefix}"] = True
             payload[key] = value if value is not None else part.strip()
             continue
         part_quality = _quality_for_part(prefix, idx, parsed.parts) if allow_quality else None
@@ -1566,6 +1566,13 @@ def clean_noaa_dataframe(
             cleaned["usable_metric_count"] / total_metrics
             if total_metrics > 0
             else 0.0
+        )
+
+    if not cleaned.columns.is_unique:
+        duplicate_columns = sorted(set(cleaned.columns[cleaned.columns.duplicated()].tolist()))
+        raise ValueError(
+            "cleaned dataframe has duplicate column names: "
+            + ", ".join(duplicate_columns)
         )
 
     return cleaned

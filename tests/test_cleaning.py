@@ -14,6 +14,7 @@ import re
 import pandas as pd
 import pytest
 
+import noaa_climate_data.cleaning as cleaning_module
 from noaa_climate_data.cleaning import (
     _expand_parsed,
     _is_missing_value,
@@ -1934,7 +1935,7 @@ class TestQualityNullsCorrectPart:
     def test_oe1_calm_direction(self):
         result = clean_value_quality("1,24,00000,999,1200,4", "OE1")
         assert result["OE1__part4"] == pytest.approx(999.0)
-        assert result["qc_calm_speed_detected_OE"] is True
+        assert result["qc_calm_speed_detected_OE1"] is True
 
     def test_wa1_quality_rejects_8(self):
         result = clean_value_quality("1,001,1,8", "WA1")
@@ -2266,7 +2267,25 @@ class TestQualityNullsCorrectPart:
     def test_od_calm_direction(self):
         result = clean_value_quality("9,99,999,0000,1", "OD1")
         assert result["OD1__part3"] == pytest.approx(999.0)
-        assert result["qc_calm_direction_detected_OD"] is True
+        assert result["qc_calm_direction_detected_OD1"] is True
+
+    def test_od_calm_flags_are_prefix_specific(self):
+        od1 = clean_value_quality("9,99,999,0000,1", "OD1")
+        od2 = clean_value_quality("9,99,999,0000,1", "OD2")
+
+        assert od1["qc_calm_direction_detected_OD1"] is True
+        assert od2["qc_calm_direction_detected_OD2"] is True
+        assert "qc_calm_direction_detected_OD2" not in od1
+        assert "qc_calm_direction_detected_OD1" not in od2
+
+    def test_oe_calm_flags_are_prefix_specific(self):
+        oe1 = clean_value_quality("1,24,00000,999,1200,4", "OE1")
+        oe2 = clean_value_quality("1,24,00000,999,1200,4", "OE2")
+
+        assert oe1["qc_calm_speed_detected_OE1"] is True
+        assert oe2["qc_calm_speed_detected_OE2"] is True
+        assert "qc_calm_speed_detected_OE2" not in oe1
+        assert "qc_calm_speed_detected_OE1" not in oe2
 
     def test_oa_invalid_type_code(self):
         result = clean_value_quality("7,01,0005,1", "OA1")
@@ -3251,6 +3270,42 @@ class TestCleanDataframeEdgeCases:
         assert "precip_60_to_180_min_period_minutes_1" in cleaned.columns
         assert cleaned.loc[0, "precip_5_to_45_min_period_minutes_1"] == pytest.approx(15.0)
         assert cleaned.loc[0, "precip_60_to_180_min_period_minutes_1"] == pytest.approx(60.0)
+
+    def test_od_prefix_specific_flags_do_not_collide_in_cleaned_dataframe(self):
+        df = pd.DataFrame(
+            {
+                "OD1": ["9,99,999,0000,1"],
+                "OD2": ["9,99,999,0000,1"],
+            }
+        )
+        cleaned = clean_noaa_dataframe(df, keep_raw=False)
+        assert cleaned.columns.is_unique
+        assert "qc_calm_direction_detected_OD1" in cleaned.columns
+        assert "qc_calm_direction_detected_OD2" in cleaned.columns
+        assert cleaned.loc[0, "qc_calm_direction_detected_OD1"] == True
+        assert cleaned.loc[0, "qc_calm_direction_detected_OD2"] == True
+
+    def test_clean_noaa_dataframe_raises_on_duplicate_output_columns(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        original_to_friendly_column = cleaning_module.to_friendly_column
+
+        def force_collision(col: str) -> str:
+            if col in {"AH1__part1", "AI1__part1"}:
+                return "synthetic_collision"
+            return original_to_friendly_column(col)
+
+        monkeypatch.setattr(cleaning_module, "to_friendly_column", force_collision)
+        df = pd.DataFrame(
+            {
+                "AH1": ["015,0123,1,051010,1"],
+                "AI1": ["060,0456,1,051010,1"],
+            }
+        )
+        with pytest.raises(ValueError, match="duplicate column names") as error:
+            clean_noaa_dataframe(df, keep_raw=False)
+        assert "synthetic_collision" in str(error.value)
 
 
 class TestControlAndMandatoryNormalization:
