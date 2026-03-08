@@ -16,6 +16,7 @@ SUSPICIOUS_SUMMARY_PATH = (
     / "suspicious_coverage"
     / "suspicious_summary.md"
 )
+INTEGRATION_TEST_PATH = PROJECT_ROOT / "tests" / "test_integration.py"
 
 REQUIRED_VALIDATION_PLAN_REFERENCES = (
     "tools/spec_coverage/generate_spec_coverage.py",
@@ -153,3 +154,13 @@ def test_cleaning_run_docs_enforce_release_contract_paths():
     for legacy_path in ("artifacts/test_runs", "artifacts/parquet_runs"):
         assert legacy_path not in readme_text
         assert legacy_path not in run_modes_text
+
+
+def test_integration_tests_default_to_explicit_fixture_root():
+    integration_test_text = INTEGRATION_TEST_PATH.read_text(encoding="utf-8")
+
+    assert "NOAA_INTEGRATION_OUTPUT_DIR" in integration_test_text
+    assert (
+        'PROJECT_ROOT / "tests" / "fixtures" / "integration_output"'
+        in integration_test_text
+    )

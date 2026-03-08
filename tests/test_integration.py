@@ -19,6 +19,7 @@ P1:
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -32,19 +33,39 @@ from noaa_climate_data.constants import (
     to_internal_column,
 )
 
-OUTPUT_DIR = Path(__file__).resolve().parent.parent / "output"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_INTEGRATION_OUTPUT_DIR = PROJECT_ROOT / "tests" / "fixtures" / "integration_output"
+
+
+def _resolve_integration_output_dir() -> Path:
+    configured = os.environ.get("NOAA_INTEGRATION_OUTPUT_DIR")
+    if configured:
+        return Path(configured).expanduser().resolve()
+    return DEFAULT_INTEGRATION_OUTPUT_DIR
+
+
+def _discover_station_dirs(output_dir: Path) -> list[Path]:
+    if not output_dir.exists() or not output_dir.is_dir():
+        return []
+    return sorted(
+        d
+        for d in output_dir.iterdir()
+        if d.is_dir() and (d / "LocationData_Yearly.csv").exists()
+    )
+
+
+OUTPUT_DIR = _resolve_integration_output_dir()
 
 # All station directories that have the full five-file set.
-STATION_DIRS = sorted(
-    d
-    for d in OUTPUT_DIR.iterdir()
-    if d.is_dir() and (d / "LocationData_Yearly.csv").exists()
-)
+STATION_DIRS = _discover_station_dirs(OUTPUT_DIR)
 
 # Guard: skip the whole module if no station outputs are present.
 pytestmark = pytest.mark.skipif(
     len(STATION_DIRS) == 0,
-    reason="No station output directories found — run the pipeline first.",
+    reason=(
+        f"No station output directories found at {OUTPUT_DIR}. "
+        "Set NOAA_INTEGRATION_OUTPUT_DIR to point at an integration fixture root."
+    ),
 )
 
 
