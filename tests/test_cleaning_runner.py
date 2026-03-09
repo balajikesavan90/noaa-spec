@@ -725,6 +725,41 @@ def test_release_manifest_contains_canonical_domain_and_quality_artifact_rows(
     assert all(value in artifact_ids for value in first_quality_lineage)
 
 
+def test_file_manifest_captures_station_outputs_with_dual_manifest_model(
+    tmp_path: Path,
+) -> None:
+    input_root = tmp_path / "inputs"
+    station_id = "01234567890"
+    _write_raw_csv(input_root / station_id, station_id)
+
+    config = _config(
+        tmp_path,
+        mode="test_csv_dir",
+        input_format="csv",
+        run_id="run_file_manifest_scope",
+        input_root=input_root,
+        write_flags=_flags(cleaned=True, domain=True, quality=True, reports=True, global_summary=False),
+    )
+    result = run_cleaning_run(config)
+
+    file_manifest_path = config.manifest_root / "file_manifest.csv"
+    assert result["file_manifest"] == file_manifest_path
+    assert file_manifest_path.exists()
+
+    file_manifest = pd.read_csv(file_manifest_path, dtype=str)
+    assert not file_manifest.empty
+    assert {
+        "station_split_manifest",
+        "station_report",
+        "station_quality_profile",
+        "success_marker",
+        "release_manifest",
+    }.issubset(set(file_manifest["artifact_type"].astype(str)))
+
+    release_manifest = pd.read_csv(config.manifest_root / "release_manifest.csv", dtype=str)
+    assert "success_marker" not in set(release_manifest["artifact_type"].astype(str))
+
+
 def test_mandatory_quality_artifacts_written_even_when_quality_profiles_disabled(
     tmp_path: Path,
 ) -> None:

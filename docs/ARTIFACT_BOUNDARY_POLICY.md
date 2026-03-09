@@ -15,6 +15,15 @@ Required sibling directories:
 - `quality_reports/`
 - `manifests/`
 
+## Manifest Model
+
+The build emits two manifest surfaces under `release/build_<build_id>/manifests/`:
+
+- `release_manifest.csv`: publication manifest covering canonical lineage artifacts (`raw_source`, `canonical_dataset`, `domain_dataset`, `quality_report`).
+- `file_manifest.csv`: full-file manifest covering all produced run files, including station split manifests, station reports, station quality profiles, and station `_SUCCESS.json` markers.
+
+This dual-manifest model keeps publication lineage contracts stable while still providing complete run-file observability.
+
 ## Runtime Artifact Surface (Not Publication)
 
 The following locations are runtime/operational surfaces and are not the publication contract:
