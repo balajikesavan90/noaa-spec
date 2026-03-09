@@ -1942,8 +1942,35 @@ def _usable_row_series(cleaned: pd.DataFrame) -> pd.Series:
     excluded = {"YEAR", "Year", "MonthNum", "Day", "Hour"}
     metric_columns = [column for column in metric_candidates if column not in excluded]
     if not metric_columns:
-        return pd.Series(False, index=cleaned.index, dtype="bool")
+        text_excluded = {
+            "station_id",
+            "STATION",
+            "station_name",
+            "NAME",
+            "DATE",
+            "date",
+            "YEAR",
+            "Year",
+            "year",
+            "MonthNum",
+            "month",
+            "Day",
+            "day",
+            "Hour",
+            "hour",
+        }
+        text_columns = [column for column in cleaned.columns if column not in text_excluded]
+        if not text_columns:
+            return pd.Series(False, index=cleaned.index, dtype="bool")
+        text_presence = cleaned[text_columns].apply(_has_non_empty_value)
+        return text_presence.any(axis=1)
     return cleaned[metric_columns].notna().any(axis=1)
+
+
+def _has_non_empty_value(series: pd.Series) -> pd.Series:
+    text = series.astype("string").str.strip()
+    normalized = text.str.lower()
+    return series.notna() & text.ne("") & normalized.ne("nan") & normalized.ne("none")
 
 
 def _write_quality_reports_summary(

@@ -45,6 +45,18 @@ def _sample_raw_df_with_repeated_wind_fields(station_id: str) -> pd.DataFrame:
     )
 
 
+def _sample_raw_df_with_remarks(station_id: str) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "STATION": [station_id],
+            "DATE": ["20200101"],
+            "TIME": ["0000"],
+            "TMP": ["0010,1"],
+            "REM": ["clear sky"],
+        }
+    )
+
+
 def _write_raw_csv(station_dir: Path, station_id: str) -> Path:
     station_dir.mkdir(parents=True, exist_ok=True)
     raw_path = station_dir / "LocationData_Raw.csv"
@@ -56,6 +68,13 @@ def _write_raw_csv_with_repeated_wind_fields(station_dir: Path, station_id: str)
     station_dir.mkdir(parents=True, exist_ok=True)
     raw_path = station_dir / "LocationData_Raw.csv"
     _sample_raw_df_with_repeated_wind_fields(station_id).to_csv(raw_path, index=False)
+    return raw_path
+
+
+def _write_raw_csv_with_remarks(station_dir: Path, station_id: str) -> Path:
+    station_dir.mkdir(parents=True, exist_ok=True)
+    raw_path = station_dir / "LocationData_Raw.csv"
+    _sample_raw_df_with_remarks(station_id).to_csv(raw_path, index=False)
     return raw_path
 
 
@@ -141,6 +160,19 @@ def test_quality_profile_null_counts_are_per_identifier_rows_not_part_sums() -> 
     profile = builder.build(cleaned=cleaned, station_id="01234567890")
     assert profile["rows_total"] == 2
     assert profile["null_counts_by_identifier"]["OD1"] == 2
+
+
+def test_usable_row_series_treats_text_only_rows_as_usable() -> None:
+    frame = pd.DataFrame(
+        {
+            "station_id": ["01234567890", "01234567890"],
+            "DATE": ["2020-01-01T00:00:00", "2020-01-01T01:00:00"],
+            "remarks_text": ["clear sky", pd.NA],
+        }
+    )
+
+    usable = cleaning_runner._usable_row_series(frame)
+    assert usable.astype(bool).tolist() == [True, False]
 
 
 def test_station_discovery_excludes_non_station_directories(tmp_path: Path) -> None:
@@ -758,6 +790,30 @@ def test_file_manifest_captures_station_outputs_with_dual_manifest_model(
 
     release_manifest = pd.read_csv(config.manifest_root / "release_manifest.csv", dtype=str)
     assert "success_marker" not in set(release_manifest["artifact_type"].astype(str))
+
+
+def test_domain_usability_marks_text_first_remarks_domain_rows_as_usable(
+    tmp_path: Path,
+) -> None:
+    input_root = tmp_path / "inputs"
+    station_id = "01234567890"
+    _write_raw_csv_with_remarks(input_root / station_id, station_id)
+
+    config = _config(
+        tmp_path,
+        mode="test_csv_dir",
+        input_format="csv",
+        run_id="run_remarks_domain_usability",
+        input_root=input_root,
+        write_flags=_flags(cleaned=True, domain=True, quality=True, reports=False, global_summary=False),
+    )
+    run_cleaning_run(config)
+
+    domain_usability = pd.read_csv(config.reports_root / "domain_usability_summary.csv")
+    remarks_rows = domain_usability[domain_usability["domain"].astype(str) == "remarks"].copy()
+    assert not remarks_rows.empty
+    assert int(remarks_rows["usable_rows"].max()) > 0
+    assert float(remarks_rows["usable_row_rate"].max()) > 0.0
 
 
 def test_mandatory_quality_artifacts_written_even_when_quality_profiles_disabled(
