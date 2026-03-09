@@ -22,7 +22,7 @@
 ### P0 blockers before production publication
 
 - [x] Fix `field_completeness` semantics so `field_completeness_ratio` is never negative; current aggregation mixes identifier-level null counts across multiple parts and produces invalid ratios.
-- [ ] Add regression tests that enforce `0.0 <= field_completeness_ratio <= 1.0` for all rows in `field_completeness.csv`.
+- [x] Add regression tests that enforce `0.0 <= field_completeness_ratio <= 1.0` for all rows in `field_completeness.csv`.
 - [ ] Fix release/build metadata timestamp semantics for non-`YYYYMMDDTHHMMSSZ` run IDs; `build_timestamp` and `creation_timestamp` must be real timestamps, not run-id strings.
 - [ ] Add validation/tests for timestamp format in `build_metadata.json` and `release_manifest.csv`.
 - [ ] Resolve release-manifest scope gap: include all produced publishable artifacts (station-level reports, station split manifests, success markers), or explicitly define and implement a dual-manifest model (publication manifest + full file manifest).
