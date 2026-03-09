@@ -89,6 +89,16 @@ If `--run-id` already exists:
 
 `run_config.json` covers mode, input root/format, filters, limits, write flags, and write roots.
 
+## `run_manifest` vs `run_status` Semantics
+
+- `run_manifest.csv` is a discovery snapshot for the run scope.
+- It is refreshed only when `--manifest-refresh` is used.
+- It is not the execution truth table; it is a deterministic station/input snapshot.
+
+- `run_status.csv` is the execution truth table.
+- It mutates as stations transition across runtime states (`pending`, `running`, `completed`, `failed`, `skipped_*`).
+- Resume/recovery behavior must consult `run_status.csv` plus `_SUCCESS.json` and expected output existence checks.
+
 ## Resumability and Completion Rules
 
 A station is considered complete only when all are true:

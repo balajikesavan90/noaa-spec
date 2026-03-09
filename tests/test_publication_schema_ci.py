@@ -426,3 +426,25 @@ def test_ci_publication_readiness_gate_report(tmp_path: Path) -> None:
     }
     for check_payload in checks.values():
         assert check_payload["passed"] is True
+
+
+def test_ci_run_manifest_snapshot_vs_run_status_execution_truth(tmp_path: Path) -> None:
+    run_id = "20260101T120009Z"
+    config, station_id = _run_fixture_build(tmp_path, run_id=run_id)
+
+    run_manifest = pd.read_csv(config.manifest_root / "run_manifest.csv", dtype=str)
+    run_status = pd.read_csv(config.manifest_root / "run_status.csv", dtype=str)
+    assert run_manifest["station_id"].astype(str).tolist() == [station_id]
+    assert run_status["station_id"].astype(str).tolist() == [station_id]
+    assert run_manifest["status"].astype(str).tolist() == ["pending"]
+    assert run_status["status"].astype(str).tolist() == ["completed"]
+
+    late_station_id = "09876543210"
+    _write_raw_csv(config.input_root / late_station_id, late_station_id)
+    run_cleaning_run(config)
+
+    run_manifest_after = pd.read_csv(config.manifest_root / "run_manifest.csv", dtype=str)
+    run_status_after = pd.read_csv(config.manifest_root / "run_status.csv", dtype=str)
+    assert run_manifest_after["station_id"].astype(str).tolist() == [station_id]
+    assert run_status_after["station_id"].astype(str).tolist() == [station_id]
+    assert run_status_after["status"].astype(str).tolist() == ["completed"]
