@@ -1786,11 +1786,26 @@ def _build_full_file_manifest_rows(
     completed = status_df[status_df["status"].astype(str) == "completed"].copy()
 
     for record in completed.to_dict(orient="records"):
+        input_path = str(record.get("input_path", "")).strip()
+        if input_path:
+            raw_path = Path(input_path)
+            if raw_path.exists():
+                paths.add(raw_path.resolve())
         expected_outputs = _parse_lineage_values(record.get("expected_outputs", "[]"))
         for path_text in expected_outputs:
             path = Path(path_text)
             if path.exists():
-                paths.add(path.resolve())
+                resolved = path.resolve()
+                paths.add(resolved)
+                if resolved.name == "station_split_manifest.csv":
+                    try:
+                        split_manifest = pd.read_csv(resolved)
+                    except Exception:
+                        split_manifest = pd.DataFrame()
+                    for split_record in split_manifest.to_dict(orient="records"):
+                        split_path = Path(str(split_record.get("file", "")))
+                        if split_path.exists():
+                            paths.add(split_path.resolve())
         success_marker_path = str(record.get("success_marker_path", "")).strip()
         if success_marker_path:
             marker = Path(success_marker_path)

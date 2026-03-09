@@ -7,6 +7,7 @@ import hashlib
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from noaa_climate_data.cleaning_runner import CleaningRunConfig, RunWriteFlags, run_cleaning_run
 from noaa_climate_data.contracts import DOMAIN_DATASET_CONTRACT
@@ -41,6 +42,7 @@ def _run_fixture_build(
     *,
     run_id: str,
     force: bool = False,
+    write_flags: RunWriteFlags | None = None,
 ) -> tuple[CleaningRunConfig, str]:
     station_id = "01234567890"
     input_root = tmp_path / "inputs"
@@ -61,7 +63,8 @@ def _run_fixture_build(
         force=force,
         manifest_first=False,
         manifest_refresh=False,
-        write_flags=RunWriteFlags(
+        write_flags=write_flags
+        or RunWriteFlags(
             write_cleaned_station=True,
             write_domain_splits=True,
             write_station_quality_profile=True,
@@ -77,6 +80,48 @@ def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     digest.update(path.read_bytes())
     return digest.hexdigest()
+
+
+def _expected_file_manifest_paths(config: CleaningRunConfig) -> set[str]:
+    run_status = pd.read_csv(config.manifest_root / "run_status.csv", dtype=str)
+    completed = run_status[run_status["status"].astype(str) == "completed"].copy()
+    expected: set[str] = set()
+
+    for record in completed.to_dict(orient="records"):
+        try:
+            output_paths = json.loads(str(record.get("expected_outputs", "[]")))
+        except json.JSONDecodeError:
+            output_paths = []
+        for path_text in output_paths:
+            path = Path(str(path_text))
+            if path.exists():
+                expected.add(str(path.resolve()))
+        success_marker = str(record.get("success_marker_path", "")).strip()
+        if success_marker:
+            marker = Path(success_marker)
+            if marker.exists():
+                expected.add(str(marker.resolve()))
+
+    global_artifacts = [
+        config.manifest_root / "run_manifest.csv",
+        config.manifest_root / "run_status.csv",
+        config.manifest_root / "run_config.json",
+        config.manifest_root / "build_metadata.json",
+        config.manifest_root / "release_manifest.csv",
+        config.reports_root / "field_completeness.csv",
+        config.reports_root / "sentinel_frequency.csv",
+        config.reports_root / "quality_code_exclusions.csv",
+        config.reports_root / "domain_usability_summary.csv",
+        config.reports_root / "station_year_quality.csv",
+        config.reports_root / "quality_reports_summary.md",
+    ]
+    if config.write_flags.write_global_summary:
+        global_artifacts.append(config.reports_root / "global_quality_summary.json")
+
+    for path in global_artifacts:
+        if path.exists():
+            expected.add(str(path.resolve()))
+    return expected
 
 
 def test_ci_schema_validation_for_publication_artifact_types(tmp_path: Path) -> None:
@@ -226,3 +271,60 @@ def test_ci_smoke_end_to_end_artifact_graph_generation(tmp_path: Path) -> None:
         assert any(entry in canonical_ids for entry in lineage)
         assert any(entry in domain_ids for entry in lineage)
         assert all(entry in artifact_ids for entry in lineage)
+
+
+@pytest.mark.parametrize(
+    ("write_flags", "run_id"),
+    [
+        (
+            RunWriteFlags(
+                write_cleaned_station=True,
+                write_domain_splits=True,
+                write_station_quality_profile=True,
+                write_station_reports=False,
+                write_global_summary=False,
+            ),
+            "20260101T120004Z",
+        ),
+        (
+            RunWriteFlags(
+                write_cleaned_station=True,
+                write_domain_splits=True,
+                write_station_quality_profile=True,
+                write_station_reports=True,
+                write_global_summary=True,
+            ),
+            "20260101T120005Z",
+        ),
+    ],
+)
+def test_ci_file_manifest_completeness_matches_write_flags(
+    tmp_path: Path,
+    write_flags: RunWriteFlags,
+    run_id: str,
+) -> None:
+    config, _station_id = _run_fixture_build(tmp_path, run_id=run_id, write_flags=write_flags)
+
+    file_manifest = pd.read_csv(config.manifest_root / "file_manifest.csv", dtype=str)
+    observed_paths = set(file_manifest["artifact_path"].astype(str))
+    expected_paths = _expected_file_manifest_paths(config)
+
+    missing = sorted(expected_paths - observed_paths)
+    assert not missing
+
+    release_manifest = pd.read_csv(config.manifest_root / "release_manifest.csv", dtype=str)
+    assert set(release_manifest["artifact_path"].astype(str)).issubset(observed_paths)
+
+    observed_types = set(file_manifest["artifact_type"].astype(str))
+    if write_flags.write_station_reports:
+        assert "station_report" in observed_types
+    else:
+        assert "station_report" not in observed_types
+    if write_flags.write_domain_splits:
+        assert "station_split_manifest" in observed_types
+    else:
+        assert "station_split_manifest" not in observed_types
+    if write_flags.write_station_quality_profile:
+        assert "station_quality_profile" in observed_types
+    else:
+        assert "station_quality_profile" not in observed_types
