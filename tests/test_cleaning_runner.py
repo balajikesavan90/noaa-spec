@@ -1112,3 +1112,54 @@ def test_repeated_force_runs_keep_canonical_domain_and_quality_artifact_checksum
         "quality": _sha256(quality_path),
     }
     assert second_hashes == first_hashes
+
+
+def test_run_recovery_with_same_run_id_is_idempotent_after_interruption(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_root = tmp_path / "inputs"
+    station_id = "01234567890"
+    _write_raw_csv(input_root / station_id, station_id)
+
+    config = _config(
+        tmp_path,
+        mode="test_csv_dir",
+        input_format="csv",
+        run_id="run_recovery_idempotent",
+        input_root=input_root,
+        write_flags=_flags(cleaned=True, domain=True, quality=True, reports=False, global_summary=False),
+    )
+
+    original_clean = cleaning_runner._clean_canonical_dataset
+    state = {"failed_once": False}
+
+    def flaky_clean(raw: pd.DataFrame) -> pd.DataFrame:
+        if not state["failed_once"]:
+            state["failed_once"] = True
+            raise RuntimeError("simulated interruption")
+        return original_clean(raw)
+
+    monkeypatch.setattr(cleaning_runner, "_clean_canonical_dataset", flaky_clean)
+    first = run_cleaning_run(config)
+    assert first["failed"] == 1
+
+    status_after_failure = pd.read_csv(config.manifest_root / "run_status.csv", dtype=str)
+    assert status_after_failure["status"].astype(str).tolist() == ["failed"]
+    assert not (config.output_root / station_id / "_SUCCESS.json").exists()
+
+    monkeypatch.setattr(cleaning_runner, "_clean_canonical_dataset", original_clean)
+    second = run_cleaning_run(config)
+    assert second["failed"] == 0
+    assert second["processed"] == 1
+
+    status_after_recovery = pd.read_csv(config.manifest_root / "run_status.csv", dtype=str)
+    assert status_after_recovery["status"].astype(str).tolist() == ["completed"]
+
+    run_manifest = pd.read_csv(config.manifest_root / "run_manifest.csv", dtype=str)
+    assert len(run_manifest) == 1
+
+    release_manifest = pd.read_csv(config.manifest_root / "release_manifest.csv", dtype=str)
+    assert release_manifest["artifact_id"].is_unique
+    file_manifest = pd.read_csv(config.manifest_root / "file_manifest.csv", dtype=str)
+    assert file_manifest["artifact_id"].is_unique
