@@ -24,7 +24,7 @@
 - [x] Fix `field_completeness` semantics so `field_completeness_ratio` is never negative; current aggregation mixes identifier-level null counts across multiple parts and produces invalid ratios.
 - [x] Add regression tests that enforce `0.0 <= field_completeness_ratio <= 1.0` for all rows in `field_completeness.csv`.
 - [x] Fix release/build metadata timestamp semantics for non-`YYYYMMDDTHHMMSSZ` run IDs; `build_timestamp` and `creation_timestamp` must be real timestamps, not run-id strings.
-- [ ] Add validation/tests for timestamp format in `build_metadata.json` and `release_manifest.csv`.
+- [x] Add validation/tests for timestamp format in `build_metadata.json` and `release_manifest.csv`.
 - [ ] Resolve release-manifest scope gap: include all produced publishable artifacts (station-level reports, station split manifests, success markers), or explicitly define and implement a dual-manifest model (publication manifest + full file manifest).
 - [ ] Add CI coverage asserting manifest completeness against produced artifact sets for the configured write flags.
 - [ ] Decide and document checksum policy for publication artifacts (content hash vs path+content bundle hash), then enforce it consistently in docs and CI.
