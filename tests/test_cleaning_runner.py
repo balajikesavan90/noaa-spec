@@ -409,6 +409,48 @@ def test_nonstandard_run_id_uses_real_build_and_creation_timestamps(tmp_path: Pa
         datetime.fromisoformat(value)
 
 
+def test_build_metadata_validation_rejects_invalid_timestamp(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="build_metadata build_timestamp"):
+        cleaning_runner._validate_or_write_build_metadata(
+            build_metadata_path=tmp_path / "build_metadata.json",
+            payload={
+                "build_id": "run_invalid_timestamp",
+                "build_timestamp": "not-a-timestamp",
+                "code_revision": "deadbeef",
+                "config_identity": "config-fingerprint",
+                "source_scope": {
+                    "mode": "test_csv_dir",
+                    "input_root": str(tmp_path / "inputs"),
+                    "input_format": "csv",
+                    "manifest_station_count": 0,
+                    "station_ids": [],
+                    "input_paths": [],
+                },
+            },
+            manifest_refresh=False,
+        )
+
+
+def test_release_manifest_validation_rejects_invalid_creation_timestamp(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="invalid creation_timestamp"):
+        cleaning_runner._write_release_manifest(
+            tmp_path / "release_manifest.csv",
+            [
+                {
+                    "artifact_id": "raw_source/run_invalid_timestamp/01234567890",
+                    "artifact_type": "raw_source",
+                    "artifact_path": str(tmp_path / "raw.csv"),
+                    "schema_version": "v1",
+                    "build_id": "run_invalid_timestamp",
+                    "input_lineage": "[]",
+                    "row_count": 0,
+                    "checksum": "0" * 64,
+                    "creation_timestamp": "invalid",
+                }
+            ],
+        )
+
+
 def test_manifest_refresh_rebuilds_station_snapshot(tmp_path: Path) -> None:
     input_root = tmp_path / "inputs"
     _write_raw_parquet(input_root / "01234567890", "01234567890")

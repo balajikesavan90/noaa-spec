@@ -812,6 +812,11 @@ def _validate_or_write_build_metadata(
     payload: dict[str, Any],
     manifest_refresh: bool,
 ) -> None:
+    build_timestamp = _normalize_iso_timestamp(payload.get("build_timestamp", ""))
+    if build_timestamp is None:
+        raise ValueError("build_metadata build_timestamp must be an ISO-8601 timestamp with timezone")
+    payload["build_timestamp"] = build_timestamp
+
     incoming = _canonical_build_metadata_payload(payload)
     if build_metadata_path.exists():
         existing_raw = json.loads(build_metadata_path.read_text(encoding="utf-8"))
@@ -1811,6 +1816,21 @@ def _validate_release_manifest_frame(frame: pd.DataFrame) -> None:
     ]
     if missing:
         raise ValueError(f"Release manifest contract violation: missing columns {missing}")
+
+    if frame.empty:
+        return
+
+    invalid_rows = frame[
+        frame["creation_timestamp"].apply(
+            lambda value: _normalize_iso_timestamp(value) is None
+        )
+    ]
+    if not invalid_rows.empty:
+        artifact_ids = sorted(str(value) for value in invalid_rows["artifact_id"].astype(str).tolist())
+        raise ValueError(
+            "Release manifest contract violation: invalid creation_timestamp for "
+            f"artifacts {artifact_ids}"
+        )
 
 
 def _validate_release_manifest_lineage(frame: pd.DataFrame) -> None:
