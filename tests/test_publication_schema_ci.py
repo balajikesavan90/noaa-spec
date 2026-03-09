@@ -223,6 +223,42 @@ def test_ci_reproducibility_smoke_for_fixture_build_signatures(tmp_path: Path) -
     assert second_signatures == first_signatures
 
 
+def test_ci_reproducibility_rerun_gate_for_manifest_checksums(tmp_path: Path) -> None:
+    run_id = "20260101T120008Z"
+    config, _station_id = _run_fixture_build(tmp_path, run_id=run_id, force=False)
+
+    first_release_manifest = pd.read_csv(config.manifest_root / "release_manifest.csv", dtype=str)
+    first_file_manifest = pd.read_csv(config.manifest_root / "file_manifest.csv", dtype=str)
+
+    _run_fixture_build(tmp_path, run_id=run_id, force=True)
+
+    second_release_manifest = pd.read_csv(config.manifest_root / "release_manifest.csv", dtype=str)
+    second_file_manifest = pd.read_csv(config.manifest_root / "file_manifest.csv", dtype=str)
+
+    first_release_checksums = {
+        str(row["artifact_id"]): str(row["checksum"])
+        for row in first_release_manifest.to_dict(orient="records")
+    }
+    second_release_checksums = {
+        str(row["artifact_id"]): str(row["checksum"])
+        for row in second_release_manifest.to_dict(orient="records")
+    }
+    assert second_release_checksums == first_release_checksums
+
+    volatile_types = {"run_status", "success_marker"}
+    first_file_checksums = {
+        str(row["artifact_id"]): str(row["checksum"])
+        for row in first_file_manifest.to_dict(orient="records")
+        if str(row["artifact_type"]) not in volatile_types
+    }
+    second_file_checksums = {
+        str(row["artifact_id"]): str(row["checksum"])
+        for row in second_file_manifest.to_dict(orient="records")
+        if str(row["artifact_type"]) not in volatile_types
+    }
+    assert second_file_checksums == first_file_checksums
+
+
 def test_ci_smoke_end_to_end_artifact_graph_generation(tmp_path: Path) -> None:
     run_id = "20260101T120003Z"
     config, _station_id = _run_fixture_build(tmp_path, run_id=run_id, force=False)
