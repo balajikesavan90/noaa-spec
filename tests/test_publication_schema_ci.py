@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 import json
 import hashlib
 from pathlib import Path
@@ -342,3 +343,26 @@ def test_ci_manifest_checksums_follow_path_plus_content_policy(tmp_path: Path) -
             assert artifact_path.exists()
             expected_checksum = cleaning_runner._checksum_for_output_bundle([artifact_path])
             assert str(row["checksum"]) == expected_checksum
+
+
+def test_ci_end_to_end_contract_check_prefixed_run_id_scenario(tmp_path: Path) -> None:
+    run_id = "contract_check_20260308T104353-0700"
+    config, station_id = _run_fixture_build(tmp_path, run_id=run_id)
+
+    run_status = pd.read_csv(config.manifest_root / "run_status.csv", dtype=str)
+    completed = run_status[run_status["status"].astype(str) == "completed"].copy()
+    assert completed["station_id"].astype(str).tolist() == [station_id]
+
+    build_metadata = json.loads((config.manifest_root / "build_metadata.json").read_text(encoding="utf-8"))
+    build_timestamp = str(build_metadata["build_timestamp"])
+    assert build_timestamp != run_id
+    datetime.fromisoformat(build_timestamp)
+
+    release_manifest = pd.read_csv(config.manifest_root / "release_manifest.csv", dtype=str)
+    assert not release_manifest.empty
+    for value in release_manifest["creation_timestamp"].astype(str):
+        assert value != run_id
+        datetime.fromisoformat(value)
+
+    file_manifest = pd.read_csv(config.manifest_root / "file_manifest.csv", dtype=str)
+    assert not file_manifest.empty
