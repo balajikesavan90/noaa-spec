@@ -38,7 +38,7 @@
 - [x] Add run recovery/idempotency coverage: simulate interruption, rerun with the same run ID, and assert no duplicate/partial artifacts plus correct `run_status` transitions.
 - [x] Formalize and test `run_manifest` versus `run_status` semantics (discovery snapshot vs execution truth), including explicit docs and CI assertions.
 - [x] Define publication quality thresholds (for example maximum exclusion rates and minimum domain usability by domain) and enforce them as go/no-go gates.
-- [ ] Add artifact write-atomicity checks (temporary write + atomic rename) and CI validation that interrupted runs cannot leave publishable partial files.
+- [x] Add artifact write-atomicity checks (temporary write + atomic rename) and CI validation that interrupted runs cannot leave publishable partial files.
 - [ ] Add schema compatibility checks against the previous release manifest and fail CI on contract-breaking changes unless a schema version bump is explicit.
 
 ## P0: Spec-rule implementation vs official ISD docs
