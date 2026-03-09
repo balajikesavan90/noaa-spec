@@ -27,7 +27,7 @@
 - [x] Add validation/tests for timestamp format in `build_metadata.json` and `release_manifest.csv`.
 - [x] Resolve release-manifest scope gap: include all produced publishable artifacts (station-level reports, station split manifests, success markers), or explicitly define and implement a dual-manifest model (publication manifest + full file manifest).
 - [x] Add CI coverage asserting manifest completeness against produced artifact sets for the configured write flags.
-- [ ] Decide and document checksum policy for publication artifacts (content hash vs path+content bundle hash), then enforce it consistently in docs and CI.
+- [x] Decide and document checksum policy for publication artifacts (content hash vs path+content bundle hash), then enforce it consistently in docs and CI.
 - [ ] Adjust domain usability logic for text-first domains (e.g., `remarks`) so they are not incorrectly reported as `0` usable rows purely due numeric-only metric detection.
 
 ### P1 hardening follow-up
