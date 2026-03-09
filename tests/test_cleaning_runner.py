@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 import json
 from pathlib import Path
 import re
@@ -376,6 +377,36 @@ def test_build_metadata_captures_reproducibility_fields(tmp_path: Path) -> None:
     assert source_scope["manifest_station_count"] == 1
     assert source_scope["station_ids"] == [station_id]
     assert source_scope["input_paths"] == [str(raw_path.resolve())]
+
+
+def test_nonstandard_run_id_uses_real_build_and_creation_timestamps(tmp_path: Path) -> None:
+    input_root = tmp_path / "inputs"
+    station_id = "01234567890"
+    _write_raw_csv(input_root / station_id, station_id)
+
+    run_id = "contract_check_20260308T104353-0700"
+    config = _config(
+        tmp_path,
+        mode="test_csv_dir",
+        input_format="csv",
+        run_id=run_id,
+        input_root=input_root,
+        write_flags=_flags(cleaned=True, domain=True, quality=True, reports=False, global_summary=False),
+    )
+    run_cleaning_run(config)
+
+    payload = json.loads((config.manifest_root / "build_metadata.json").read_text(encoding="utf-8"))
+    build_timestamp = str(payload["build_timestamp"])
+    assert build_timestamp != run_id
+    datetime.fromisoformat(build_timestamp)
+
+    release_manifest = pd.read_csv(config.manifest_root / "release_manifest.csv", dtype=str)
+    assert not release_manifest.empty
+    creation_timestamps = set(release_manifest["creation_timestamp"].astype(str))
+    assert creation_timestamps == {build_timestamp}
+    assert run_id not in creation_timestamps
+    for value in creation_timestamps:
+        datetime.fromisoformat(value)
 
 
 def test_manifest_refresh_rebuilds_station_snapshot(tmp_path: Path) -> None:

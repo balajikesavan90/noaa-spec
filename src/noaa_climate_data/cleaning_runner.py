@@ -368,10 +368,17 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
         run_manifest_path=run_manifest_path,
         run_status_path=run_status_path,
     )
+    build_timestamp = _resolve_build_timestamp(
+        run_id=config.run_id,
+        manifest_rows=manifest_rows,
+        build_metadata_path=build_metadata_path,
+        manifest_refresh=config.manifest_refresh,
+    )
     build_metadata_payload = _build_metadata_payload(
         config=config,
         config_payload=config_payload,
         manifest_rows=manifest_rows,
+        build_timestamp=build_timestamp,
     )
     _validate_or_write_build_metadata(
         build_metadata_path=build_metadata_path,
@@ -653,6 +660,7 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
         config=config,
         status_df=status_df,
         quality_frames=quality_frames,
+        creation_timestamp=build_timestamp,
     )
     _write_release_manifest(release_manifest_path, release_manifest_rows)
     print(f"Release manifest: wrote {release_manifest_path}")
@@ -777,12 +785,13 @@ def _build_metadata_payload(
     config: CleaningRunConfig,
     config_payload: dict[str, Any],
     manifest_rows: list[dict[str, Any]],
+    build_timestamp: str,
 ) -> dict[str, Any]:
     station_ids = sorted(str(row.get("station_id", "")) for row in manifest_rows)
     input_paths = sorted(str(row.get("input_path", "")) for row in manifest_rows)
     payload = {
         "build_id": config.run_id,
-        "build_timestamp": _build_timestamp_from_run_id(config.run_id),
+        "build_timestamp": build_timestamp,
         "code_revision": _resolve_code_revision(),
         "config_identity": str(config_payload.get("config_fingerprint", "")),
         "source_scope": {
@@ -1527,12 +1536,18 @@ def _build_release_manifest_rows(
     config: CleaningRunConfig,
     status_df: pd.DataFrame,
     quality_frames: dict[str, pd.DataFrame],
+    creation_timestamp: str,
 ) -> list[dict[str, Any]]:
-    source_rows, source_artifact_ids_by_station = _source_release_manifest_rows(config, status_df)
+    source_rows, source_artifact_ids_by_station = _source_release_manifest_rows(
+        config,
+        status_df,
+        creation_timestamp=creation_timestamp,
+    )
 
     canonical_rows = _canonical_release_manifest_rows(
         config,
         status_df,
+        creation_timestamp=creation_timestamp,
         source_artifact_ids_by_station=source_artifact_ids_by_station,
     )
     canonical_artifact_ids = {str(row["artifact_id"]) for row in canonical_rows}
@@ -1540,6 +1555,7 @@ def _build_release_manifest_rows(
     domain_rows = _domain_release_manifest_rows(
         config,
         status_df,
+        creation_timestamp=creation_timestamp,
         canonical_artifact_ids=canonical_artifact_ids,
         source_artifact_ids_by_station=source_artifact_ids_by_station,
     )
@@ -1548,6 +1564,7 @@ def _build_release_manifest_rows(
     quality_rows = _quality_release_manifest_rows(
         config=config,
         quality_frames=quality_frames,
+        creation_timestamp=creation_timestamp,
         canonical_artifact_ids=canonical_artifact_ids,
         domain_artifact_ids=domain_artifact_ids,
     )
@@ -1560,11 +1577,13 @@ def _build_release_manifest_rows(
 def _source_release_manifest_rows(
     config: CleaningRunConfig,
     status_df: pd.DataFrame,
+    *,
+    creation_timestamp: str,
 ) -> tuple[list[dict[str, Any]], dict[str, str]]:
     completed = status_df[status_df["status"].astype(str) == "completed"].copy()
     rows: list[dict[str, Any]] = []
     artifact_ids_by_station: dict[str, str] = {}
-    created_at = _build_timestamp_from_run_id(config.run_id)
+    created_at = creation_timestamp
 
     for record in completed.to_dict(orient="records"):
         station_id = str(record.get("station_id", ""))
@@ -1596,12 +1615,13 @@ def _canonical_release_manifest_rows(
     config: CleaningRunConfig,
     status_df: pd.DataFrame,
     *,
+    creation_timestamp: str,
     source_artifact_ids_by_station: dict[str, str],
 ) -> list[dict[str, Any]]:
     completed = status_df[status_df["status"].astype(str) == "completed"].copy()
     rows: list[dict[str, Any]] = []
     cleaned_ext = "csv" if config.input_format == "csv" else "parquet"
-    created_at = _build_timestamp_from_run_id(config.run_id)
+    created_at = creation_timestamp
 
     for record in completed.to_dict(orient="records"):
         station_id = str(record.get("station_id", ""))
@@ -1636,12 +1656,13 @@ def _domain_release_manifest_rows(
     config: CleaningRunConfig,
     status_df: pd.DataFrame,
     *,
+    creation_timestamp: str,
     canonical_artifact_ids: set[str],
     source_artifact_ids_by_station: dict[str, str],
 ) -> list[dict[str, Any]]:
     completed = status_df[status_df["status"].astype(str) == "completed"].copy()
     rows: list[dict[str, Any]] = []
-    created_at = _build_timestamp_from_run_id(config.run_id)
+    created_at = creation_timestamp
     input_paths_by_station = {
         str(record.get("station_id", "")): str(record.get("input_path", ""))
         for record in completed.to_dict(orient="records")
@@ -1693,12 +1714,13 @@ def _quality_release_manifest_rows(
     *,
     config: CleaningRunConfig,
     quality_frames: dict[str, pd.DataFrame],
+    creation_timestamp: str,
     canonical_artifact_ids: set[str],
     domain_artifact_ids: set[str],
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     lineage = sorted(canonical_artifact_ids | domain_artifact_ids)
-    created_at = _build_timestamp_from_run_id(config.run_id)
+    created_at = creation_timestamp
 
     for report_type, frame in sorted(quality_frames.items()):
         artifact_path = config.reports_root / f"{report_type}.csv"
@@ -2077,12 +2099,54 @@ def _config_diff(existing: dict[str, Any], incoming: dict[str, Any]) -> str:
     return "; ".join(diffs)
 
 
-def _build_timestamp_from_run_id(run_id: str) -> str:
+def _build_timestamp_from_run_id(run_id: str) -> str | None:
     try:
         parsed = datetime.strptime(run_id, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
-        return parsed.isoformat()
     except ValueError:
-        return run_id
+        return None
+    return parsed.isoformat()
+
+
+def _normalize_iso_timestamp(value: Any) -> str | None:
+    text = str(value).strip()
+    if not text:
+        return None
+    normalized = text[:-1] + "+00:00" if text.endswith("Z") else text
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return None
+    return parsed.isoformat()
+
+
+def _resolve_build_timestamp(
+    *,
+    run_id: str,
+    manifest_rows: list[dict[str, Any]],
+    build_metadata_path: Path,
+    manifest_refresh: bool,
+) -> str:
+    run_id_timestamp = _build_timestamp_from_run_id(run_id)
+    if run_id_timestamp is not None:
+        return run_id_timestamp
+
+    if build_metadata_path.exists() and not manifest_refresh:
+        try:
+            existing = json.loads(build_metadata_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            existing = {}
+        existing_timestamp = _normalize_iso_timestamp(existing.get("build_timestamp", ""))
+        if existing_timestamp is not None:
+            return existing_timestamp
+
+    for row in manifest_rows:
+        discovered_at = _normalize_iso_timestamp(row.get("discovered_at", ""))
+        if discovered_at is not None:
+            return discovered_at
+
+    return _pst_now_iso()
 
 
 def _resolve_code_revision() -> str:
