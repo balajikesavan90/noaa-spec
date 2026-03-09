@@ -175,6 +175,25 @@ def test_usable_row_series_treats_text_only_rows_as_usable() -> None:
     assert usable.astype(bool).tolist() == [True, False]
 
 
+def test_publication_quality_sanity_check_enforces_thresholds() -> None:
+    quality_frames = {
+        "field_completeness": pd.DataFrame(
+            {"field_completeness_ratio": [0.75]}
+        ),
+        "domain_usability_summary": pd.DataFrame(
+            {"domain": ["core_meteorology"], "usable_row_rate": [0.10]}
+        ),
+        "quality_code_exclusions": pd.DataFrame(
+            {"quality_code_exclusion_rate": [0.80]}
+        ),
+    }
+
+    summary = cleaning_runner._publication_quality_sanity_check(quality_frames)
+    assert summary["passed"] is False
+    assert summary["quality_code_exclusion_rate_threshold_ok"] is False
+    assert summary["domain_usability_thresholds_ok"] is False
+
+
 def test_station_discovery_excludes_non_station_directories(tmp_path: Path) -> None:
     input_root = tmp_path / "inputs"
     _write_raw_csv(input_root / "01234567890", "01234567890")

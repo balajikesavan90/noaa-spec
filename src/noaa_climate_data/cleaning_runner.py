@@ -115,6 +115,16 @@ MANDATORY_QUALITY_ARTIFACT_NAMES: tuple[str, ...] = (
     "station_year_quality",
 )
 
+MAX_QUALITY_CODE_EXCLUSION_RATE = 0.25
+MIN_DOMAIN_USABLE_ROW_RATE_BY_DOMAIN: dict[str, float] = {
+    "core_meteorology": 0.50,
+    "wind": 0.00,
+    "precipitation": 0.00,
+    "clouds_visibility": 0.00,
+    "pressure_temperature": 0.00,
+    "remarks": 0.00,
+}
+
 QC_REASON_TO_FAMILY = {
     "SENTINEL_MISSING": "sentinel_handling",
     "BAD_QUALITY_CODE": "quality_code_handling",
@@ -2143,21 +2153,57 @@ def _publication_checksum_check(
 def _publication_quality_sanity_check(quality_frames: dict[str, pd.DataFrame]) -> dict[str, Any]:
     field_frame = quality_frames.get("field_completeness", pd.DataFrame())
     domain_frame = quality_frames.get("domain_usability_summary", pd.DataFrame())
+    quality_code_frame = quality_frames.get("quality_code_exclusions", pd.DataFrame())
 
     field_ok = True
     if not field_frame.empty and "field_completeness_ratio" in field_frame.columns:
         field_ratios = pd.to_numeric(field_frame["field_completeness_ratio"], errors="coerce")
         field_ok = bool(field_ratios.between(0.0, 1.0, inclusive="both").all())
 
-    domain_ok = True
+    domain_bounds_ok = True
     if not domain_frame.empty and "usable_row_rate" in domain_frame.columns:
         domain_rates = pd.to_numeric(domain_frame["usable_row_rate"], errors="coerce")
-        domain_ok = bool(domain_rates.between(0.0, 1.0, inclusive="both").all())
+        domain_bounds_ok = bool(domain_rates.between(0.0, 1.0, inclusive="both").all())
+
+    quality_code_threshold_ok = True
+    max_quality_code_exclusion_rate = 0.0
+    if not quality_code_frame.empty and "quality_code_exclusion_rate" in quality_code_frame.columns:
+        quality_rates = pd.to_numeric(quality_code_frame["quality_code_exclusion_rate"], errors="coerce").fillna(0.0)
+        if not quality_rates.empty:
+            max_quality_code_exclusion_rate = float(quality_rates.max())
+            quality_code_threshold_ok = max_quality_code_exclusion_rate <= MAX_QUALITY_CODE_EXCLUSION_RATE
+
+    domain_threshold_violations: list[dict[str, Any]] = []
+    if not domain_frame.empty and {"domain", "usable_row_rate"}.issubset(domain_frame.columns):
+        for row in domain_frame.to_dict(orient="records"):
+            domain_name = str(row.get("domain", ""))
+            observed = float(pd.to_numeric(pd.Series([row.get("usable_row_rate", 0.0)]), errors="coerce").fillna(0.0).iloc[0])
+            minimum = float(MIN_DOMAIN_USABLE_ROW_RATE_BY_DOMAIN.get(domain_name, 0.0))
+            if observed < minimum:
+                domain_threshold_violations.append(
+                    {
+                        "domain": domain_name,
+                        "minimum_usable_row_rate": minimum,
+                        "observed_usable_row_rate": observed,
+                    }
+                )
+    domain_thresholds_ok = not domain_threshold_violations
 
     return {
-        "passed": field_ok and domain_ok,
+        "passed": (
+            field_ok
+            and domain_bounds_ok
+            and quality_code_threshold_ok
+            and domain_thresholds_ok
+        ),
         "field_completeness_ratio_bounds_ok": field_ok,
-        "domain_usable_row_rate_bounds_ok": domain_ok,
+        "domain_usable_row_rate_bounds_ok": domain_bounds_ok,
+        "quality_code_exclusion_rate_threshold_ok": quality_code_threshold_ok,
+        "max_quality_code_exclusion_rate": max_quality_code_exclusion_rate,
+        "max_quality_code_exclusion_rate_allowed": MAX_QUALITY_CODE_EXCLUSION_RATE,
+        "domain_usability_thresholds_ok": domain_thresholds_ok,
+        "domain_usability_thresholds": MIN_DOMAIN_USABLE_ROW_RATE_BY_DOMAIN,
+        "domain_usability_threshold_violations": domain_threshold_violations,
     }
 
 

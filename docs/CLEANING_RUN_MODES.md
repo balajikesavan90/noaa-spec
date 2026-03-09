@@ -99,6 +99,21 @@ If `--run-id` already exists:
 - It mutates as stations transition across runtime states (`pending`, `running`, `completed`, `failed`, `skipped_*`).
 - Resume/recovery behavior must consult `run_status.csv` plus `_SUCCESS.json` and expected output existence checks.
 
+## Publication Quality Threshold Gates
+
+`manifests/publication_readiness_gate.json` includes go/no-go quality thresholds:
+
+- maximum quality-code exclusion rate: `0.25`
+- minimum domain usable row rate by domain:
+  - `core_meteorology`: `0.50`
+  - `wind`: `0.00`
+  - `precipitation`: `0.00`
+  - `clouds_visibility`: `0.00`
+  - `pressure_temperature`: `0.00`
+  - `remarks`: `0.00`
+
+These thresholds are enforced as part of the publication-readiness gate summary.
+
 ## Resumability and Completion Rules
 
 A station is considered complete only when all are true:
