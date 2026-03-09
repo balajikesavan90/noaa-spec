@@ -558,6 +558,28 @@ def test_mandatory_quality_artifacts_are_written_with_station_quality_profiles(
     assert "Quality Reports Summary" in summary_md.read_text(encoding="utf-8")
 
 
+def test_field_completeness_ratios_are_bounded_between_zero_and_one(tmp_path: Path) -> None:
+    input_root = tmp_path / "inputs"
+    station_id = "01234567890"
+    _write_raw_csv(input_root / station_id, station_id)
+
+    config = _config(
+        tmp_path,
+        mode="test_csv_dir",
+        input_format="csv",
+        run_id="run_quality_ratio_bounds",
+        input_root=input_root,
+        write_flags=_flags(cleaned=True, quality=True, reports=False, global_summary=False),
+    )
+    run_cleaning_run(config)
+
+    field_completeness = pd.read_csv(config.reports_root / "field_completeness.csv")
+    assert not field_completeness.empty
+
+    ratios = pd.to_numeric(field_completeness["field_completeness_ratio"], errors="raise")
+    assert ratios.between(0.0, 1.0, inclusive="both").all()
+
+
 def test_release_manifest_contains_canonical_domain_and_quality_artifact_rows(
     tmp_path: Path,
 ) -> None:
