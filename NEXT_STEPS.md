@@ -33,7 +33,7 @@
 ### P1 hardening follow-up
 
 - [x] Add an end-to-end contract-check CI scenario that uses a prefixed run ID (e.g., `contract_check_*`) to prevent timestamp and metadata regressions that are currently missed by `YYYYMMDDTHHMMSSZ`-only test IDs.
-- [ ] Add a publication-readiness gate report combining: run completion, artifact-manifest coverage, timestamp validity, checksum policy conformance, and quality-artifact sanity checks.
+- [x] Add a publication-readiness gate report combining: run completion, artifact-manifest coverage, timestamp validity, checksum policy conformance, and quality-artifact sanity checks.
 - [ ] Add a reproducibility rerun gate that executes the same input/configuration twice and asserts identical artifact checksums (excluding explicitly time-variant metadata fields).
 - [ ] Add run recovery/idempotency coverage: simulate interruption, rerun with the same run ID, and assert no duplicate/partial artifacts plus correct `run_status` transitions.
 - [ ] Formalize and test `run_manifest` versus `run_status` semantics (discovery snapshot vs execution truth), including explicit docs and CI assertions.
