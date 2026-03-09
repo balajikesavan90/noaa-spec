@@ -127,6 +127,21 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def test_quality_profile_null_counts_are_per_identifier_rows_not_part_sums() -> None:
+    builder = cleaning_runner._QualityProfileBuilder()
+    cleaned = pd.DataFrame(
+        {
+            "OD1__part1": [pd.NA, pd.NA],
+            "OD1__part2": [pd.NA, pd.NA],
+            "OD1__part3": [pd.NA, pd.NA],
+        }
+    )
+
+    profile = builder.build(cleaned=cleaned, station_id="01234567890")
+    assert profile["rows_total"] == 2
+    assert profile["null_counts_by_identifier"]["OD1"] == 2
+
+
 def test_station_discovery_excludes_non_station_directories(tmp_path: Path) -> None:
     input_root = tmp_path / "inputs"
     _write_raw_csv(input_root / "01234567890", "01234567890")

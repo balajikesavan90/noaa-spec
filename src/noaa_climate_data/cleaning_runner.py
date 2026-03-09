@@ -237,12 +237,21 @@ class _QualityProfileBuilder:
             row_impacted_mask = row_impacted_mask | parse_error_mask
             rule_family_impact_counts["structural_parser_guard"] += int(parse_error_mask.sum())
 
+        # Track null impact per identifier at row granularity so repeated
+        # multi-part fields do not over-count nulls across part columns.
+        null_masks_by_identifier: dict[str, pd.Series] = {}
         for column, identifier in schema.null_value_columns:
-            null_count = int(cleaned[column].isna().sum())
-            if null_count > 0:
-                null_counts_by_identifier[identifier] = (
-                    null_counts_by_identifier.get(identifier, 0) + null_count
-                )
+            null_mask = cleaned[column].isna()
+            if not bool(null_mask.any()):
+                continue
+            prior_mask = null_masks_by_identifier.get(identifier)
+            if prior_mask is None:
+                null_masks_by_identifier[identifier] = null_mask
+            else:
+                null_masks_by_identifier[identifier] = prior_mask | null_mask
+
+        for identifier, null_mask in null_masks_by_identifier.items():
+            null_counts_by_identifier[identifier] = int(null_mask.sum())
 
         rows_with_qc_flags = int(row_impacted_mask.sum())
         fraction_rows_impacted = (
