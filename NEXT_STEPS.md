@@ -12,6 +12,35 @@
 - Remaining unchecked items below are primarily **semantic fidelity**, **pipeline behavior**, and **regression hardening** tasks that are intentionally broader than the spec-coverage KPI.
 - Architecture/productization backlog is tracked separately in `ARCHITECTURE_NEXT_STEPS.md`.
 
+## Production readiness findings (contract_check_20260308T104353-0700, 2026-03-08)
+
+### Latest run snapshot
+
+- [x] Contract-check execution stability improved: latest run completed `11/11` stations (`contract_check_20260308T104353-0700`) versus `7 completed / 4 failed` in the earlier run (`contract_check_20260308T014542-0800`).
+- [x] Station-level expected outputs were present for all completed rows in `run_status.csv`.
+
+### P0 blockers before production publication
+
+- [ ] Fix `field_completeness` semantics so `field_completeness_ratio` is never negative; current aggregation mixes identifier-level null counts across multiple parts and produces invalid ratios.
+- [ ] Add regression tests that enforce `0.0 <= field_completeness_ratio <= 1.0` for all rows in `field_completeness.csv`.
+- [ ] Fix release/build metadata timestamp semantics for non-`YYYYMMDDTHHMMSSZ` run IDs; `build_timestamp` and `creation_timestamp` must be real timestamps, not run-id strings.
+- [ ] Add validation/tests for timestamp format in `build_metadata.json` and `release_manifest.csv`.
+- [ ] Resolve release-manifest scope gap: include all produced publishable artifacts (station-level reports, station split manifests, success markers), or explicitly define and implement a dual-manifest model (publication manifest + full file manifest).
+- [ ] Add CI coverage asserting manifest completeness against produced artifact sets for the configured write flags.
+- [ ] Decide and document checksum policy for publication artifacts (content hash vs path+content bundle hash), then enforce it consistently in docs and CI.
+- [ ] Adjust domain usability logic for text-first domains (e.g., `remarks`) so they are not incorrectly reported as `0` usable rows purely due numeric-only metric detection.
+
+### P1 hardening follow-up
+
+- [ ] Add an end-to-end contract-check CI scenario that uses a prefixed run ID (e.g., `contract_check_*`) to prevent timestamp and metadata regressions that are currently missed by `YYYYMMDDTHHMMSSZ`-only test IDs.
+- [ ] Add a publication-readiness gate report combining: run completion, artifact-manifest coverage, timestamp validity, checksum policy conformance, and quality-artifact sanity checks.
+- [ ] Add a reproducibility rerun gate that executes the same input/configuration twice and asserts identical artifact checksums (excluding explicitly time-variant metadata fields).
+- [ ] Add run recovery/idempotency coverage: simulate interruption, rerun with the same run ID, and assert no duplicate/partial artifacts plus correct `run_status` transitions.
+- [ ] Formalize and test `run_manifest` versus `run_status` semantics (discovery snapshot vs execution truth), including explicit docs and CI assertions.
+- [ ] Define publication quality thresholds (for example maximum exclusion rates and minimum domain usability by domain) and enforce them as go/no-go gates.
+- [ ] Add artifact write-atomicity checks (temporary write + atomic rename) and CI validation that interrupted runs cannot leave publishable partial files.
+- [ ] Add schema compatibility checks against the previous release manifest and fail CI on contract-breaking changes unless a schema version bump is explicit.
+
 ## P0: Spec-rule implementation vs official ISD docs
 
 - [x] Enforce per-field allowed-quality sets for 2-part value/quality fields (e.g., GJ/GK/GL/MV/MW) instead of the generic `QUALITY_FLAGS` gate.
