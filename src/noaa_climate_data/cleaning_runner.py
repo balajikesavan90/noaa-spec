@@ -687,6 +687,21 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
     _write_full_file_manifest(file_manifest_path, file_manifest_rows)
     print(f"File manifest: wrote {file_manifest_path}")
 
+    publication_readiness_path = config.manifest_root / "publication_readiness_gate.json"
+    publication_readiness = _build_publication_readiness_gate(
+        config=config,
+        status_df=status_df,
+        quality_frames=quality_frames,
+        run_manifest_path=run_manifest_path,
+        run_status_path=run_status_path,
+        run_config_path=run_config_path,
+        build_metadata_path=build_metadata_path,
+        release_manifest_path=release_manifest_path,
+        file_manifest_path=file_manifest_path,
+    )
+    _write_json(publication_readiness_path, publication_readiness)
+    print(f"Publication readiness: wrote {publication_readiness_path}")
+
     total_elapsed_seconds = (datetime.now(timezone.utc) - run_started_at).total_seconds()
     total_elapsed_minutes = total_elapsed_seconds / 60.0
 
@@ -705,6 +720,7 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
         "run_status": run_status_path,
         "release_manifest": release_manifest_path,
         "file_manifest": file_manifest_path,
+        "publication_readiness_gate": publication_readiness_path,
         "build_metadata": build_metadata_path,
     }
 
@@ -1922,6 +1938,227 @@ def _file_row_count(path: Path) -> int:
             return int(len(payload))
         return 1
     return 1
+
+
+def _build_publication_readiness_gate(
+    *,
+    config: CleaningRunConfig,
+    status_df: pd.DataFrame,
+    quality_frames: dict[str, pd.DataFrame],
+    run_manifest_path: Path,
+    run_status_path: Path,
+    run_config_path: Path,
+    build_metadata_path: Path,
+    release_manifest_path: Path,
+    file_manifest_path: Path,
+) -> dict[str, Any]:
+    completion_check = _publication_completion_check(status_df)
+
+    release_manifest = pd.read_csv(release_manifest_path, dtype=str) if release_manifest_path.exists() else pd.DataFrame()
+    file_manifest = pd.read_csv(file_manifest_path, dtype=str) if file_manifest_path.exists() else pd.DataFrame()
+
+    coverage_check = _publication_manifest_coverage_check(
+        config=config,
+        status_df=status_df,
+        release_manifest=release_manifest,
+        file_manifest=file_manifest,
+        run_manifest_path=run_manifest_path,
+        run_status_path=run_status_path,
+        run_config_path=run_config_path,
+        build_metadata_path=build_metadata_path,
+        release_manifest_path=release_manifest_path,
+    )
+    timestamp_check = _publication_timestamp_check(
+        build_metadata_path=build_metadata_path,
+        release_manifest=release_manifest,
+        file_manifest=file_manifest,
+    )
+    checksum_check = _publication_checksum_check(release_manifest, file_manifest)
+    quality_check = _publication_quality_sanity_check(quality_frames)
+
+    checks = {
+        "run_completion": completion_check,
+        "artifact_manifest_coverage": coverage_check,
+        "timestamp_validity": timestamp_check,
+        "checksum_policy_conformance": checksum_check,
+        "quality_artifact_sanity": quality_check,
+    }
+    overall_pass = all(bool(section.get("passed", False)) for section in checks.values())
+    return {
+        "run_id": config.run_id,
+        "passed": overall_pass,
+        "generated_at": _pst_now_iso(),
+        "checks": checks,
+    }
+
+
+def _publication_completion_check(status_df: pd.DataFrame) -> dict[str, Any]:
+    total = int(len(status_df))
+    completed = int((status_df["status"].astype(str) == "completed").sum()) if total > 0 else 0
+    failed = int((status_df["status"].astype(str) == "failed").sum()) if total > 0 else 0
+    skipped = total - completed - failed
+    return {
+        "passed": failed == 0 and completed == total,
+        "total": total,
+        "completed": completed,
+        "failed": failed,
+        "skipped": skipped,
+    }
+
+
+def _publication_manifest_coverage_check(
+    *,
+    config: CleaningRunConfig,
+    status_df: pd.DataFrame,
+    release_manifest: pd.DataFrame,
+    file_manifest: pd.DataFrame,
+    run_manifest_path: Path,
+    run_status_path: Path,
+    run_config_path: Path,
+    build_metadata_path: Path,
+    release_manifest_path: Path,
+) -> dict[str, Any]:
+    expected_paths: set[str] = set()
+    completed = status_df[status_df["status"].astype(str) == "completed"].copy()
+    for record in completed.to_dict(orient="records"):
+        input_path = str(record.get("input_path", "")).strip()
+        if input_path:
+            raw_path = Path(input_path)
+            if raw_path.exists():
+                expected_paths.add(str(raw_path.resolve()))
+
+        expected_outputs = _parse_lineage_values(record.get("expected_outputs", "[]"))
+        for path_text in expected_outputs:
+            output_path = Path(path_text)
+            if output_path.exists():
+                resolved_output = output_path.resolve()
+                expected_paths.add(str(resolved_output))
+                if resolved_output.name == "station_split_manifest.csv":
+                    try:
+                        split_manifest = pd.read_csv(resolved_output)
+                    except Exception:
+                        split_manifest = pd.DataFrame()
+                    for split_record in split_manifest.to_dict(orient="records"):
+                        split_path = Path(str(split_record.get("file", "")))
+                        if split_path.exists():
+                            expected_paths.add(str(split_path.resolve()))
+
+        success_marker = str(record.get("success_marker_path", "")).strip()
+        if success_marker:
+            success_path = Path(success_marker)
+            if success_path.exists():
+                expected_paths.add(str(success_path.resolve()))
+
+    global_paths = [
+        run_manifest_path,
+        run_status_path,
+        run_config_path,
+        build_metadata_path,
+        release_manifest_path,
+        config.reports_root / "quality_reports_summary.md",
+    ]
+    global_paths.extend(config.reports_root / f"{name}.csv" for name in MANDATORY_QUALITY_ARTIFACT_NAMES)
+    if config.write_flags.write_global_summary:
+        global_paths.append(config.reports_root / "global_quality_summary.json")
+    for path in global_paths:
+        if path.exists():
+            expected_paths.add(str(path.resolve()))
+
+    file_manifest_paths = (
+        set(file_manifest["artifact_path"].astype(str).tolist())
+        if not file_manifest.empty
+        else set()
+    )
+    release_manifest_paths = (
+        set(release_manifest["artifact_path"].astype(str).tolist())
+        if not release_manifest.empty
+        else set()
+    )
+    coverage_targets = expected_paths | release_manifest_paths
+    missing_paths = sorted(coverage_targets - file_manifest_paths)
+    return {
+        "passed": not missing_paths,
+        "expected_count": len(coverage_targets),
+        "manifest_count": len(file_manifest_paths),
+        "missing_paths": missing_paths,
+    }
+
+
+def _publication_timestamp_check(
+    *,
+    build_metadata_path: Path,
+    release_manifest: pd.DataFrame,
+    file_manifest: pd.DataFrame,
+) -> dict[str, Any]:
+    build_timestamp_valid = False
+    if build_metadata_path.exists():
+        try:
+            payload = json.loads(build_metadata_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            payload = {}
+        build_timestamp_valid = _normalize_iso_timestamp(payload.get("build_timestamp", "")) is not None
+
+    invalid_release_timestamps = []
+    for row in release_manifest.to_dict(orient="records"):
+        value = str(row.get("creation_timestamp", ""))
+        if _normalize_iso_timestamp(value) is None:
+            invalid_release_timestamps.append(str(row.get("artifact_id", "")))
+
+    invalid_file_timestamps = []
+    for row in file_manifest.to_dict(orient="records"):
+        value = str(row.get("creation_timestamp", ""))
+        if _normalize_iso_timestamp(value) is None:
+            invalid_file_timestamps.append(str(row.get("artifact_id", "")))
+
+    return {
+        "passed": build_timestamp_valid and not invalid_release_timestamps and not invalid_file_timestamps,
+        "build_timestamp_valid": build_timestamp_valid,
+        "invalid_release_manifest_rows": invalid_release_timestamps,
+        "invalid_file_manifest_rows": invalid_file_timestamps,
+    }
+
+
+def _publication_checksum_check(
+    release_manifest: pd.DataFrame,
+    file_manifest: pd.DataFrame,
+) -> dict[str, Any]:
+    invalid_rows: list[str] = []
+    combined = pd.concat([release_manifest, file_manifest], ignore_index=True, sort=False)
+    for row in combined.to_dict(orient="records"):
+        artifact_id = str(row.get("artifact_id", ""))
+        artifact_path = Path(str(row.get("artifact_path", "")))
+        expected_checksum = str(row.get("checksum", ""))
+        if not artifact_path.exists():
+            invalid_rows.append(artifact_id or "<missing-path>")
+            continue
+        actual_checksum = _checksum_for_output_bundle([artifact_path])
+        if actual_checksum != expected_checksum:
+            invalid_rows.append(artifact_id)
+    return {
+        "passed": not invalid_rows,
+        "invalid_rows": sorted(set(invalid_rows)),
+    }
+
+
+def _publication_quality_sanity_check(quality_frames: dict[str, pd.DataFrame]) -> dict[str, Any]:
+    field_frame = quality_frames.get("field_completeness", pd.DataFrame())
+    domain_frame = quality_frames.get("domain_usability_summary", pd.DataFrame())
+
+    field_ok = True
+    if not field_frame.empty and "field_completeness_ratio" in field_frame.columns:
+        field_ratios = pd.to_numeric(field_frame["field_completeness_ratio"], errors="coerce")
+        field_ok = bool(field_ratios.between(0.0, 1.0, inclusive="both").all())
+
+    domain_ok = True
+    if not domain_frame.empty and "usable_row_rate" in domain_frame.columns:
+        domain_rates = pd.to_numeric(domain_frame["usable_row_rate"], errors="coerce")
+        domain_ok = bool(domain_rates.between(0.0, 1.0, inclusive="both").all())
+
+    return {
+        "passed": field_ok and domain_ok,
+        "field_completeness_ratio_bounds_ok": field_ok,
+        "domain_usable_row_rate_bounds_ok": domain_ok,
+    }
 
 
 def _year_series(cleaned: pd.DataFrame) -> pd.Series:

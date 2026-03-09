@@ -366,3 +366,27 @@ def test_ci_end_to_end_contract_check_prefixed_run_id_scenario(tmp_path: Path) -
 
     file_manifest = pd.read_csv(config.manifest_root / "file_manifest.csv", dtype=str)
     assert not file_manifest.empty
+
+
+def test_ci_publication_readiness_gate_report(tmp_path: Path) -> None:
+    run_id = "20260101T120007Z"
+    config, _station_id = _run_fixture_build(tmp_path, run_id=run_id)
+
+    gate_path = config.manifest_root / "publication_readiness_gate.json"
+    assert gate_path.exists()
+
+    payload = json.loads(gate_path.read_text(encoding="utf-8"))
+    assert payload["run_id"] == run_id
+    assert payload["passed"] is True
+    datetime.fromisoformat(str(payload["generated_at"]))
+
+    checks = payload["checks"]
+    assert set(checks.keys()) == {
+        "run_completion",
+        "artifact_manifest_coverage",
+        "timestamp_validity",
+        "checksum_policy_conformance",
+        "quality_artifact_sanity",
+    }
+    for check_payload in checks.values():
+        assert check_payload["passed"] is True
