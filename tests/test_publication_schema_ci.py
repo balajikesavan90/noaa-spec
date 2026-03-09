@@ -9,6 +9,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+import noaa_climate_data.cleaning_runner as cleaning_runner
 from noaa_climate_data.cleaning_runner import CleaningRunConfig, RunWriteFlags, run_cleaning_run
 from noaa_climate_data.contracts import DOMAIN_DATASET_CONTRACT
 from noaa_climate_data.domains.registry import domain_definitions
@@ -328,3 +329,16 @@ def test_ci_file_manifest_completeness_matches_write_flags(
         assert "station_quality_profile" in observed_types
     else:
         assert "station_quality_profile" not in observed_types
+
+
+def test_ci_manifest_checksums_follow_path_plus_content_policy(tmp_path: Path) -> None:
+    config, _station_id = _run_fixture_build(tmp_path, run_id="20260101T120006Z")
+
+    for manifest_name in ("release_manifest.csv", "file_manifest.csv"):
+        manifest = pd.read_csv(config.manifest_root / manifest_name, dtype=str)
+        assert not manifest.empty
+        for row in manifest.to_dict(orient="records"):
+            artifact_path = Path(str(row["artifact_path"]))
+            assert artifact_path.exists()
+            expected_checksum = cleaning_runner._checksum_for_output_bundle([artifact_path])
+            assert str(row["checksum"]) == expected_checksum

@@ -24,6 +24,17 @@ The build emits two manifest surfaces under `release/build_<build_id>/manifests/
 
 This dual-manifest model keeps publication lineage contracts stable while still providing complete run-file observability.
 
+## Checksum Policy
+
+Artifact checksums use a deterministic SHA-256 bundle hash with this exact policy:
+
+1. append the artifact absolute path bytes
+2. append a `\0` separator
+3. append full file content bytes
+4. append a trailing `\0`
+
+This is a path+content policy (not content-only) and applies to both `release_manifest.csv` and `file_manifest.csv`.
+
 ## Runtime Artifact Surface (Not Publication)
 
 The following locations are runtime/operational surfaces and are not the publication contract:
