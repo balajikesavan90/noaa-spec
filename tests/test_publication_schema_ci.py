@@ -18,6 +18,7 @@ from noaa_climate_data.domains.registry import domain_definitions
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SCHEMAS_DIR = PROJECT_ROOT / "src" / "noaa_climate_data" / "contract_schemas" / "v1"
+PREVIOUS_RELEASE_MANIFEST_FIXTURE = PROJECT_ROOT / "tests" / "fixtures" / "release_manifest_v1_snapshot.csv"
 
 
 def _write_raw_csv(station_dir: Path, station_id: str) -> Path:
@@ -124,6 +125,24 @@ def _expected_file_manifest_paths(config: CleaningRunConfig) -> set[str]:
         if path.exists():
             expected.add(str(path.resolve()))
     return expected
+
+
+def _assert_release_manifest_schema_compatibility(
+    previous_manifest: pd.DataFrame,
+    current_manifest: pd.DataFrame,
+) -> None:
+    removed_columns = sorted(set(previous_manifest.columns) - set(current_manifest.columns))
+    if not removed_columns:
+        return
+
+    previous_versions = sorted(set(previous_manifest["schema_version"].astype(str).tolist()))
+    current_versions = sorted(set(current_manifest["schema_version"].astype(str).tolist()))
+    if previous_versions == current_versions:
+        raise AssertionError(
+            "Release manifest schema compatibility violation: "
+            f"removed columns {removed_columns} without schema version bump "
+            f"(previous={previous_versions}, current={current_versions})."
+        )
 
 
 def test_ci_schema_validation_for_publication_artifact_types(tmp_path: Path) -> None:
@@ -448,3 +467,23 @@ def test_ci_run_manifest_snapshot_vs_run_status_execution_truth(tmp_path: Path) 
     assert run_manifest_after["station_id"].astype(str).tolist() == [station_id]
     assert run_status_after["station_id"].astype(str).tolist() == [station_id]
     assert run_status_after["status"].astype(str).tolist() == ["completed"]
+
+
+def test_ci_release_manifest_schema_compatibility_against_previous_snapshot(tmp_path: Path) -> None:
+    previous_manifest = pd.read_csv(PREVIOUS_RELEASE_MANIFEST_FIXTURE, dtype=str)
+    config, _station_id = _run_fixture_build(tmp_path, run_id="20260101T120010Z")
+    current_manifest = pd.read_csv(config.manifest_root / "release_manifest.csv", dtype=str)
+
+    _assert_release_manifest_schema_compatibility(previous_manifest, current_manifest)
+
+
+def test_release_manifest_schema_compatibility_requires_version_bump_for_breaks() -> None:
+    previous_manifest = pd.read_csv(PREVIOUS_RELEASE_MANIFEST_FIXTURE, dtype=str)
+    breaking_current = previous_manifest.drop(columns=["checksum"]).copy()
+
+    with pytest.raises(AssertionError, match="without schema version bump"):
+        _assert_release_manifest_schema_compatibility(previous_manifest, breaking_current)
+
+    bumped_current = breaking_current.copy()
+    bumped_current["schema_version"] = "v2"
+    _assert_release_manifest_schema_compatibility(previous_manifest, bumped_current)

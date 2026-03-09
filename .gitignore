@@ -26,6 +26,8 @@ artifacts/parquet_runs/
 !release/build_*/manifests/
 !release/build_*/manifests/**/*.csv
 !release/build_*/manifests/**/*.parquet
+!tests/fixtures/
+!tests/fixtures/**/*.csv
 
 # C extensions
 *.so

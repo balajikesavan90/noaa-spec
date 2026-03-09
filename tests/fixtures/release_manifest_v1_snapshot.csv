@@ -1,0 +1,2 @@
+artifact_id,artifact_type,artifact_path,schema_version,build_id,input_lineage,row_count,checksum,creation_timestamp
+raw_source/previous_run/01234567890,raw_source,/tmp/example/raw.csv,v1,previous_run,[],1,0000000000000000000000000000000000000000000000000000000000000000,2026-01-01T00:00:00+00:00
