@@ -10,10 +10,12 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
 from typing import Any
+import uuid
 
 import pandas as pd
 
@@ -2726,7 +2728,13 @@ def _ensure_dir(path: Path) -> None:
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
     _ensure_dir(path.parent)
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    tmp_path = path.parent / f".{path.name}.tmp-{os.getpid()}-{uuid.uuid4().hex}"
+    try:
+        tmp_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+        os.replace(tmp_path, path)
+    finally:
+        if tmp_path.exists():
+            tmp_path.unlink()
 
 
 def _json_compact(payload: Any) -> str:
