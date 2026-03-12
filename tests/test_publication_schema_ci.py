@@ -446,6 +446,12 @@ def test_ci_publication_readiness_gate_report(tmp_path: Path) -> None:
     for check_payload in checks.values():
         assert check_payload["passed"] is True
 
+    scores = payload["scores"]
+    assert scores["scale"] == "0_to_1"
+    assert 0.0 <= float(scores["overall_score"]) <= 1.0
+    assert 0.0 <= float(scores["integrity_score"]) <= 1.0
+    assert 0.0 <= float(scores["quality_score"]) <= 1.0
+
 
 def test_ci_run_manifest_snapshot_vs_run_status_execution_truth(tmp_path: Path) -> None:
     run_id = "20260101T120009Z"

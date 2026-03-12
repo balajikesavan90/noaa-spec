@@ -99,12 +99,17 @@ If `--run-id` already exists:
 - It mutates as stations transition across runtime states (`pending`, `running`, `completed`, `failed`, `skipped_*`).
 - Resume/recovery behavior must consult `run_status.csv` plus `_SUCCESS.json` and expected output existence checks.
 
-## Publication Quality Threshold Gates
+## Publication Quality Scoring
 
-`manifests/publication_readiness_gate.json` includes go/no-go quality thresholds:
+`manifests/publication_readiness_gate.json` includes score-based quality signals:
 
-- maximum quality-code exclusion rate: `0.25`
-- minimum domain usable row rate by domain:
+- `checks.quality_artifact_sanity.quality_score` (continuous `0..1`)
+- `scores.quality_score`, `scores.integrity_score`, and `scores.overall_score` (continuous `0..1`)
+
+Reference values are still emitted for interpretation:
+
+- quality-code exclusion reference rate: `0.25`
+- domain usability reference minima by domain:
   - `core_meteorology`: `0.50`
   - `wind`: `0.00`
   - `precipitation`: `0.00`
@@ -112,7 +117,7 @@ If `--run-id` already exists:
   - `pressure_temperature`: `0.00`
   - `remarks`: `0.00`
 
-These thresholds are enforced as part of the publication-readiness gate summary.
+These reference checks are advisory quality signals, not hard-fail publication blockers.
 
 ## Resumability and Completion Rules
 

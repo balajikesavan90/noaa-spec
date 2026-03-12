@@ -127,6 +127,17 @@ MIN_DOMAIN_USABLE_ROW_RATE_BY_DOMAIN: dict[str, float] = {
     "remarks": 0.00,
 }
 
+QUALITY_SCORE_COMPONENT_WEIGHTS: dict[str, float] = {
+    "bounds_validity": 0.20,
+    "quality_code_exclusion": 0.50,
+    "domain_usability": 0.30,
+}
+
+PUBLICATION_SCORE_COMPONENT_WEIGHTS: dict[str, float] = {
+    "integrity": 0.70,
+    "quality": 0.30,
+}
+
 QC_REASON_TO_FAMILY = {
     "SENTINEL_MISSING": "sentinel_handling",
     "BAD_QUALITY_CODE": "quality_code_handling",
@@ -1996,11 +2007,13 @@ def _build_publication_readiness_gate(
         "quality_artifact_sanity": quality_check,
     }
     overall_pass = all(bool(section.get("passed", False)) for section in checks.values())
+    scores = _build_publication_scores(checks)
     return {
         "run_id": config.run_id,
         "passed": overall_pass,
         "generated_at": _pst_now_iso(),
         "checks": checks,
+        "scores": scores,
     }
 
 
@@ -2191,12 +2204,22 @@ def _publication_quality_sanity_check(quality_frames: dict[str, pd.DataFrame]) -
                 )
     domain_thresholds_ok = not domain_threshold_violations
 
+    bounds_validity_score = (float(field_ok) + float(domain_bounds_ok)) / 2.0
+    quality_code_exclusion_score = _quality_code_exclusion_score(max_quality_code_exclusion_rate)
+    domain_usability_score = _domain_usability_score(domain_threshold_violations)
+    quality_score = _weighted_score(
+        {
+            "bounds_validity": bounds_validity_score,
+            "quality_code_exclusion": quality_code_exclusion_score,
+            "domain_usability": domain_usability_score,
+        },
+        QUALITY_SCORE_COMPONENT_WEIGHTS,
+    )
+
     return {
         "passed": (
             field_ok
             and domain_bounds_ok
-            and quality_code_threshold_ok
-            and domain_thresholds_ok
         ),
         "field_completeness_ratio_bounds_ok": field_ok,
         "domain_usable_row_rate_bounds_ok": domain_bounds_ok,
@@ -2206,7 +2229,98 @@ def _publication_quality_sanity_check(quality_frames: dict[str, pd.DataFrame]) -
         "domain_usability_thresholds_ok": domain_thresholds_ok,
         "domain_usability_thresholds": MIN_DOMAIN_USABLE_ROW_RATE_BY_DOMAIN,
         "domain_usability_threshold_violations": domain_threshold_violations,
+        "quality_score": quality_score,
+        "quality_score_components": {
+            "bounds_validity": bounds_validity_score,
+            "quality_code_exclusion": quality_code_exclusion_score,
+            "domain_usability": domain_usability_score,
+        },
+        "quality_score_weights": QUALITY_SCORE_COMPONENT_WEIGHTS,
+        "threshold_checks_advisory": {
+            "quality_code_exclusion_rate_threshold_ok": quality_code_threshold_ok,
+            "domain_usability_thresholds_ok": domain_thresholds_ok,
+        },
     }
+
+
+def _build_publication_scores(checks: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    integrity_check_names = (
+        "run_completion",
+        "artifact_manifest_coverage",
+        "timestamp_validity",
+        "checksum_policy_conformance",
+    )
+    integrity_components = {
+        name: float(bool(checks.get(name, {}).get("passed", False)))
+        for name in integrity_check_names
+    }
+    integrity_score = _mean_score(integrity_components.values())
+
+    quality_score = float(checks.get("quality_artifact_sanity", {}).get("quality_score", 0.0))
+    overall_score = _weighted_score(
+        {
+            "integrity": integrity_score,
+            "quality": quality_score,
+        },
+        PUBLICATION_SCORE_COMPONENT_WEIGHTS,
+    )
+    return {
+        "overall_score": overall_score,
+        "integrity_score": integrity_score,
+        "quality_score": quality_score,
+        "integrity_components": integrity_components,
+        "weights": PUBLICATION_SCORE_COMPONENT_WEIGHTS,
+        "scale": "0_to_1",
+    }
+
+
+def _quality_code_exclusion_score(max_quality_code_exclusion_rate: float) -> float:
+    reference = float(MAX_QUALITY_CODE_EXCLUSION_RATE)
+    if reference <= 0.0:
+        return 1.0
+    ratio = max(0.0, max_quality_code_exclusion_rate) / reference
+    return _clamp01(1.0 / (1.0 + ratio))
+
+
+def _domain_usability_score(domain_threshold_violations: list[dict[str, Any]]) -> float:
+    if not domain_threshold_violations:
+        return 1.0
+
+    deficit_ratios: list[float] = []
+    for violation in domain_threshold_violations:
+        minimum = float(violation.get("minimum_usable_row_rate", 0.0))
+        observed = float(violation.get("observed_usable_row_rate", 0.0))
+        if minimum <= 0.0:
+            continue
+        deficit = max(0.0, minimum - observed)
+        deficit_ratios.append(_clamp01(deficit / minimum))
+
+    if not deficit_ratios:
+        return 1.0
+    return _clamp01(1.0 - (sum(deficit_ratios) / len(deficit_ratios)))
+
+
+def _weighted_score(values: dict[str, float], weights: dict[str, float]) -> float:
+    numerator = 0.0
+    denominator = 0.0
+    for key, weight in weights.items():
+        weight_value = max(0.0, float(weight))
+        denominator += weight_value
+        numerator += _clamp01(float(values.get(key, 0.0))) * weight_value
+    if denominator <= 0.0:
+        return 0.0
+    return _clamp01(numerator / denominator)
+
+
+def _mean_score(values: Any) -> float:
+    numeric_values = [_clamp01(float(value)) for value in values]
+    if not numeric_values:
+        return 0.0
+    return _clamp01(sum(numeric_values) / len(numeric_values))
+
+
+def _clamp01(value: float) -> float:
+    return max(0.0, min(1.0, float(value)))
 
 
 def _year_series(cleaned: pd.DataFrame) -> pd.Series:

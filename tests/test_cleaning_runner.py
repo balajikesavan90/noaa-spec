@@ -175,7 +175,7 @@ def test_usable_row_series_treats_text_only_rows_as_usable() -> None:
     assert usable.astype(bool).tolist() == [True, False]
 
 
-def test_publication_quality_sanity_check_enforces_thresholds() -> None:
+def test_publication_quality_sanity_check_reports_advisory_thresholds_with_score() -> None:
     quality_frames = {
         "field_completeness": pd.DataFrame(
             {"field_completeness_ratio": [0.75]}
@@ -189,9 +189,12 @@ def test_publication_quality_sanity_check_enforces_thresholds() -> None:
     }
 
     summary = cleaning_runner._publication_quality_sanity_check(quality_frames)
-    assert summary["passed"] is False
+    assert summary["passed"] is True
     assert summary["quality_code_exclusion_rate_threshold_ok"] is False
     assert summary["domain_usability_thresholds_ok"] is False
+    assert 0.0 <= float(summary["quality_score"]) <= 1.0
+    assert float(summary["quality_score_components"]["quality_code_exclusion"]) < 1.0
+    assert float(summary["quality_score_components"]["domain_usability"]) < 1.0
 
 
 def test_station_discovery_excludes_non_station_directories(tmp_path: Path) -> None:
