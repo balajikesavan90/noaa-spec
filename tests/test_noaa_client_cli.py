@@ -418,35 +418,38 @@ class TestCliCommands:
 
         state_dir = tmp_path / "noaa_file_index" / "state"
         state_dir.mkdir(parents=True)
-        pd.DataFrame(
-            [
-                {
-                    "station_id": "01234567890",
-                    "FileName": "01234567890.csv",
-                    "raw_data_pulled": True,
-                    "raw_path": "",
-                    "pulled_at": "",
-                    "registry_snapshot": str(stations_csv),
-                },
-                {
-                    "station_id": "01234567891",
-                    "FileName": "01234567891.csv",
-                    "raw_data_pulled": True,
-                    "raw_path": "",
-                    "pulled_at": "",
-                    "registry_snapshot": str(stations_csv),
-                },
-            ]
-        ).to_csv(state_dir / "raw_pull_state.csv", index=False)
-
+        state_rows: list[dict[str, object]] = []
         raw_root = tmp_path / "raw_root"
-        for station_id in ("01234567890", "01234567891"):
+        for idx, station_id in enumerate(
+            (
+                "01234567890",
+                "01234567891",
+                "01234567892",
+                "01234567893",
+                "01234567894",
+                "01234567895",
+                "01234567896",
+                "01234567897",
+            ),
+            start=1,
+        ):
+            state_rows.append(
+                {
+                    "station_id": station_id,
+                    "FileName": f"{station_id}.csv",
+                    "raw_data_pulled": True,
+                    "raw_path": "",
+                    "pulled_at": "",
+                    "registry_snapshot": str(stations_csv),
+                }
+            )
             station_dir = raw_root / station_id
             station_dir.mkdir(parents=True)
             (station_dir / "LocationData_Raw.parquet").write_text(
-                f"raw-{station_id}",
+                "x" * idx,
                 encoding="utf-8",
             )
+        pd.DataFrame(state_rows).to_csv(state_dir / "raw_pull_state.csv", index=False)
 
         called: dict[str, object] = {}
 
@@ -465,7 +468,7 @@ class TestCliCommands:
                 "--raw-root",
                 str(raw_root),
                 "--count",
-                "2",
+                "4",
                 "--run-id",
                 "20250101T000000Z",
             ],
@@ -475,11 +478,15 @@ class TestCliCommands:
         staging_input_root = (
             raw_root.parent / "NOAA_CLEANING_STAGING" / "20250101T000000Z" / "input"
         )
-        assert (staging_input_root / "01234567890" / "LocationData_Raw.parquet").exists()
-        assert (staging_input_root / "01234567891" / "LocationData_Raw.parquet").exists()
-        assert (
+        selection_manifest = (
             raw_root.parent / "NOAA_CLEANING_STAGING" / "20250101T000000Z" / "selected_stations.csv"
-        ).exists()
+        )
+        assert selection_manifest.exists()
+        selected = pd.read_csv(selection_manifest, dtype={"station_id": str})
+        assert len(selected) == 4
+        assert selected["size_quartile"].tolist() == [1, 2, 3, 4]
+        for station_id in selected["station_id"].tolist():
+            assert (staging_input_root / station_id / "LocationData_Raw.parquet").exists()
 
         config = called["config"]
         assert isinstance(config, CleaningRunConfig)
@@ -489,11 +496,13 @@ class TestCliCommands:
         assert config.station_ids == ()
         assert config.manifest_first is True
         assert config.output_root.resolve() == (
-            tmp_path / "release" / "build_20250101T000000Z" / "canonical_cleaned"
+            raw_root.parent / "NOAA_CLEANED_DATA" / "build_20250101T000000Z" / "canonical_cleaned"
         ).resolve()
 
         output = capsys.readouterr().out
-        assert "Staged 2 raw stations" in output
+        assert "Staged 4 raw stations" in output
+        assert "Selection strategy: size_quartiles" in output
+        assert f"Release base root: {raw_root.parent / 'NOAA_CLEANED_DATA'}" in output
 
     def test_build_location_ids_excludes_operational_status_columns(
         self,

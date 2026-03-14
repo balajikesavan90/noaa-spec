@@ -266,7 +266,18 @@ This command:
 - reads pulled stations from `noaa_file_index/state/raw_pull_state.csv`
 - stages a frozen input tree under `<raw-root-parent>/NOAA_CLEANING_STAGING/<run_id>/input`
 - runs `cleaning-run` against that frozen input tree
-- writes release artifacts to `release/build_<run_id>/{canonical_cleaned,domains,quality_reports,manifests}`
+- writes release artifacts to `<raw-root-parent>/NOAA_CLEANED_DATA/build_<run_id>/{canonical_cleaned,domains,quality_reports,manifests}`
+
+By default, `run-cleaning-batch` uses deterministic size-quartile sampling for better
+small/medium/large runtime coverage in rehearsal batches. For publication-oriented runs,
+switch to a declared deterministic scope rule such as:
+
+```bash
+poetry run python -m noaa_climate_data.cli run-cleaning-batch \
+  --raw-root /media/<user>/LaCie/NOAA_Data \
+  --count 1000 \
+  --selection-strategy station_id
+```
 
 Optional station reports (`--write-station-reports`) write station-level quality artifacts plus
 domain-specific quality reports under `reports/<station_id>/domain_quality/`.

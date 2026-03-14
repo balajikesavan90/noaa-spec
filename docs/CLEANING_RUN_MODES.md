@@ -172,6 +172,12 @@ Behavior:
 - stages those raw parquets into a frozen input tree
 - invokes `cleaning-run --mode batch_parquet_dir` against the staged input root
 - keeps the raw ingest cron and the cleaning batch separated at the filesystem boundary
+- writes release outputs to `<raw-root-parent>/NOAA_CLEANED_DATA/build_<run_id>/...` by default
+
+Selection strategies:
+
+- `size_quartiles` (default): balanced rehearsal sample across small/medium/large raw parquet sizes
+- `station_id`: deterministic first-N by canonical station ordering for declared publication scope
 
 ### Resume a prior run id
 

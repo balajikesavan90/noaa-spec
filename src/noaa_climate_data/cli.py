@@ -45,6 +45,7 @@ from .research_reports import build_reports_for_station_dir
 
 
 DEFAULT_CLEANING_BATCH_STAGING_DIRNAME = "NOAA_CLEANING_STAGING"
+DEFAULT_CLEANING_BATCH_RELEASE_DIRNAME = "NOAA_CLEANED_DATA"
 
 
 def _coerce_boolean_series(series: pd.Series) -> pd.Series:
@@ -54,6 +55,10 @@ def _coerce_boolean_series(series: pd.Series) -> pd.Series:
 
 def _default_cleaning_batch_staging_root(raw_root: Path) -> Path:
     return raw_root.resolve().parent / DEFAULT_CLEANING_BATCH_STAGING_DIRNAME
+
+
+def _default_release_base_root(raw_root: Path) -> Path:
+    return raw_root.resolve().parent / DEFAULT_CLEANING_BATCH_RELEASE_DIRNAME
 
 
 def _load_pulled_station_state(raw_pull_state_csv: Path) -> pd.DataFrame:
@@ -89,51 +94,156 @@ def _load_pulled_station_state(raw_pull_state_csv: Path) -> pd.DataFrame:
 def _select_cleaning_batch_station_ids(
     pulled_state: pd.DataFrame,
     *,
+    raw_root: Path,
     explicit_station_ids: tuple[str, ...],
     count: int,
-) -> list[str]:
+    selection_strategy: str,
+) -> pd.DataFrame:
     if count <= 0:
         raise ValueError("--count must be a positive integer")
 
-    available_ids = [str(value) for value in pulled_state["station_id"].astype(str).tolist()]
+    inventory = _available_raw_station_inventory(raw_root, pulled_state)
+    available_ids = [str(value) for value in inventory["station_id"].astype(str).tolist()]
     available_set = set(available_ids)
     missing_ids = [station_id for station_id in explicit_station_ids if station_id not in available_set]
     if missing_ids:
         raise ValueError(
-            "Requested --station-id values are not marked pulled in raw_pull_state.csv: "
+            "Requested --station-id values are not available as pulled raw parquets: "
             + ", ".join(missing_ids)
         )
 
-    selected = list(explicit_station_ids)
-    target_count = max(count, len(selected))
-    for station_id in available_ids:
-        if station_id in selected:
-            continue
-        selected.append(station_id)
-        if len(selected) >= target_count:
-            break
-
-    if len(selected) < target_count:
+    target_count = max(count, len(explicit_station_ids))
+    if len(available_ids) < target_count:
         raise ValueError(
             f"Requested {target_count} stations, but only {len(available_ids)} pulled stations are available."
         )
-    return selected
+
+    if selection_strategy == "station_id":
+        selected_ids = list(explicit_station_ids)
+        for station_id in available_ids:
+            if station_id in selected_ids:
+                continue
+            selected_ids.append(station_id)
+            if len(selected_ids) >= target_count:
+                break
+        return inventory[inventory["station_id"].isin(selected_ids)].copy()
+
+    if selection_strategy == "size_quartiles":
+        return _select_cleaning_batch_station_inventory_by_size_quartiles(
+            inventory,
+            explicit_station_ids=explicit_station_ids,
+            count=target_count,
+        )
+
+    raise ValueError(f"Unsupported selection strategy: {selection_strategy}")
+
+
+def _available_raw_station_inventory(raw_root: Path, pulled_state: pd.DataFrame) -> pd.DataFrame:
+    rows: list[dict[str, object]] = []
+    for record in pulled_state.to_dict(orient="records"):
+        station_id = str(record.get("station_id", "") or "").strip()
+        if not station_id:
+            continue
+        source_path = (raw_root / station_id / "LocationData_Raw.parquet").resolve()
+        if not source_path.exists():
+            continue
+        try:
+            size_bytes = int(source_path.stat().st_size)
+        except OSError:
+            continue
+        rows.append(
+            {
+                "station_id": station_id,
+                "FileName": str(record.get("FileName", "") or "").strip(),
+                "source_path": str(source_path),
+                "size_bytes": size_bytes,
+            }
+        )
+    inventory = pd.DataFrame(rows)
+    if inventory.empty:
+        return pd.DataFrame(columns=["station_id", "FileName", "source_path", "size_bytes", "size_quartile"])
+    inventory = inventory.sort_values(["size_bytes", "station_id"], kind="stable").reset_index(drop=True)
+    inventory["size_quartile"] = _quartile_labels(len(inventory))
+    return inventory
+
+
+def _quartile_labels(size: int) -> list[int]:
+    labels: list[int] = []
+    for idx in range(size):
+        labels.append((idx * 4) // size + 1)
+    return labels
+
+
+def _quartile_target_counts(total: int) -> dict[int, int]:
+    base = total // 4
+    remainder = total % 4
+    counts = {quartile: base for quartile in range(1, 5)}
+    for quartile in range(1, remainder + 1):
+        counts[quartile] += 1
+    return counts
+
+
+def _select_cleaning_batch_station_inventory_by_size_quartiles(
+    inventory: pd.DataFrame,
+    *,
+    explicit_station_ids: tuple[str, ...],
+    count: int,
+) -> pd.DataFrame:
+    quotas = _quartile_target_counts(count)
+    selected_rows: list[pd.Series] = []
+    selected_ids: set[str] = set()
+
+    indexed = inventory.set_index("station_id", drop=False)
+    for station_id in explicit_station_ids:
+        row = indexed.loc[station_id]
+        if isinstance(row, pd.DataFrame):
+            row = row.iloc[0]
+        selected_rows.append(row)
+        selected_ids.add(station_id)
+        quartile = int(row["size_quartile"])
+        quotas[quartile] = max(0, quotas[quartile] - 1)
+
+    for quartile in range(1, 5):
+        quartile_rows = inventory[inventory["size_quartile"] == quartile]
+        needed = quotas[quartile]
+        if needed <= 0:
+            continue
+        for _, row in quartile_rows.iterrows():
+            station_id = str(row["station_id"])
+            if station_id in selected_ids:
+                continue
+            selected_rows.append(row)
+            selected_ids.add(station_id)
+            needed -= 1
+            if needed <= 0:
+                break
+
+    if len(selected_rows) < count:
+        for _, row in inventory.iterrows():
+            station_id = str(row["station_id"])
+            if station_id in selected_ids:
+                continue
+            selected_rows.append(row)
+            selected_ids.add(station_id)
+            if len(selected_rows) >= count:
+                break
+
+    frame = pd.DataFrame(selected_rows)
+    frame = frame.sort_values(["size_quartile", "size_bytes", "station_id"], kind="stable").reset_index(drop=True)
+    return frame.head(count).copy()
 
 
 def _stage_cleaning_batch_inputs(
     *,
-    raw_root: Path,
     staging_input_root: Path,
-    station_ids: list[str],
+    selected_inventory: pd.DataFrame,
 ) -> Path:
-    raw_root = raw_root.resolve()
     staging_input_root = staging_input_root.resolve()
-    if not raw_root.exists() or not raw_root.is_dir():
-        raise FileNotFoundError(f"Raw input root not found or not a directory: {raw_root}")
 
     selection_rows: list[dict[str, object]] = []
-    for selection_rank, station_id in enumerate(station_ids, start=1):
-        source_path = raw_root / station_id / "LocationData_Raw.parquet"
+    for selection_rank, row in enumerate(selected_inventory.to_dict(orient="records"), start=1):
+        station_id = str(row["station_id"])
+        source_path = Path(str(row["source_path"]))
         if not source_path.exists():
             raise FileNotFoundError(f"Missing raw parquet for station {station_id}: {source_path}")
         target_dir = staging_input_root / station_id
@@ -144,6 +254,8 @@ def _stage_cleaning_batch_inputs(
             {
                 "selection_rank": selection_rank,
                 "station_id": station_id,
+                "size_quartile": int(row.get("size_quartile", 0) or 0),
+                "size_bytes": int(row.get("size_bytes", 0) or 0),
                 "source_path": str(source_path.resolve()),
                 "staged_path": str(staged_path.resolve()),
             }
@@ -153,7 +265,7 @@ def _stage_cleaning_batch_inputs(
     write_deterministic_csv(
         pd.DataFrame(selection_rows),
         selection_manifest_path,
-        sort_by=("selection_rank",),
+        sort_by=("selection_rank", "station_id"),
     )
     return selection_manifest_path
 
@@ -166,6 +278,16 @@ def _batch_cleaning_run_write_flags() -> RunWriteFlags:
         write_station_reports=False,
         write_global_summary=True,
     )
+
+
+def _release_roots_for_base(base_root: Path, run_id: str) -> dict[str, Path]:
+    build_root = base_root.resolve() / f"build_{run_id}"
+    return {
+        "output_root": build_root / "canonical_cleaned",
+        "reports_root": build_root / "quality_reports",
+        "quality_profile_root": build_root / "quality_reports" / "station_quality",
+        "manifest_root": build_root / "manifests",
+    }
 
 
 def _parse_args() -> argparse.Namespace:
@@ -741,6 +863,15 @@ def _parse_args() -> argparse.Namespace:
         ),
     )
     cleaning_batch_parser.add_argument(
+        "--release-base-root",
+        type=Path,
+        default=None,
+        help=(
+            "Base release root for cleaned outputs "
+            "(default: <raw-root-parent>/NOAA_CLEANED_DATA)"
+        ),
+    )
+    cleaning_batch_parser.add_argument(
         "--run-id",
         type=str,
         default=None,
@@ -751,6 +882,15 @@ def _parse_args() -> argparse.Namespace:
         action="append",
         default=[],
         help="Pinned station filter (repeatable or comma-separated 11-digit IDs); always included",
+    )
+    cleaning_batch_parser.add_argument(
+        "--selection-strategy",
+        choices=["station_id", "size_quartiles"],
+        default="size_quartiles",
+        help=(
+            "Deterministic station selection strategy "
+            "(default: size_quartiles for rehearsal coverage)"
+        ),
     )
     cleaning_batch_parser.add_argument(
         "--stage-only",
@@ -892,31 +1032,37 @@ def main() -> None:
         raw_pull_state_csv = args.raw_pull_state_csv or default_raw_pull_state_path(stations_csv)
         raw_root = args.raw_root.resolve()
         staging_root = (args.staging_root or _default_cleaning_batch_staging_root(raw_root)).resolve()
+        release_base_root = (
+            args.release_base_root or _default_release_base_root(raw_root)
+        ).resolve()
         staging_input_root = staging_root / run_id / "input"
 
         explicit_station_ids = parse_station_filters(args.station_id)
         pulled_state = _load_pulled_station_state(raw_pull_state_csv)
-        selected_station_ids = _select_cleaning_batch_station_ids(
+        selected_inventory = _select_cleaning_batch_station_ids(
             pulled_state,
+            raw_root=raw_root,
             explicit_station_ids=explicit_station_ids,
             count=args.count,
+            selection_strategy=args.selection_strategy,
         )
         selection_manifest_path = _stage_cleaning_batch_inputs(
-            raw_root=raw_root,
             staging_input_root=staging_input_root,
-            station_ids=selected_station_ids,
+            selected_inventory=selected_inventory,
         )
 
         print(
-            f"Staged {len(selected_station_ids)} raw stations into "
+            f"Staged {len(selected_inventory)} raw stations into "
             f"{staging_input_root.resolve()}"
         )
+        print(f"Selection strategy: {args.selection_strategy}")
+        print(f"Release base root: {release_base_root}")
         print(f"Selection manifest: {selection_manifest_path.resolve()}")
 
         if args.stage_only:
             return
 
-        default_roots = default_roots_for_mode("batch_parquet_dir", run_id)
+        default_roots = _release_roots_for_base(release_base_root, run_id)
         config = CleaningRunConfig(
             mode="batch_parquet_dir",
             input_root=staging_input_root,
