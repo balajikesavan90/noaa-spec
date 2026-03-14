@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import datetime, timezone
+import fcntl
 from pathlib import Path
 from typing import Iterable, Literal
 import time
 import math
 import re
+import uuid
 
 import pandas as pd
 import numpy as np
@@ -57,90 +61,275 @@ _VIS_COL_RE = re.compile(r"^(visibility_m)(?P<suffix>.*)$")
 _PRESSURE_COL_RE = re.compile(
     r"^(sea_level_pressure_hpa|altimeter_setting_hpa|station_pressure_hpa)(?P<suffix>.*)$"
 )
-_STATUS_COLUMNS = ("raw_data_pulled", "data_cleaned", "data_aggregated")
+_LEGACY_STATION_REGISTRY_COLUMNS = ("raw_data_pulled", "data_cleaned", "data_aggregated")
+RAW_PULL_STATE_COLUMNS = (
+    "station_id",
+    "FileName",
+    "raw_data_pulled",
+    "raw_path",
+    "pulled_at",
+    "registry_snapshot",
+)
 
 
-def _coerce_status_series(series: pd.Series) -> pd.Series:
+def _coerce_boolean_series(series: pd.Series) -> pd.Series:
     if series.dtype == bool:
         return series
     truthy = {"true", "1", "yes", "y", "t"}
     return series.fillna(False).astype(str).str.strip().str.lower().isin(truthy)
 
 
-def _ensure_station_status_columns(frame: pd.DataFrame) -> pd.DataFrame:
+def _normalize_station_registry(frame: pd.DataFrame) -> pd.DataFrame:
     work = frame.copy()
-    for col in _STATUS_COLUMNS:
-        if col not in work.columns:
-            work[col] = False
-        else:
-            work[col] = _coerce_status_series(work[col])
+    for col in _LEGACY_STATION_REGISTRY_COLUMNS:
+        if col in work.columns:
+            work = work.drop(columns=[col])
     return work
 
 
-def _load_stations_csv(stations_csv: Path) -> pd.DataFrame:
+def _load_station_registry(stations_csv: Path) -> pd.DataFrame:
     frame = pd.read_csv(stations_csv)
-    return _ensure_station_status_columns(frame)
+    return _normalize_station_registry(frame)
 
 
-def _locate_station_index(
-    frame: pd.DataFrame,
-    file_name: str | None = None,
-    station_id: str | None = None,
-) -> int | None:
+def _normalize_raw_pull_state(frame: pd.DataFrame) -> pd.DataFrame:
+    work = frame.copy()
+    for col in RAW_PULL_STATE_COLUMNS:
+        if col not in work.columns:
+            work[col] = "" if col not in {"raw_data_pulled"} else False
+    work["raw_data_pulled"] = _coerce_boolean_series(work["raw_data_pulled"])
+    work["FileName"] = work["FileName"].fillna("").astype(str).map(normalize_station_file_name)
+    work["station_id"] = work["station_id"].fillna("").astype(str).str.strip()
+    work["station_id"] = work["station_id"].str.removesuffix(".0")
+    short_numeric_ids = work["station_id"].str.isdigit() & (work["station_id"].str.len() < 11)
+    work.loc[short_numeric_ids, "station_id"] = work.loc[short_numeric_ids, "station_id"].str.zfill(11)
+    has_file_name = work["FileName"].astype(str) != ""
+    work.loc[has_file_name, "station_id"] = work.loc[has_file_name, "FileName"].map(
+        lambda file_name: Path(file_name).stem
+    )
+    work["raw_path"] = work["raw_path"].fillna("").astype(str)
+    work["pulled_at"] = work["pulled_at"].fillna("").astype(str)
+    work["registry_snapshot"] = work["registry_snapshot"].fillna("").astype(str)
+    return work[list(RAW_PULL_STATE_COLUMNS)].copy()
+
+
+def _load_raw_pull_state(raw_pull_state_csv: Path) -> pd.DataFrame:
+    if not raw_pull_state_csv.exists():
+        return pd.DataFrame(columns=list(RAW_PULL_STATE_COLUMNS))
+    frame = pd.read_csv(raw_pull_state_csv)
+    return _normalize_raw_pull_state(frame)
+
+
+def _station_id_from_row(row: pd.Series | dict[str, object]) -> str:
+    if isinstance(row, pd.Series):
+        payload = row.to_dict()
+    else:
+        payload = row
+    file_name = str(payload.get("FileName", "") or "").strip()
     if file_name:
-        normalized = normalize_station_file_name(file_name)
-        matches = frame[frame["FileName"].astype(str) == normalized]
-        if not matches.empty:
-            return int(matches.index[0])
-
-    if station_id and "ID" in frame.columns:
-        key = str(station_id).lstrip("0")
-        id_series = frame["ID"].astype(str).str.lstrip("0")
-        matches = frame[id_series == key]
-        if not matches.empty:
-            return int(matches.index[0])
-
+        return Path(normalize_station_file_name(file_name)).stem
+    station_id = str(payload.get("ID", "") or "").strip()
+    if station_id.endswith(".0"):
+        station_id = station_id[:-2]
+    if station_id.isdigit() and len(station_id) < 11:
+        station_id = station_id.zfill(11)
     if station_id:
-        key = str(station_id).lstrip("0")
-        file_series = frame["FileName"].astype(str).str.replace(".csv", "", regex=False)
-        file_series = file_series.str.lstrip("0")
-        matches = frame[file_series == key]
-        if not matches.empty:
-            return int(matches.index[0])
-
-    return None
+        return station_id
+    return ""
 
 
-def update_station_status(
+def default_raw_pull_state_path(stations_csv: Path) -> Path:
+    stations_csv = stations_csv.resolve()
+    parent = stations_csv.parent
+    if re.fullmatch(r"\d{8}", parent.name):
+        return parent.parent / "state" / "raw_pull_state.csv"
+    return parent / "raw_pull_state.csv"
+
+
+def _raw_pull_lock_path(raw_pull_state_csv: Path) -> Path:
+    return raw_pull_state_csv.with_suffix(raw_pull_state_csv.suffix + ".lock")
+
+
+def _write_csv_atomic(frame: pd.DataFrame, path: Path, *, sort_by: tuple[str, ...] | None = None) -> None:
+    work = frame.copy()
+    if sort_by:
+        work = work.sort_values(list(sort_by), kind="mergesort", na_position="last").reset_index(drop=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.parent / f".{path.name}.{uuid.uuid4().hex}.tmp"
+    work.to_csv(tmp_path, index=False)
+    tmp_path.replace(path)
+
+
+def _bootstrap_raw_pull_state_from_legacy_registry(stations_csv: Path) -> pd.DataFrame:
+    if not stations_csv.exists():
+        return pd.DataFrame(columns=list(RAW_PULL_STATE_COLUMNS))
+    legacy = pd.read_csv(stations_csv)
+    if "raw_data_pulled" not in legacy.columns:
+        return pd.DataFrame(columns=list(RAW_PULL_STATE_COLUMNS))
+    pulled = legacy[_coerce_boolean_series(legacy["raw_data_pulled"])].copy()
+    if pulled.empty:
+        return pd.DataFrame(columns=list(RAW_PULL_STATE_COLUMNS))
+    snapshot = str(stations_csv.resolve())
+    rows = []
+    for record in pulled.to_dict(orient="records"):
+        file_name = normalize_station_file_name(str(record.get("FileName", "")))
+        if not file_name:
+            continue
+        rows.append(
+            {
+                "station_id": _station_id_from_row(record),
+                "FileName": file_name,
+                "raw_data_pulled": True,
+                "raw_path": "",
+                "pulled_at": "",
+                "registry_snapshot": snapshot,
+            }
+        )
+    return _normalize_raw_pull_state(pd.DataFrame(rows))
+
+
+def _ensure_raw_pull_state(raw_pull_state_csv: Path, stations_csv: Path) -> pd.DataFrame:
+    state = _load_raw_pull_state(raw_pull_state_csv)
+    legacy_bootstrap = _bootstrap_raw_pull_state_from_legacy_registry(stations_csv)
+    if legacy_bootstrap.empty:
+        return state
+
+    if state.empty:
+        merged = legacy_bootstrap
+    else:
+        merged = pd.concat([state, legacy_bootstrap], ignore_index=True, sort=False)
+        merged = _normalize_raw_pull_state(merged)
+        merged = merged.drop_duplicates(subset=["FileName"], keep="first")
+    _write_csv_atomic(merged, raw_pull_state_csv, sort_by=("FileName",))
+    return merged
+
+
+def materialize_raw_pull_state(
     stations_csv: Path,
+    raw_pull_state_csv: Path | None = None,
     *,
-    file_name: str | None = None,
-    station_id: str | None = None,
-    raw_data_pulled: bool | None = None,
-    data_cleaned: bool | None = None,
-    data_aggregated: bool | None = None,
+    normalize_stations_csv: bool = True,
+) -> pd.DataFrame:
+    stations_csv = stations_csv.resolve()
+    if not stations_csv.exists():
+        raise FileNotFoundError(f"Stations.csv not found: {stations_csv}")
+
+    state_path = (raw_pull_state_csv or default_raw_pull_state_path(stations_csv)).resolve()
+    existing_state = _load_raw_pull_state(state_path)
+    legacy_bootstrap = _bootstrap_raw_pull_state_from_legacy_registry(stations_csv)
+
+    if legacy_bootstrap.empty:
+        state = _normalize_raw_pull_state(existing_state)
+    elif existing_state.empty:
+        state = _normalize_raw_pull_state(legacy_bootstrap)
+    else:
+        merged = legacy_bootstrap.merge(
+            existing_state,
+            on="FileName",
+            how="outer",
+            suffixes=("_legacy", "_existing"),
+        )
+        rows: list[dict[str, object]] = []
+        for record in merged.to_dict(orient="records"):
+            legacy_station_id = str(record.get("station_id_legacy", "") or "").strip()
+            existing_station_id = str(record.get("station_id_existing", "") or "").strip()
+            legacy_raw_path = str(record.get("raw_path_legacy", "") or "").strip()
+            existing_raw_path = str(record.get("raw_path_existing", "") or "").strip()
+            legacy_pulled_at = str(record.get("pulled_at_legacy", "") or "").strip()
+            existing_pulled_at = str(record.get("pulled_at_existing", "") or "").strip()
+            legacy_registry_snapshot = str(record.get("registry_snapshot_legacy", "") or "").strip()
+            existing_registry_snapshot = str(record.get("registry_snapshot_existing", "") or "").strip()
+            rows.append(
+                {
+                    "station_id": legacy_station_id or existing_station_id,
+                    "FileName": str(record.get("FileName", "") or "").strip(),
+                    "raw_data_pulled": bool(record.get("raw_data_pulled_existing", False))
+                    or bool(record.get("raw_data_pulled_legacy", False)),
+                    "raw_path": existing_raw_path or legacy_raw_path,
+                    "pulled_at": existing_pulled_at or legacy_pulled_at,
+                    "registry_snapshot": legacy_registry_snapshot or existing_registry_snapshot,
+                }
+            )
+        state = _normalize_raw_pull_state(pd.DataFrame(rows))
+    _write_csv_atomic(state, state_path, sort_by=("FileName",))
+
+    if normalize_stations_csv:
+        legacy_registry = pd.read_csv(stations_csv)
+        normalized_registry = _normalize_station_registry(legacy_registry)
+        if tuple(legacy_registry.columns) != tuple(normalized_registry.columns):
+            sort_by = ("FileName",) if "FileName" in normalized_registry.columns else None
+            _write_csv_atomic(normalized_registry, stations_csv, sort_by=sort_by)
+
+    return state
+
+
+@contextmanager
+def _raw_pull_lock(lock_path: Path):
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    handle = lock_path.open("a+", encoding="utf-8")
+    try:
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            handle.close()
+            yield None
+        else:
+            yield handle
+    finally:
+        if not handle.closed:
+            try:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+            finally:
+                handle.close()
+
+
+def record_raw_pull_success(
+    raw_pull_state_csv: Path,
+    *,
+    file_name: str,
+    station_id: str,
+    raw_path: Path,
+    stations_csv: Path,
 ) -> None:
-    frame = _load_stations_csv(stations_csv)
-    idx = _locate_station_index(frame, file_name=file_name, station_id=station_id)
-    if idx is None:
-        raise ValueError("Unable to locate station row to update status.")
-    if raw_data_pulled is not None:
-        frame.loc[idx, "raw_data_pulled"] = bool(raw_data_pulled)
-    if data_cleaned is not None:
-        frame.loc[idx, "data_cleaned"] = bool(data_cleaned)
-    if data_aggregated is not None:
-        frame.loc[idx, "data_aggregated"] = bool(data_aggregated)
-    frame.to_csv(stations_csv, index=False)
+    state = _ensure_raw_pull_state(raw_pull_state_csv, stations_csv)
+    normalized_file_name = normalize_station_file_name(file_name)
+    pulled_at = datetime.now(timezone.utc).isoformat()
+    row = {
+        "station_id": station_id,
+        "FileName": normalized_file_name,
+        "raw_data_pulled": True,
+        "raw_path": str(raw_path.resolve()),
+        "pulled_at": pulled_at,
+        "registry_snapshot": str(stations_csv.resolve()),
+    }
+    if state.empty:
+        updated = pd.DataFrame([row], columns=list(RAW_PULL_STATE_COLUMNS))
+    else:
+        updated = state.copy()
+        match = updated["FileName"].astype(str) == normalized_file_name
+        if bool(match.any()):
+            for column, value in row.items():
+                updated.loc[match, column] = value
+        else:
+            updated = pd.concat([updated, pd.DataFrame([row])], ignore_index=True, sort=False)
+    updated = _normalize_raw_pull_state(updated)
+    _write_csv_atomic(updated, raw_pull_state_csv, sort_by=("FileName",))
 
 
 def pick_random_station(
     stations_csv: Path,
+    raw_pull_state_csv: Path | None = None,
     seed: int | None = None,
 ) -> dict[str, object]:
-    frame = _load_stations_csv(stations_csv)
-    candidates = frame[~frame["raw_data_pulled"]]
+    frame = _load_station_registry(stations_csv)
+    state_path = raw_pull_state_csv or default_raw_pull_state_path(stations_csv)
+    state = _ensure_raw_pull_state(state_path, stations_csv)
+    pulled_files = set(
+        state[state["raw_data_pulled"]]["FileName"].astype(str).tolist()
+    ) if not state.empty else set()
+    candidates = frame[~frame["FileName"].astype(str).map(normalize_station_file_name).isin(pulled_files)]
     if candidates.empty:
-        raise ValueError("No stations available with raw_data_pulled == False.")
+        raise ValueError("No stations available with raw data missing from raw_pull_state.csv.")
     return candidates.sample(n=1, random_state=seed).iloc[0].to_dict()
 
 
@@ -150,32 +339,43 @@ def pull_random_station_raw(
     output_dir: Path,
     sleep_seconds: float = 0.0,
     seed: int | None = None,
-) -> Path:
-    station = pick_random_station(stations_csv, seed=seed)
-    file_name = str(station["FileName"])
-    raw = download_location_data(
-        file_name,
-        years,
-        sleep_seconds=sleep_seconds,
-        log_years=True,
-    )
-    if raw.empty:
-        raise ValueError("No raw data returned for selected station.")
-    station_id = Path(normalize_station_file_name(file_name)).stem
-    station_dir = output_dir / station_id
-    station_dir.mkdir(parents=True, exist_ok=True)
-    output_path = station_dir / "LocationData_Raw.parquet"
-    raw.to_parquet(output_path, index=False)
-    update_station_status(stations_csv, file_name=file_name, raw_data_pulled=True)
-    return output_path
+    raw_pull_state_csv: Path | None = None,
+) -> Path | None:
+    state_path = raw_pull_state_csv or default_raw_pull_state_path(stations_csv)
+    lock_path = _raw_pull_lock_path(state_path)
+    with _raw_pull_lock(lock_path) as lock_handle:
+        if lock_handle is None:
+            print(f"Skipping pick-location because raw pull lock is already held: {lock_path}")
+            return None
+
+        station = pick_random_station(stations_csv, raw_pull_state_csv=state_path, seed=seed)
+        file_name = str(station["FileName"])
+        raw = download_location_data(
+            file_name,
+            years,
+            sleep_seconds=sleep_seconds,
+            log_years=True,
+        )
+        if raw.empty:
+            raise ValueError("No raw data returned for selected station.")
+        station_id = _station_id_from_row(station) or Path(normalize_station_file_name(file_name)).stem
+        station_dir = output_dir / station_id
+        station_dir.mkdir(parents=True, exist_ok=True)
+        output_path = station_dir / "LocationData_Raw.parquet"
+        raw.to_parquet(output_path, index=False)
+        record_raw_pull_success(
+            state_path,
+            file_name=file_name,
+            station_id=station_id,
+            raw_path=output_path,
+            stations_csv=stations_csv,
+        )
+        return output_path
 
 
 def clean_parquet_file(
     raw_parquet: Path,
     output_dir: Path | None = None,
-    stations_csv: Path | None = None,
-    file_name: str | None = None,
-    station_id: str | None = None,
     strict_mode: bool = True,
 ) -> Path:
     raw = pd.read_parquet(raw_parquet)
@@ -185,15 +385,6 @@ def clean_parquet_file(
     target_dir.mkdir(parents=True, exist_ok=True)
     output_path = target_dir / "LocationData_Cleaned.parquet"
     cleaned.to_parquet(output_path, index=False)
-    if stations_csv is not None:
-        if station_id is None:
-            station_id = raw_parquet.parent.name
-        update_station_status(
-            stations_csv,
-            file_name=file_name,
-            station_id=station_id,
-            data_cleaned=True,
-        )
     return output_path
 
 
@@ -261,7 +452,7 @@ def build_location_ids(
     if resume and output_csv.exists():
         existing = pd.read_csv(output_csv)
         if not existing.empty:
-            existing = _ensure_station_status_columns(existing)
+            existing = _normalize_station_registry(existing)
             rows = existing.to_dict(orient="records")
             processed = set(existing["FileName"].dropna().astype(str))
             print(
@@ -341,9 +532,6 @@ def build_location_ids(
             "YEAR_COUNT": year_count,
             "METADATA_YEAR": metadata_year,
             "METADATA_COMPLETE": metadata_complete,
-            "raw_data_pulled": False,
-            "data_cleaned": False,
-            "data_aggregated": False,
         }
         if include_legacy_id:
             row["LegacyID"] = idx
@@ -358,18 +546,19 @@ def build_location_ids(
         )
         if checkpoint_every and (len(rows) % checkpoint_every == 0):
             frame = pd.DataFrame(rows)
-            frame.to_csv(output_csv, index=False)
+            frame = _normalize_station_registry(frame)
+            _write_csv_atomic(frame, output_csv, sort_by=("FileName",))
             target_dir = checkpoint_dir or output_csv.parent
             checkpoint_path = target_dir / f"{output_csv.stem}_checkpoint_{len(rows):05d}.csv"
-            frame.to_csv(checkpoint_path, index=False)
+            _write_csv_atomic(frame, checkpoint_path, sort_by=("FileName",))
             print(
                 f"Progress: {len(rows)}/{total} rows saved "
                 f"(new this run: {new_count})."
             )
         if sleep_seconds > 0:
             time.sleep(sleep_seconds)
-    frame = pd.DataFrame(rows)
-    frame.to_csv(output_csv, index=False)
+    frame = _normalize_station_registry(pd.DataFrame(rows))
+    _write_csv_atomic(frame, output_csv, sort_by=("FileName",))
     print(
         f"Finished metadata fetch. Total rows: {len(rows)} "
         f"(new this run: {new_count})."

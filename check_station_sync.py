@@ -1,4 +1,4 @@
-"""Check Stations.csv raw_data_pulled status against parquet outputs."""
+"""Check raw_pull_state.csv status against station parquet outputs."""
 
 from __future__ import annotations
 
@@ -7,9 +7,18 @@ from pathlib import Path
 
 import pandas as pd
 
+from noaa_climate_data.noaa_client import normalize_station_file_name
+from noaa_climate_data.pipeline import default_raw_pull_state_path
 
-STATUS_COLUMN = "raw_data_pulled"
 DEFAULT_OUTPUT_DIR = Path("/media/balaji-kesavan/LaCie/NOAA_Data")
+RAW_PULL_STATE_COLUMNS = {
+    "station_id",
+    "FileName",
+    "raw_data_pulled",
+    "raw_path",
+    "pulled_at",
+    "registry_snapshot",
+}
 
 
 def _latest_index_dir(base_index_dir: Path) -> Path:
@@ -27,13 +36,19 @@ def _latest_index_dir(base_index_dir: Path) -> Path:
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Validate Stations.csv raw_data_pulled against parquet files"
+        description="Validate raw_pull_state.csv against station raw parquet files"
     )
     parser.add_argument(
         "--stations-csv",
         type=Path,
         default=None,
         help="Path to Stations.csv (defaults to latest noaa_file_index folder)",
+    )
+    parser.add_argument(
+        "--raw-pull-state-csv",
+        type=Path,
+        default=None,
+        help="Path to raw_pull_state.csv (defaults to noaa_file_index/state/raw_pull_state.csv)",
     )
     parser.add_argument(
         "--output-dir",
@@ -57,12 +72,40 @@ def _parse_args() -> argparse.Namespace:
 
 
 def _station_dir(output_dir: Path, file_name: str) -> Path:
-    station_id = Path(file_name).stem
+    station_id = Path(normalize_station_file_name(file_name)).stem
     return output_dir / station_id
 
 
 def _station_parquet_path(output_dir: Path, file_name: str) -> Path:
     return _station_dir(output_dir, file_name) / "LocationData_Raw.parquet"
+
+
+def _coerce_boolean_series(series: pd.Series) -> pd.Series:
+    truthy = {"true", "1", "yes", "y", "t"}
+    return series.fillna(False).astype(str).str.strip().str.lower().isin(truthy)
+
+
+def _load_raw_pull_state(raw_pull_state_csv: Path) -> pd.DataFrame:
+    if not raw_pull_state_csv.exists():
+        raise FileNotFoundError(
+            "raw_pull_state.csv not found: "
+            f"{raw_pull_state_csv}. Run "
+            "`poetry run python -m noaa_climate_data.cli materialize-raw-pull-state` "
+            "if you need to bootstrap it from legacy state."
+        )
+
+    frame = pd.read_csv(raw_pull_state_csv, keep_default_na=False)
+    missing = RAW_PULL_STATE_COLUMNS.difference(frame.columns)
+    if missing:
+        missing_cols = ", ".join(sorted(missing))
+        raise ValueError(
+            f"raw_pull_state.csv missing required columns: {missing_cols}"
+        )
+
+    work = frame.copy()
+    work["FileName"] = work["FileName"].fillna("").astype(str).map(normalize_station_file_name)
+    work["raw_data_pulled"] = _coerce_boolean_series(work["raw_data_pulled"])
+    return work
 
 
 def main() -> None:
@@ -71,13 +114,19 @@ def main() -> None:
     stations_csv = args.stations_csv
     if stations_csv is None:
         stations_csv = _latest_index_dir(base_index_dir) / "Stations.csv"
+    raw_pull_state_csv = args.raw_pull_state_csv or default_raw_pull_state_path(stations_csv)
 
     frame = pd.read_csv(stations_csv)
-    if STATUS_COLUMN not in frame.columns:
-        raise ValueError(f"Stations.csv missing {STATUS_COLUMN} column")
+    if "FileName" not in frame.columns:
+        raise ValueError("Stations.csv missing FileName column")
+    frame["FileName"] = frame["FileName"].fillna("").astype(str).map(normalize_station_file_name)
 
-    expected_true = frame[frame[STATUS_COLUMN] == True]  # noqa: E712
-    expected_false = frame[frame[STATUS_COLUMN] == False]  # noqa: E712
+    raw_pull_state = _load_raw_pull_state(raw_pull_state_csv)
+    pulled_files = set(
+        raw_pull_state[raw_pull_state["raw_data_pulled"]]["FileName"].astype(str).tolist()
+    )
+    expected_true = frame[frame["FileName"].isin(pulled_files)].copy()
+    expected_false = frame[~frame["FileName"].isin(pulled_files)].copy()
 
     missing_files: list[dict[str, object]] = []
     unexpected_files: list[dict[str, object]] = []
@@ -111,6 +160,7 @@ def main() -> None:
 
     total = len(frame)
     print(f"Stations.csv: {stations_csv}")
+    print(f"raw_pull_state.csv: {raw_pull_state_csv}")
     print(f"Output dir: {args.output_dir}")
     print(f"Total stations: {total}")
     print(f"raw_data_pulled=True: {len(expected_true)}")

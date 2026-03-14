@@ -26,7 +26,7 @@ This folder contains the NOAA Global Hourly file index and year-counts used by t
 
 ### Station metadata (Stations.csv)
 
-- `Stations.csv`: station metadata with year coverage and derived flags.
+- `Stations.csv`: immutable station metadata with year coverage fields.
 
 #### Command:
 
@@ -48,17 +48,23 @@ This folder contains the NOAA Global Hourly file index and year-counts used by t
 #### Outputs:
 
 - `output/<station_id>/LocationData_Raw.parquet`: raw NOAA data per station.
-- `Stations.csv`: `raw_data_pulled` is updated to `True` after a successful write.
+- `noaa_file_index/state/raw_pull_state.csv`: operational raw pull state keyed by station/file.
+- `noaa_file_index/state/raw_pull_state.csv.lock`: non-blocking overlap lock for cron execution.
 
 #### Command:
 
 - `poetry run python -m noaa_climate_data.cli pick-location --start-year 1975 --end-year 2025 --sleep-seconds 0.5 --output-dir /media/balaji-kesavan/LaCie/NOAA_Data`
+- `poetry run python -m noaa_climate_data.cli materialize-raw-pull-state`
 
 #### Behavior:
-- Picks a random station with `raw_data_pulled=False`.
+- Reads the immutable `Stations.csv` registry snapshot.
+- Reads operational state from `noaa_file_index/state/raw_pull_state.csv`.
+- Picks a random station not yet marked as pulled in the raw pull state file.
 - Downloads yearly NOAA CSVs with 0.5s delay between requests.
 - Writes `LocationData_Raw.parquet` to the external output directory.
-- Marks the station as `raw_data_pulled=True` on success.
+- Records the successful pull in `noaa_file_index/state/raw_pull_state.csv`.
+- Exits without doing work if another `pick-location` process already holds the raw pull lock.
+- `materialize-raw-pull-state` backfills `raw_pull_state.csv` from legacy `raw_data_pulled` flags and rewrites `Stations.csv` without operational status columns.
 
 #### Notes
 - Cron schedule runs every 5 minutes.
@@ -69,18 +75,19 @@ This folder contains the NOAA Global Hourly file index and year-counts used by t
 #### Outputs:
 
 - `output/<station_id>/LocationData_Cleaned.parquet`: cleaned station data.
-- `Stations.csv`: `data_cleaned` is updated to `True` after successful cleaning.
+- `release/build_<build_id>/...`: canonical/domain/quality/manifest publication artifacts for `cleaning-run`.
 
 #### Commands:
 
 - Single-file cleaning:
-  `poetry run python -m noaa_climate_data.cli clean-parquet output/<station_id>/LocationData_Raw.parquet --file-name <station_id>.csv`
+  `poetry run python -m noaa_climate_data.cli clean-parquet output/<station_id>/LocationData_Raw.parquet`
 - Batch cleaning orchestration:
   `poetry run python -m noaa_climate_data.cli cleaning-run --mode <mode> --input-root <root> --input-format parquet`
 
 #### Notes
 
 - This dated index folder stores index and station metadata snapshots.
+- It is not the execution state surface for cleaning jobs.
 - Runtime cleaned/domain/quality/manifests publication outputs are produced under runtime output roots (for example `release/build_<build_id>/...`), not inside this index snapshot folder.
 
 ### Data aggregation

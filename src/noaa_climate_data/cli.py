@@ -23,7 +23,9 @@ from .pipeline import (
     build_location_ids,
     build_year_counts,
     clean_parquet_file,
+    default_raw_pull_state_path,
     aggregate_parquet_placeholder,
+    materialize_raw_pull_state,
     pull_random_station_raw,
     process_location,
     process_location_from_raw,
@@ -242,7 +244,13 @@ def _parse_args() -> argparse.Namespace:
         "--stations-csv",
         type=Path,
         default=None,
-        help="Path to Stations.csv (defaults to latest noaa_file_index folder)",
+        help="Path to immutable Stations.csv registry snapshot (defaults to latest noaa_file_index folder)",
+    )
+    pick_parser.add_argument(
+        "--raw-pull-state-csv",
+        type=Path,
+        default=None,
+        help="Optional path to operational raw_pull_state.csv (default: noaa_file_index/state/raw_pull_state.csv)",
     )
     pick_parser.add_argument(
         "--start-year",
@@ -272,29 +280,34 @@ def _parse_args() -> argparse.Namespace:
         default=Path("output"),
     )
 
+    migrate_raw_pull_parser = subparsers.add_parser(
+        "materialize-raw-pull-state",
+        help="Create operational raw_pull_state.csv from legacy Stations.csv status flags",
+    )
+    migrate_raw_pull_parser.add_argument(
+        "--stations-csv",
+        type=Path,
+        default=None,
+        help="Path to the station registry snapshot (defaults to latest noaa_file_index folder)",
+    )
+    migrate_raw_pull_parser.add_argument(
+        "--raw-pull-state-csv",
+        type=Path,
+        default=None,
+        help="Optional output path for raw_pull_state.csv (default: noaa_file_index/state/raw_pull_state.csv)",
+    )
+    migrate_raw_pull_parser.add_argument(
+        "--no-normalize-stations-csv",
+        action="store_true",
+        default=False,
+        help="Do not rewrite Stations.csv to remove legacy operational status columns",
+    )
+
     clean_parser = subparsers.add_parser(
         "clean-parquet",
         help="Clean a raw parquet file and write cleaned parquet",
     )
     clean_parser.add_argument("raw_parquet", type=Path)
-    clean_parser.add_argument(
-        "--stations-csv",
-        type=Path,
-        default=None,
-        help="Path to Stations.csv (defaults to latest noaa_file_index folder)",
-    )
-    clean_parser.add_argument(
-        "--file-name",
-        type=str,
-        default=None,
-        help="Station file name (.csv) for status updates",
-    )
-    clean_parser.add_argument(
-        "--station-id",
-        type=str,
-        default=None,
-        help="Station ID override for status updates",
-    )
     clean_parser.add_argument(
         "--output-dir",
         type=Path,
@@ -659,6 +672,7 @@ def main() -> None:
         stations_csv = args.stations_csv
         if stations_csv is None:
             stations_csv = _latest_index_dir() / "Stations.csv"
+        raw_pull_state_csv = args.raw_pull_state_csv or default_raw_pull_state_path(stations_csv)
         years = range(args.start_year, args.end_year + 1)
         pull_random_station_raw(
             stations_csv,
@@ -666,19 +680,31 @@ def main() -> None:
             output_dir,
             sleep_seconds=args.sleep_seconds,
             seed=args.seed,
+            raw_pull_state_csv=raw_pull_state_csv,
+        )
+        return
+
+    if args.command == "materialize-raw-pull-state":
+        stations_csv = args.stations_csv
+        if stations_csv is None:
+            stations_csv = _latest_index_dir() / "Stations.csv"
+        raw_pull_state_csv = args.raw_pull_state_csv or default_raw_pull_state_path(stations_csv)
+        state = materialize_raw_pull_state(
+            stations_csv,
+            raw_pull_state_csv=raw_pull_state_csv,
+            normalize_stations_csv=not args.no_normalize_stations_csv,
+        )
+        pulled_count = int(state["raw_data_pulled"].sum()) if not state.empty else 0
+        print(
+            f"Materialized {raw_pull_state_csv.resolve()} with "
+            f"{pulled_count} pulled stations."
         )
         return
 
     if args.command == "clean-parquet":
-        stations_csv = args.stations_csv
-        if stations_csv is None:
-            stations_csv = _latest_index_dir() / "Stations.csv"
         clean_parquet_file(
             args.raw_parquet,
             output_dir=args.output_dir,
-            stations_csv=stations_csv,
-            file_name=args.file_name,
-            station_id=args.station_id,
         )
         return
 

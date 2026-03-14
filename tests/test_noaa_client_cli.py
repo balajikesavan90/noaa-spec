@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import fcntl
 from pathlib import Path
 import sys
 
@@ -11,6 +12,7 @@ import pandas as pd
 import pytest
 
 from noaa_climate_data import noaa_client
+import noaa_climate_data.pipeline as pipeline
 from noaa_climate_data.pipeline import LocationDataOutputs
 import noaa_climate_data.cli as cli
 
@@ -297,6 +299,9 @@ class TestCliCommands:
         cli.main()
 
         assert called["stations_csv"].resolve() == (base_dir / "Stations.csv").resolve()
+        assert called["raw_pull_state_csv"].resolve() == (
+            tmp_path / "noaa_file_index" / "state" / "raw_pull_state.csv"
+        ).resolve()
         assert called["years"] == [2020, 2021]
         assert called["output_dir"].resolve() == (tmp_path / "output").resolve()
         assert called["sleep_seconds"] == 0.25
@@ -308,9 +313,6 @@ class TestCliCommands:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.chdir(tmp_path)
-        base_dir = tmp_path / "noaa_file_index" / "20250101"
-        base_dir.mkdir(parents=True)
-        (base_dir / "Stations.csv").write_text("FileName\nTEST.csv\n")
         raw_path = tmp_path / "raw.parquet"
         raw_path.write_text("fake")
 
@@ -333,18 +335,293 @@ class TestCliCommands:
                 "prog",
                 "clean-parquet",
                 str(raw_path),
-                "--file-name",
-                "TEST.csv",
-                "--station-id",
-                "TESTID",
             ],
         )
         cli.main()
 
         assert called["raw_parquet"].resolve() == raw_path.resolve()
-        assert called["stations_csv"].resolve() == (base_dir / "Stations.csv").resolve()
-        assert called["file_name"] == "TEST.csv"
-        assert called["station_id"] == "TESTID"
+        assert called["output_dir"] is None
+
+    def test_cli_materialize_raw_pull_state_invokes_migrator(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        base_dir = tmp_path / "noaa_file_index" / "20250101"
+        base_dir.mkdir(parents=True)
+        stations_csv = base_dir / "Stations.csv"
+        stations_csv.write_text("FileName,raw_data_pulled\nTEST.csv,True\n", encoding="utf-8")
+
+        called: dict[str, object] = {}
+
+        def fake_materialize_raw_pull_state(
+            stations_csv_arg: Path,
+            raw_pull_state_csv: Path | None = None,
+            *,
+            normalize_stations_csv: bool = True,
+        ) -> pd.DataFrame:
+            called["stations_csv"] = stations_csv_arg
+            called["raw_pull_state_csv"] = raw_pull_state_csv
+            called["normalize_stations_csv"] = normalize_stations_csv
+            return pd.DataFrame(
+                [
+                    {
+                        "station_id": "01234567890",
+                        "FileName": "TEST.csv",
+                        "raw_data_pulled": True,
+                        "raw_path": "",
+                        "pulled_at": "",
+                        "registry_snapshot": str(stations_csv_arg),
+                    }
+                ]
+            )
+
+        monkeypatch.setattr(cli, "materialize_raw_pull_state", fake_materialize_raw_pull_state)
+
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "prog",
+                "materialize-raw-pull-state",
+            ],
+        )
+        cli.main()
+
+        assert called["stations_csv"].resolve() == stations_csv.resolve()
+        assert called["raw_pull_state_csv"].resolve() == (
+            tmp_path / "noaa_file_index" / "state" / "raw_pull_state.csv"
+        ).resolve()
+        assert called["normalize_stations_csv"] is True
+        assert "Materialized" in capsys.readouterr().out
+
+    def test_build_location_ids_excludes_operational_status_columns(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        year_counts = pd.DataFrame({"FileName": ["01234567890.csv"], "No_Of_Years": [1]})
+        file_list = pd.DataFrame({"YEAR": [2020], "FileName": ["01234567890.csv"]})
+
+        def fake_fetch_station_metadata_for_years(
+            file_name: str,
+            metadata_years: list[int],
+            **_: object,
+        ) -> tuple[noaa_client.StationMetadata, int]:
+            assert metadata_years == [2020]
+            return (
+                noaa_client.StationMetadata(
+                    latitude=1.0,
+                    longitude=2.0,
+                    elevation=3.0,
+                    name="Test Station",
+                    file_name=file_name,
+                ),
+                2020,
+            )
+
+        monkeypatch.setattr(pipeline, "fetch_station_metadata_for_years", fake_fetch_station_metadata_for_years)
+
+        output_csv = tmp_path / "Stations.csv"
+        frame = pipeline.build_location_ids(
+            year_counts,
+            output_csv,
+            metadata_years=[2020],
+            file_list=file_list,
+            sleep_seconds=0.0,
+            retries=0,
+            checkpoint_every=1000,
+        )
+
+        assert "raw_data_pulled" not in frame.columns
+        assert "data_cleaned" not in frame.columns
+        written = pd.read_csv(output_csv)
+        assert "raw_data_pulled" not in written.columns
+        assert "data_cleaned" not in written.columns
+
+    def test_materialize_raw_pull_state_bootstraps_and_normalizes_registry(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        stations_csv = tmp_path / "noaa_file_index" / "20260207" / "Stations.csv"
+        stations_csv.parent.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame(
+            [
+                {
+                    "ID": "01234567890",
+                    "FileName": "01234567890.csv",
+                    "NAME": "Pulled",
+                    "raw_data_pulled": True,
+                    "data_cleaned": False,
+                },
+                {
+                    "ID": "01234567891",
+                    "FileName": "01234567891.csv",
+                    "NAME": "Pending",
+                    "raw_data_pulled": False,
+                    "data_cleaned": False,
+                },
+            ]
+        ).to_csv(stations_csv, index=False)
+
+        state = pipeline.materialize_raw_pull_state(stations_csv)
+
+        raw_pull_state_csv = tmp_path / "noaa_file_index" / "state" / "raw_pull_state.csv"
+        assert raw_pull_state_csv.exists()
+        written_state = pipeline._load_raw_pull_state(raw_pull_state_csv)
+        assert list(written_state["FileName"]) == ["01234567890.csv"]
+        assert written_state.loc[0, "station_id"] == "01234567890"
+        assert bool(written_state.loc[0, "raw_data_pulled"]) is True
+        assert written_state.loc[0, "raw_path"] == ""
+        assert written_state.loc[0, "registry_snapshot"] == str(stations_csv.resolve())
+        assert list(state["FileName"]) == ["01234567890.csv"]
+
+        normalized_registry = pd.read_csv(stations_csv)
+        assert "raw_data_pulled" not in normalized_registry.columns
+        assert "data_cleaned" not in normalized_registry.columns
+        assert list(normalized_registry["FileName"]) == ["01234567890.csv", "01234567891.csv"]
+
+    def test_materialize_raw_pull_state_corrects_station_id_and_preserves_existing_metadata(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        stations_csv = tmp_path / "noaa_file_index" / "20260207" / "Stations.csv"
+        stations_csv.parent.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame(
+            [
+                {
+                    "ID": "00826099999",
+                    "FileName": "00826099999.csv",
+                    "NAME": "Pulled",
+                    "raw_data_pulled": True,
+                }
+            ]
+        ).to_csv(stations_csv, index=False)
+
+        raw_pull_state_csv = tmp_path / "noaa_file_index" / "state" / "raw_pull_state.csv"
+        raw_pull_state_csv.parent.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame(
+            [
+                {
+                    "station_id": "826099999",
+                    "FileName": "00826099999.csv",
+                    "raw_data_pulled": True,
+                    "raw_path": "/tmp/raw.parquet",
+                    "pulled_at": "2026-03-14T00:00:00+00:00",
+                    "registry_snapshot": "legacy",
+                }
+            ]
+        ).to_csv(raw_pull_state_csv, index=False)
+
+        pipeline.materialize_raw_pull_state(stations_csv)
+
+        written_state = pipeline._load_raw_pull_state(raw_pull_state_csv)
+        assert written_state.loc[0, "station_id"] == "00826099999"
+        assert written_state.loc[0, "raw_path"] == "/tmp/raw.parquet"
+        assert written_state.loc[0, "pulled_at"] == "2026-03-14T00:00:00+00:00"
+        assert written_state.loc[0, "registry_snapshot"] == str(stations_csv.resolve())
+
+    def test_pick_random_station_uses_separate_raw_pull_state(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        stations_csv = tmp_path / "Stations.csv"
+        pd.DataFrame(
+            [
+                {"ID": "01234567890", "FileName": "01234567890.csv"},
+                {"ID": "01234567891", "FileName": "01234567891.csv"},
+            ]
+        ).to_csv(stations_csv, index=False)
+
+        raw_pull_state_csv = tmp_path / "state" / "raw_pull_state.csv"
+        raw_pull_state_csv.parent.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame(
+            [
+                {
+                    "station_id": "01234567890",
+                    "FileName": "01234567890.csv",
+                    "raw_data_pulled": True,
+                    "raw_path": "/tmp/raw.parquet",
+                    "pulled_at": "2026-03-14T00:00:00+00:00",
+                    "registry_snapshot": str(stations_csv),
+                }
+            ]
+        ).to_csv(raw_pull_state_csv, index=False)
+
+        picked = pipeline.pick_random_station(
+            stations_csv,
+            raw_pull_state_csv=raw_pull_state_csv,
+            seed=7,
+        )
+        assert picked["FileName"] == "01234567891.csv"
+
+    def test_pull_random_station_raw_writes_separate_state_file(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        stations_csv = tmp_path / "Stations.csv"
+        pd.DataFrame([{"ID": "01234567890", "FileName": "01234567890.csv"}]).to_csv(
+            stations_csv, index=False
+        )
+        output_dir = tmp_path / "raw_output"
+        raw_pull_state_csv = tmp_path / "state" / "raw_pull_state.csv"
+
+        monkeypatch.setattr(
+            pipeline,
+            "download_location_data",
+            lambda *_args, **_kwargs: pd.DataFrame({"DATE": ["2020-01-01T00:00:00"], "TMP": ["0010,1"]}),
+        )
+
+        output_path = pipeline.pull_random_station_raw(
+            stations_csv,
+            years=[2020],
+            output_dir=output_dir,
+            sleep_seconds=0.0,
+            seed=1,
+            raw_pull_state_csv=raw_pull_state_csv,
+        )
+
+        assert output_path is not None
+        assert output_path.exists()
+        state = pd.read_csv(raw_pull_state_csv)
+        assert state.loc[0, "FileName"] == "01234567890.csv"
+        assert bool(state.loc[0, "raw_data_pulled"]) is True
+        assert Path(state.loc[0, "raw_path"]).resolve() == output_path.resolve()
+
+    def test_pull_random_station_raw_skips_when_lock_is_held(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        stations_csv = tmp_path / "Stations.csv"
+        pd.DataFrame([{"ID": "01234567890", "FileName": "01234567890.csv"}]).to_csv(
+            stations_csv, index=False
+        )
+        output_dir = tmp_path / "raw_output"
+        raw_pull_state_csv = tmp_path / "state" / "raw_pull_state.csv"
+        lock_path = pipeline._raw_pull_lock_path(raw_pull_state_csv)
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+
+        def fail_download(*_: object, **__: object) -> pd.DataFrame:
+            raise AssertionError("download_location_data should not run when lock is held")
+
+        monkeypatch.setattr(pipeline, "download_location_data", fail_download)
+
+        with lock_path.open("a+", encoding="utf-8") as handle:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            result = pipeline.pull_random_station_raw(
+                stations_csv,
+                years=[2020],
+                output_dir=output_dir,
+                sleep_seconds=0.0,
+                seed=1,
+                raw_pull_state_csv=raw_pull_state_csv,
+            )
+
+        assert result is None
 
     def test_cli_research_reports_invokes_builder(
         self,

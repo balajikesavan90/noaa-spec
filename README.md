@@ -172,13 +172,18 @@ Output files per station:
 
 ### Pick a random station and pull raw parquet
 
-`Stations.csv` now includes status columns that track progress:
+`Stations.csv` is the immutable station registry snapshot. Operational raw-pull
+progress is tracked separately in `noaa_file_index/state/raw_pull_state.csv`.
 
-| Column | Meaning |
-|--------|---------|
-| `raw_data_pulled` | Raw NOAA parquet was written for the station |
-| `data_cleaned` | Cleaned parquet was written for the station |
-| `data_aggregated` | Aggregated parquet outputs were written for the station |
+`pick-location` also uses a non-blocking lock beside that state file so cron
+overlap does not start a second downloader while one is already running.
+
+If you want the operational state file on disk before cron resumes, materialize
+it explicitly:
+
+```bash
+poetry run python -m noaa_climate_data.cli materialize-raw-pull-state
+```
 
 Pull a random station that has not yet downloaded raw data:
 
@@ -190,18 +195,20 @@ poetry run python -m noaa_climate_data.cli pick-location \
   --output-dir output
 ```
 
-This writes `LocationData_Raw.parquet` under `output/<station>/` and marks
-`raw_data_pulled=True` in the latest `noaa_file_index/YYYYMMDD/Stations.csv`.
+This writes `LocationData_Raw.parquet` under `output/<station>/` and records the
+successful pull in `noaa_file_index/state/raw_pull_state.csv`. It does not
+rewrite `noaa_file_index/YYYYMMDD/Stations.csv`.
 
 ### Clean a raw parquet
 
 ```bash
-poetry run python -m noaa_climate_data.cli clean-parquet output/01001099999/LocationData_Raw.parquet \
-  --file-name 01001099999.csv
+poetry run python -m noaa_climate_data.cli clean-parquet \
+  output/01001099999/LocationData_Raw.parquet
 ```
 
-This writes `LocationData_Cleaned.parquet` alongside the raw parquet and marks
-`data_cleaned=True` in the latest `noaa_file_index/YYYYMMDD/Stations.csv`.
+This writes `LocationData_Cleaned.parquet` alongside the raw parquet. Cleaning
+progress is tracked by `cleaning-run` manifests and release artifacts, not by
+mutating the NOAA index snapshot.
 
 ### Run cleaning orchestration (`cleaning-run`)
 

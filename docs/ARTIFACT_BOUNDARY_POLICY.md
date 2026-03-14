@@ -42,6 +42,8 @@ The following locations are runtime/operational surfaces and are not the publica
 - `output/`
 - `artifacts/test_runs/`
 - `artifacts/parquet_runs/`
+- `noaa_file_index/`
+- `noaa_file_index/state/`
 
 These paths are for local processing, debugging, or transient operational records.
 
