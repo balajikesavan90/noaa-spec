@@ -505,6 +505,37 @@ def test_release_manifest_validation_rejects_invalid_creation_timestamp(tmp_path
         )
 
 
+def test_file_manifest_validation_rejects_duplicate_artifact_ids(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="duplicate artifact_id"):
+        cleaning_runner._write_full_file_manifest(
+            tmp_path / "file_manifest.csv",
+            [
+                {
+                    "artifact_id": "build_file/run_duplicate_id/inputs/01234567890/LocationData_Raw.csv",
+                    "artifact_type": "build_file",
+                    "artifact_path": str(tmp_path / "inputs" / "01234567890" / "LocationData_Raw.csv"),
+                    "schema_version": "v1",
+                    "build_id": "run_duplicate_id",
+                    "input_lineage": "[]",
+                    "row_count": 1,
+                    "checksum": "1" * 64,
+                    "creation_timestamp": "2026-01-01T00:00:00-08:00",
+                },
+                {
+                    "artifact_id": "build_file/run_duplicate_id/inputs/01234567890/LocationData_Raw.csv",
+                    "artifact_type": "build_file",
+                    "artifact_path": str(tmp_path / "inputs" / "01234567891" / "LocationData_Raw.csv"),
+                    "schema_version": "v1",
+                    "build_id": "run_duplicate_id",
+                    "input_lineage": "[]",
+                    "row_count": 1,
+                    "checksum": "2" * 64,
+                    "creation_timestamp": "2026-01-01T00:00:00-08:00",
+                },
+            ],
+        )
+
+
 def test_manifest_refresh_rebuilds_station_snapshot(tmp_path: Path) -> None:
     input_root = tmp_path / "inputs"
     _write_raw_parquet(input_root / "01234567890", "01234567890")
@@ -812,6 +843,37 @@ def test_file_manifest_captures_station_outputs_with_dual_manifest_model(
 
     release_manifest = pd.read_csv(config.manifest_root / "release_manifest.csv", dtype=str)
     assert "success_marker" not in set(release_manifest["artifact_type"].astype(str))
+
+
+def test_file_manifest_uses_unique_artifact_ids_for_multi_station_raw_inputs(
+    tmp_path: Path,
+) -> None:
+    input_root = tmp_path / "inputs"
+    station_ids = ("01234567890", "01234567891")
+    for station_id in station_ids:
+        _write_raw_csv(input_root / station_id, station_id)
+
+    config = _config(
+        tmp_path,
+        mode="test_csv_dir",
+        input_format="csv",
+        run_id="run_file_manifest_unique_raw_ids",
+        input_root=input_root,
+        write_flags=_flags(cleaned=True, domain=False, quality=True, reports=False, global_summary=False),
+    )
+    run_cleaning_run(config)
+
+    file_manifest = pd.read_csv(config.manifest_root / "file_manifest.csv", dtype=str)
+    assert file_manifest["artifact_id"].astype(str).is_unique
+
+    raw_rows = file_manifest[
+        file_manifest["artifact_path"].astype(str).str.endswith("LocationData_Raw.csv")
+    ].copy()
+    expected_ids = {
+        f"build_file/{config.run_id}/inputs/{station_id}/LocationData_Raw.csv"
+        for station_id in station_ids
+    }
+    assert set(raw_rows["artifact_id"].astype(str)) == expected_ids
 
 
 def test_domain_usability_marks_text_first_remarks_domain_rows_as_usable(

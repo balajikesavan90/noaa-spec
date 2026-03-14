@@ -1887,11 +1887,14 @@ def _build_full_file_manifest_rows(
 
 def _full_file_manifest_artifact_id(config: CleaningRunConfig, path: Path) -> str:
     build_root = config.output_root.parent.resolve()
+    input_root = config.input_root.resolve()
     resolved = path.resolve()
     if resolved.is_relative_to(build_root):
         rel = resolved.relative_to(build_root).as_posix()
+    elif resolved.is_relative_to(input_root):
+        rel = f"inputs/{resolved.relative_to(input_root).as_posix()}"
     else:
-        rel = resolved.name
+        rel = f"external/{resolved.as_posix().lstrip('/').replace(':', '')}"
     return f"build_file/{config.run_id}/{rel}"
 
 
@@ -2439,6 +2442,14 @@ def _validate_release_manifest_frame(frame: pd.DataFrame) -> None:
         raise ValueError(
             "Release manifest contract violation: invalid creation_timestamp for "
             f"artifacts {artifact_ids}"
+        )
+
+    duplicate_rows = frame[frame["artifact_id"].astype(str).duplicated(keep=False)]
+    if not duplicate_rows.empty:
+        artifact_ids = sorted(set(duplicate_rows["artifact_id"].astype(str).tolist()))
+        raise ValueError(
+            "Release manifest contract violation: duplicate artifact_id values "
+            f"{artifact_ids}"
         )
 
 

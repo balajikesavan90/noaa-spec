@@ -365,6 +365,7 @@ def test_ci_file_manifest_completeness_matches_write_flags(
     file_manifest = pd.read_csv(config.manifest_root / "file_manifest.csv", dtype=str)
     observed_paths = set(file_manifest["artifact_path"].astype(str))
     expected_paths = _expected_file_manifest_paths(config)
+    assert file_manifest["artifact_id"].astype(str).is_unique
 
     missing = sorted(expected_paths - observed_paths)
     assert not missing
