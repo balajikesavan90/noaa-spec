@@ -253,6 +253,21 @@ Mode expectations:
 - `batch_parquet_dir` reads `LocationData_Raw.parquet` and writes cleaned parquet outputs
   with batch defaults (domain splits off, global summary on).
 
+For a safer manual batch off the pulled-station registry, use the staging helper:
+
+```bash
+poetry run python -m noaa_climate_data.cli run-cleaning-batch \
+  --raw-root /media/<user>/LaCie/NOAA_Data \
+  --count 100
+```
+
+This command:
+
+- reads pulled stations from `noaa_file_index/state/raw_pull_state.csv`
+- stages a frozen input tree under `<raw-root-parent>/NOAA_CLEANING_STAGING/<run_id>/input`
+- runs `cleaning-run` against that frozen input tree
+- writes release artifacts to `release/build_<run_id>/{canonical_cleaned,domains,quality_reports,manifests}`
+
 Optional station reports (`--write-station-reports`) write station-level quality artifacts plus
 domain-specific quality reports under `reports/<station_id>/domain_quality/`.
 

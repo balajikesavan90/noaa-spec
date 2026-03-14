@@ -2,6 +2,7 @@
 __pycache__/
 *.py[codz]
 *$py.class
+noaa_file_index/state/
 
 *.csv
 *.parquet

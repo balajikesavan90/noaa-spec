@@ -1,0 +1,23 @@
+{
+  "config_fingerprint": "{\"input_format\":\"parquet\",\"input_root\":\"/media/balaji-kesavan/LaCie/NOAA_CLEANING_STAGING/20260314T222231Z/input\",\"limit\":null,\"manifest_first\":true,\"mode\":\"batch_parquet_dir\",\"roots\":{\"manifest_root\":\"/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/release/build_20260314T222231Z/manifests\",\"output_root\":\"/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/release/build_20260314T222231Z/canonical_cleaned\",\"quality_profile_root\":\"/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/release/build_20260314T222231Z/quality_reports/station_quality\",\"reports_root\":\"/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/release/build_20260314T222231Z/quality_reports\"},\"station_filters\":[],\"write_flags\":{\"write_cleaned_station\":true,\"write_domain_splits\":false,\"write_global_summary\":true,\"write_station_quality_profile\":true,\"write_station_reports\":false}}",
+  "input_format": "parquet",
+  "input_root": "/media/balaji-kesavan/LaCie/NOAA_CLEANING_STAGING/20260314T222231Z/input",
+  "limit": null,
+  "manifest_first": true,
+  "mode": "batch_parquet_dir",
+  "roots": {
+    "manifest_root": "/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/release/build_20260314T222231Z/manifests",
+    "output_root": "/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/release/build_20260314T222231Z/canonical_cleaned",
+    "quality_profile_root": "/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/release/build_20260314T222231Z/quality_reports/station_quality",
+    "reports_root": "/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/release/build_20260314T222231Z/quality_reports"
+  },
+  "run_id": "20260314T222231Z",
+  "station_filters": [],
+  "write_flags": {
+    "write_cleaned_station": true,
+    "write_domain_splits": false,
+    "write_global_summary": true,
+    "write_station_quality_profile": true,
+    "write_station_reports": false
+  }
+}

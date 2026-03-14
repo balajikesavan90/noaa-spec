@@ -158,6 +158,21 @@ poetry run python -m noaa_climate_data.cli cleaning-run \
   --input-format parquet
 ```
 
+### Frozen pulled-station batch helper
+
+```bash
+poetry run python -m noaa_climate_data.cli run-cleaning-batch \
+  --raw-root /media/<user>/LaCie/NOAA_Data \
+  --count 100
+```
+
+Behavior:
+
+- selects a deterministic subset of stations already marked pulled in `raw_pull_state.csv`
+- stages those raw parquets into a frozen input tree
+- invokes `cleaning-run --mode batch_parquet_dir` against the staged input root
+- keeps the raw ingest cron and the cleaning batch separated at the filesystem boundary
+
 ### Resume a prior run id
 
 ```bash

@@ -6,6 +6,7 @@ import argparse
 from datetime import datetime, timezone
 from pathlib import Path
 import logging
+import shutil
 import time
 
 import pandas as pd
@@ -18,6 +19,8 @@ from .cleaning_runner import (
     run_cleaning_run,
 )
 from .constants import DEFAULT_END_YEAR, DEFAULT_START_YEAR
+from .deterministic_io import write_deterministic_csv
+from .noaa_client import normalize_station_file_name
 from .pipeline import (
     build_data_file_list,
     build_location_ids,
@@ -39,6 +42,130 @@ from .domain_split import (
     sanitize_station_slug,
 )
 from .research_reports import build_reports_for_station_dir
+
+
+DEFAULT_CLEANING_BATCH_STAGING_DIRNAME = "NOAA_CLEANING_STAGING"
+
+
+def _coerce_boolean_series(series: pd.Series) -> pd.Series:
+    truthy = {"true", "1", "yes", "y", "t"}
+    return series.fillna(False).astype(str).str.strip().str.lower().isin(truthy)
+
+
+def _default_cleaning_batch_staging_root(raw_root: Path) -> Path:
+    return raw_root.resolve().parent / DEFAULT_CLEANING_BATCH_STAGING_DIRNAME
+
+
+def _load_pulled_station_state(raw_pull_state_csv: Path) -> pd.DataFrame:
+    if not raw_pull_state_csv.exists():
+        raise FileNotFoundError(
+            "raw_pull_state.csv not found: "
+            f"{raw_pull_state_csv}. Run "
+            "`poetry run python -m noaa_climate_data.cli materialize-raw-pull-state` first."
+        )
+
+    frame = pd.read_csv(raw_pull_state_csv, keep_default_na=False)
+    required = {"station_id", "FileName", "raw_data_pulled"}
+    missing = required.difference(frame.columns)
+    if missing:
+        missing_cols = ", ".join(sorted(missing))
+        raise ValueError(f"raw_pull_state.csv missing required columns: {missing_cols}")
+
+    work = frame.copy()
+    work["FileName"] = work["FileName"].fillna("").astype(str).map(normalize_station_file_name)
+    work["station_id"] = work["station_id"].fillna("").astype(str).str.strip()
+    work["station_id"] = work["station_id"].replace("", pd.NA)
+    has_file_name = work["FileName"].astype(str) != ""
+    work.loc[has_file_name, "station_id"] = work.loc[has_file_name, "FileName"].map(
+        lambda value: Path(value).stem
+    )
+    work["raw_data_pulled"] = _coerce_boolean_series(work["raw_data_pulled"])
+    work = work[work["raw_data_pulled"]].copy()
+    work = work.drop_duplicates(subset=["station_id"], keep="first")
+    work = work.sort_values("station_id", kind="stable").reset_index(drop=True)
+    return work
+
+
+def _select_cleaning_batch_station_ids(
+    pulled_state: pd.DataFrame,
+    *,
+    explicit_station_ids: tuple[str, ...],
+    count: int,
+) -> list[str]:
+    if count <= 0:
+        raise ValueError("--count must be a positive integer")
+
+    available_ids = [str(value) for value in pulled_state["station_id"].astype(str).tolist()]
+    available_set = set(available_ids)
+    missing_ids = [station_id for station_id in explicit_station_ids if station_id not in available_set]
+    if missing_ids:
+        raise ValueError(
+            "Requested --station-id values are not marked pulled in raw_pull_state.csv: "
+            + ", ".join(missing_ids)
+        )
+
+    selected = list(explicit_station_ids)
+    target_count = max(count, len(selected))
+    for station_id in available_ids:
+        if station_id in selected:
+            continue
+        selected.append(station_id)
+        if len(selected) >= target_count:
+            break
+
+    if len(selected) < target_count:
+        raise ValueError(
+            f"Requested {target_count} stations, but only {len(available_ids)} pulled stations are available."
+        )
+    return selected
+
+
+def _stage_cleaning_batch_inputs(
+    *,
+    raw_root: Path,
+    staging_input_root: Path,
+    station_ids: list[str],
+) -> Path:
+    raw_root = raw_root.resolve()
+    staging_input_root = staging_input_root.resolve()
+    if not raw_root.exists() or not raw_root.is_dir():
+        raise FileNotFoundError(f"Raw input root not found or not a directory: {raw_root}")
+
+    selection_rows: list[dict[str, object]] = []
+    for selection_rank, station_id in enumerate(station_ids, start=1):
+        source_path = raw_root / station_id / "LocationData_Raw.parquet"
+        if not source_path.exists():
+            raise FileNotFoundError(f"Missing raw parquet for station {station_id}: {source_path}")
+        target_dir = staging_input_root / station_id
+        target_dir.mkdir(parents=True, exist_ok=True)
+        staged_path = target_dir / "LocationData_Raw.parquet"
+        shutil.copy2(source_path, staged_path)
+        selection_rows.append(
+            {
+                "selection_rank": selection_rank,
+                "station_id": station_id,
+                "source_path": str(source_path.resolve()),
+                "staged_path": str(staged_path.resolve()),
+            }
+        )
+
+    selection_manifest_path = staging_input_root.parent / "selected_stations.csv"
+    write_deterministic_csv(
+        pd.DataFrame(selection_rows),
+        selection_manifest_path,
+        sort_by=("selection_rank",),
+    )
+    return selection_manifest_path
+
+
+def _batch_cleaning_run_write_flags() -> RunWriteFlags:
+    return RunWriteFlags(
+        write_cleaned_station=True,
+        write_domain_splits=False,
+        write_station_quality_profile=True,
+        write_station_reports=False,
+        write_global_summary=True,
+    )
 
 
 def _parse_args() -> argparse.Namespace:
@@ -576,6 +703,62 @@ def _parse_args() -> argparse.Namespace:
         help="Write global summary from station quality profiles",
     )
 
+    cleaning_batch_parser = subparsers.add_parser(
+        "run-cleaning-batch",
+        help="Stage a deterministic batch of pulled raw parquets and run cleaning-run",
+    )
+    cleaning_batch_parser.add_argument(
+        "--raw-root",
+        required=True,
+        type=Path,
+        help="Root directory containing pulled raw parquets (for example /media/.../NOAA_Data)",
+    )
+    cleaning_batch_parser.add_argument(
+        "--count",
+        type=int,
+        default=100,
+        help="Number of pulled stations to include in the batch (default: 100)",
+    )
+    cleaning_batch_parser.add_argument(
+        "--stations-csv",
+        type=Path,
+        default=None,
+        help="Path to immutable Stations.csv registry snapshot (defaults to latest noaa_file_index folder)",
+    )
+    cleaning_batch_parser.add_argument(
+        "--raw-pull-state-csv",
+        type=Path,
+        default=None,
+        help="Optional path to operational raw_pull_state.csv (default: noaa_file_index/state/raw_pull_state.csv)",
+    )
+    cleaning_batch_parser.add_argument(
+        "--staging-root",
+        type=Path,
+        default=None,
+        help=(
+            "Root directory for frozen batch staging inputs "
+            "(default: <raw-root-parent>/NOAA_CLEANING_STAGING)"
+        ),
+    )
+    cleaning_batch_parser.add_argument(
+        "--run-id",
+        type=str,
+        default=None,
+        help="Run identifier (default: UTC timestamp)",
+    )
+    cleaning_batch_parser.add_argument(
+        "--station-id",
+        action="append",
+        default=[],
+        help="Pinned station filter (repeatable or comma-separated 11-digit IDs); always included",
+    )
+    cleaning_batch_parser.add_argument(
+        "--stage-only",
+        action="store_true",
+        default=False,
+        help="Only create the frozen staging input tree; do not start cleaning-run",
+    )
+
     return parser.parse_args()
 
 
@@ -699,6 +882,58 @@ def main() -> None:
             f"Materialized {raw_pull_state_csv.resolve()} with "
             f"{pulled_count} pulled stations."
         )
+        return
+
+    if args.command == "run-cleaning-batch":
+        run_id = args.run_id or datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        stations_csv = args.stations_csv
+        if stations_csv is None:
+            stations_csv = _latest_index_dir() / "Stations.csv"
+        raw_pull_state_csv = args.raw_pull_state_csv or default_raw_pull_state_path(stations_csv)
+        raw_root = args.raw_root.resolve()
+        staging_root = (args.staging_root or _default_cleaning_batch_staging_root(raw_root)).resolve()
+        staging_input_root = staging_root / run_id / "input"
+
+        explicit_station_ids = parse_station_filters(args.station_id)
+        pulled_state = _load_pulled_station_state(raw_pull_state_csv)
+        selected_station_ids = _select_cleaning_batch_station_ids(
+            pulled_state,
+            explicit_station_ids=explicit_station_ids,
+            count=args.count,
+        )
+        selection_manifest_path = _stage_cleaning_batch_inputs(
+            raw_root=raw_root,
+            staging_input_root=staging_input_root,
+            station_ids=selected_station_ids,
+        )
+
+        print(
+            f"Staged {len(selected_station_ids)} raw stations into "
+            f"{staging_input_root.resolve()}"
+        )
+        print(f"Selection manifest: {selection_manifest_path.resolve()}")
+
+        if args.stage_only:
+            return
+
+        default_roots = default_roots_for_mode("batch_parquet_dir", run_id)
+        config = CleaningRunConfig(
+            mode="batch_parquet_dir",
+            input_root=staging_input_root,
+            input_format="parquet",
+            output_root=default_roots["output_root"],
+            reports_root=default_roots["reports_root"],
+            quality_profile_root=default_roots["quality_profile_root"],
+            manifest_root=default_roots["manifest_root"],
+            run_id=run_id,
+            limit=None,
+            station_ids=(),
+            force=False,
+            manifest_first=True,
+            manifest_refresh=False,
+            write_flags=_batch_cleaning_run_write_flags(),
+        )
+        run_cleaning_run(config)
         return
 
     if args.command == "clean-parquet":

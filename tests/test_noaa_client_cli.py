@@ -12,6 +12,7 @@ import pandas as pd
 import pytest
 
 from noaa_climate_data import noaa_client
+from noaa_climate_data.cleaning_runner import CleaningRunConfig
 import noaa_climate_data.pipeline as pipeline
 from noaa_climate_data.pipeline import LocationDataOutputs
 import noaa_climate_data.cli as cli
@@ -396,6 +397,103 @@ class TestCliCommands:
         ).resolve()
         assert called["normalize_stations_csv"] is True
         assert "Materialized" in capsys.readouterr().out
+
+    def test_cli_run_cleaning_batch_stages_inputs_and_invokes_cleaning_run(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        base_dir = tmp_path / "noaa_file_index" / "20250101"
+        base_dir.mkdir(parents=True)
+        stations_csv = base_dir / "Stations.csv"
+        pd.DataFrame(
+            [
+                {"ID": "01234567890", "FileName": "01234567890.csv"},
+                {"ID": "01234567891", "FileName": "01234567891.csv"},
+                {"ID": "01234567892", "FileName": "01234567892.csv"},
+            ]
+        ).to_csv(stations_csv, index=False)
+
+        state_dir = tmp_path / "noaa_file_index" / "state"
+        state_dir.mkdir(parents=True)
+        pd.DataFrame(
+            [
+                {
+                    "station_id": "01234567890",
+                    "FileName": "01234567890.csv",
+                    "raw_data_pulled": True,
+                    "raw_path": "",
+                    "pulled_at": "",
+                    "registry_snapshot": str(stations_csv),
+                },
+                {
+                    "station_id": "01234567891",
+                    "FileName": "01234567891.csv",
+                    "raw_data_pulled": True,
+                    "raw_path": "",
+                    "pulled_at": "",
+                    "registry_snapshot": str(stations_csv),
+                },
+            ]
+        ).to_csv(state_dir / "raw_pull_state.csv", index=False)
+
+        raw_root = tmp_path / "raw_root"
+        for station_id in ("01234567890", "01234567891"):
+            station_dir = raw_root / station_id
+            station_dir.mkdir(parents=True)
+            (station_dir / "LocationData_Raw.parquet").write_text(
+                f"raw-{station_id}",
+                encoding="utf-8",
+            )
+
+        called: dict[str, object] = {}
+
+        def fake_run_cleaning_run(config: CleaningRunConfig) -> dict[str, object]:
+            called["config"] = config
+            return {"processed": 2}
+
+        monkeypatch.setattr(cli, "run_cleaning_run", fake_run_cleaning_run)
+
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "prog",
+                "run-cleaning-batch",
+                "--raw-root",
+                str(raw_root),
+                "--count",
+                "2",
+                "--run-id",
+                "20250101T000000Z",
+            ],
+        )
+        cli.main()
+
+        staging_input_root = (
+            raw_root.parent / "NOAA_CLEANING_STAGING" / "20250101T000000Z" / "input"
+        )
+        assert (staging_input_root / "01234567890" / "LocationData_Raw.parquet").exists()
+        assert (staging_input_root / "01234567891" / "LocationData_Raw.parquet").exists()
+        assert (
+            raw_root.parent / "NOAA_CLEANING_STAGING" / "20250101T000000Z" / "selected_stations.csv"
+        ).exists()
+
+        config = called["config"]
+        assert isinstance(config, CleaningRunConfig)
+        assert config.mode == "batch_parquet_dir"
+        assert config.input_format == "parquet"
+        assert config.input_root.resolve() == staging_input_root.resolve()
+        assert config.station_ids == ()
+        assert config.manifest_first is True
+        assert config.output_root.resolve() == (
+            tmp_path / "release" / "build_20250101T000000Z" / "canonical_cleaned"
+        ).resolve()
+
+        output = capsys.readouterr().out
+        assert "Staged 2 raw stations" in output
 
     def test_build_location_ids_excludes_operational_status_columns(
         self,
