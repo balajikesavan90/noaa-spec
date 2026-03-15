@@ -12,6 +12,14 @@ output/
 artifacts/test_runs/
 artifacts/parquet_runs/
 release/
+!release/build_*/canonical_cleaned/**/*.csv
+!release/build_*/canonical_cleaned/**/*.parquet
+!release/build_*/domains/**/*.csv
+!release/build_*/domains/**/*.parquet
+!release/build_*/quality_reports/**/*.csv
+!release/build_*/quality_reports/**/*.parquet
+!release/build_*/manifests/**/*.csv
+!release/build_*/manifests/**/*.parquet
 !tests/fixtures/
 !tests/fixtures/**/*.csv
 

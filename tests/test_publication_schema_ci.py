@@ -111,11 +111,13 @@ def _expected_file_manifest_paths(config: CleaningRunConfig) -> set[str]:
         config.manifest_root / "run_config.json",
         config.manifest_root / "build_metadata.json",
         config.manifest_root / "release_manifest.csv",
+        config.manifest_root / "publication_readiness_gate.json",
         config.reports_root / "field_completeness.csv",
         config.reports_root / "sentinel_frequency.csv",
         config.reports_root / "quality_code_exclusions.csv",
         config.reports_root / "domain_usability_summary.csv",
         config.reports_root / "station_year_quality.csv",
+        config.reports_root / "quality_assessment.json",
         config.reports_root / "quality_reports_summary.md",
     ]
     if config.write_flags.write_global_summary:
@@ -442,16 +444,27 @@ def test_ci_publication_readiness_gate_report(tmp_path: Path) -> None:
         "artifact_manifest_coverage",
         "timestamp_validity",
         "checksum_policy_conformance",
-        "quality_artifact_sanity",
+        "artifact_structural_sanity",
+        "build_metadata_completeness",
     }
     for check_payload in checks.values():
         assert check_payload["passed"] is True
+
+    assert payload["quality_assessment_generated"] is True
+    assert str(payload["quality_assessment_path"]).endswith("/quality_reports/quality_assessment.json")
 
     scores = payload["scores"]
     assert scores["scale"] == "0_to_1"
     assert 0.0 <= float(scores["overall_score"]) <= 1.0
     assert 0.0 <= float(scores["integrity_score"]) <= 1.0
-    assert 0.0 <= float(scores["quality_score"]) <= 1.0
+
+    quality_assessment_path = config.reports_root / "quality_assessment.json"
+    assert quality_assessment_path.exists()
+    quality_assessment = json.loads(quality_assessment_path.read_text(encoding="utf-8"))
+    assert quality_assessment["advisory_only"] is True
+    assert quality_assessment["threshold_policy"] == "advisory"
+    assert "threshold_evaluations" in quality_assessment
+    assert "impact_summaries" in quality_assessment
 
 
 def test_ci_run_manifest_snapshot_vs_run_status_execution_truth(tmp_path: Path) -> None:

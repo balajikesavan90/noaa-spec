@@ -162,6 +162,23 @@ def test_quality_profile_null_counts_are_per_identifier_rows_not_part_sums() -> 
     assert profile["null_counts_by_identifier"]["OD1"] == 2
 
 
+def test_quality_profile_separates_structural_and_substantive_impacts() -> None:
+    builder = cleaning_runner._QualityProfileBuilder()
+    cleaned = pd.DataFrame(
+        {
+            "qc_control_invalid_date": [True, False, False],
+            "TMP__qc_reason": ["SENTINEL_MISSING", pd.NA, "BAD_QUALITY_CODE"],
+        }
+    )
+
+    profile = builder.build(cleaned=cleaned, station_id="01234567890")
+    assert profile["rows_with_structural_impacts"] == 1
+    assert profile["rows_with_sentinel_impacts"] == 1
+    assert profile["rows_with_quality_code_impacts"] == 1
+    assert profile["rows_with_qc_flags"] == 2
+    assert float(profile["fraction_rows_impacted"]) == pytest.approx(2.0 / 3.0)
+
+
 def test_usable_row_series_treats_text_only_rows_as_usable() -> None:
     frame = pd.DataFrame(
         {
@@ -175,26 +192,86 @@ def test_usable_row_series_treats_text_only_rows_as_usable() -> None:
     assert usable.astype(bool).tolist() == [True, False]
 
 
-def test_publication_quality_sanity_check_reports_advisory_thresholds_with_score() -> None:
+def test_quality_assessment_keeps_threshold_findings_advisory() -> None:
     quality_frames = {
         "field_completeness": pd.DataFrame(
             {"field_completeness_ratio": [0.75]}
         ),
         "domain_usability_summary": pd.DataFrame(
-            {"domain": ["core_meteorology"], "usable_row_rate": [0.10]}
+            {"station_id": ["01234567890"], "domain": ["core_meteorology"], "usable_row_rate": [0.10]}
+        ),
+        "sentinel_frequency": pd.DataFrame(
+            {
+                "station_id": ["01234567890"],
+                "sentinel_row_rate": [0.60],
+                "sentinel_events_per_row": [1.5],
+                "sentinel_events": [3],
+                "rows_with_sentinel_impacts": [2],
+            }
         ),
         "quality_code_exclusions": pd.DataFrame(
-            {"quality_code_exclusion_rate": [0.80]}
+            {
+                "station_id": ["01234567890"],
+                "quality_code_exclusion_rate": [0.80],
+                "quality_code_exclusion_events_per_row": [0.80],
+                "quality_code_exclusions": [4],
+                "rows_with_quality_code_exclusions": [4],
+            }
+        ),
+        "station_year_quality": pd.DataFrame(
+            {
+                "station_id": ["01234567890"],
+                "year": [2020],
+                "fraction_rows_impacted": [0.70],
+                "fraction_rows_structural_impacted": [0.20],
+                "rows_total": [10],
+                "rows_with_qc_flags": [7],
+                "rows_with_structural_impacts": [2],
+                "rows_with_sentinel_impacts": [3],
+                "rows_with_quality_code_impacts": [4],
+                "rows_with_other_substantive_impacts": [0],
+            }
         ),
     }
+    status_df = pd.DataFrame({"status": ["completed"]})
 
-    summary = cleaning_runner._publication_quality_sanity_check(quality_frames)
+    summary = cleaning_runner._build_quality_assessment(
+        config=_config(
+            Path("/tmp"),
+            mode="test_csv_dir",
+            input_format="csv",
+            run_id="run_advisory_quality",
+            input_root=Path("/tmp/inputs"),
+        ),
+        status_df=status_df,
+        quality_frames=quality_frames,
+        build_metadata_path=Path("/tmp/build_metadata.json"),
+    )
+    assert summary["advisory_only"] is True
+    assert summary["threshold_policy"] == "advisory"
+    assert summary["threshold_evaluations"]["quality_code_exclusion_rate_threshold_ok"] is False
+    assert summary["threshold_evaluations"]["domain_usability_thresholds_ok"] is False
+    assert 0.0 <= float(summary["summary_scores"]["quality_score"]) <= 1.0
+    assert (
+        float(summary["summary_scores"]["quality_score_components"]["quality_code_exclusion"]) < 1.0
+    )
+    assert float(summary["summary_scores"]["quality_score_components"]["domain_usability"]) < 1.0
+    assert summary["sentinel_heavy_summaries"]["top_sentinel_stations"][0]["station_id"] == "01234567890"
+
+
+def test_publication_structural_sanity_check_uses_bounds_not_quality_thresholds() -> None:
+    quality_frames = {
+        "field_completeness": pd.DataFrame({"field_completeness_ratio": [0.75]}),
+        "domain_usability_summary": pd.DataFrame({"usable_row_rate": [0.10]}),
+        "sentinel_frequency": pd.DataFrame({"sentinel_row_rate": [0.90]}),
+        "quality_code_exclusions": pd.DataFrame({"quality_code_exclusion_rate": [0.80]}),
+        "station_year_quality": pd.DataFrame({"usable_row_rate": [0.95]}),
+    }
+
+    summary = cleaning_runner._publication_structural_sanity_check(quality_frames)
     assert summary["passed"] is True
-    assert summary["quality_code_exclusion_rate_threshold_ok"] is False
-    assert summary["domain_usability_thresholds_ok"] is False
-    assert 0.0 <= float(summary["quality_score"]) <= 1.0
-    assert float(summary["quality_score_components"]["quality_code_exclusion"]) < 1.0
-    assert float(summary["quality_score_components"]["domain_usability"]) < 1.0
+    assert summary["quality_code_exclusion_rate_bounds_ok"] is True
+    assert summary["domain_usable_row_rate_bounds_ok"] is True
 
 
 def test_station_discovery_excludes_non_station_directories(tmp_path: Path) -> None:
@@ -705,15 +782,76 @@ def test_mandatory_quality_artifacts_are_written_with_station_quality_profiles(
     field_completeness = pd.read_csv(config.reports_root / "field_completeness.csv")
     assert {"field_identifier", "null_count", "field_completeness_ratio"}.issubset(field_completeness.columns)
 
+    sentinel_frequency = pd.read_csv(config.reports_root / "sentinel_frequency.csv")
+    assert {
+        "sentinel_events",
+        "rows_with_sentinel_impacts",
+        "sentinel_row_rate",
+        "sentinel_events_per_row",
+    }.issubset(sentinel_frequency.columns)
+
     domain_usability = pd.read_csv(config.reports_root / "domain_usability_summary.csv")
-    assert {"domain", "usable_rows", "usable_row_rate"}.issubset(domain_usability.columns)
+    assert {
+        "domain",
+        "usable_rows",
+        "usable_row_rate",
+        "artifact_mode",
+        "advisory_only",
+    }.issubset(domain_usability.columns)
+    assert set(domain_usability["artifact_mode"].astype(str)) == {"fallback_no_domain_splits"}
+    assert set(domain_usability["advisory_only"].astype(str).str.lower()) == {"true"}
 
     station_year_quality = pd.read_csv(config.reports_root / "station_year_quality.csv")
     assert {"qc_attrition_rows", "usable_row_rate"}.issubset(station_year_quality.columns)
 
     summary_md = config.reports_root / "quality_reports_summary.md"
     assert summary_md.exists()
-    assert "Quality Reports Summary" in summary_md.read_text(encoding="utf-8")
+    summary_text = summary_md.read_text(encoding="utf-8")
+    assert "Quality Reports Summary" in summary_text
+    assert "Highest Quality-Code Exclusion Rates" in summary_text
+    assert "Highest Sentinel Event Rates" in summary_text
+
+
+def test_run_status_records_phase_timings_and_station_metrics(tmp_path: Path) -> None:
+    input_root = tmp_path / "inputs"
+    station_id = "01234567890"
+    _write_raw_csv_with_repeated_wind_fields(input_root / station_id, station_id)
+
+    config = _config(
+        tmp_path,
+        mode="test_csv_dir",
+        input_format="csv",
+        run_id="run_status_metrics",
+        input_root=input_root,
+        write_flags=_flags(cleaned=True, domain=True, quality=True, reports=False, global_summary=False),
+    )
+    run_cleaning_run(config)
+
+    run_status = pd.read_csv(config.manifest_root / "run_status.csv", dtype=str)
+    row = run_status.iloc[0].to_dict()
+    expected_columns = {
+        "elapsed_read_seconds",
+        "elapsed_clean_seconds",
+        "elapsed_domain_split_seconds",
+        "elapsed_quality_profile_seconds",
+        "elapsed_write_seconds",
+        "elapsed_total_seconds",
+        "row_count_raw",
+        "row_count_cleaned",
+        "raw_columns",
+        "cleaned_columns",
+        "input_size_bytes",
+        "cleaned_size_bytes",
+    }
+    assert expected_columns.issubset(run_status.columns)
+    assert float(row["elapsed_total_seconds"]) >= 0.0
+    assert float(row["elapsed_seconds"]) == pytest.approx(float(row["elapsed_total_seconds"]))
+    assert int(row["row_count_raw"]) == 1
+    assert int(row["row_count_cleaned"]) == 1
+    assert int(row["raw_columns"]) >= 4
+    assert int(row["cleaned_columns"]) >= int(row["raw_columns"])
+    assert int(row["input_size_bytes"]) > 0
+    assert int(row["cleaned_size_bytes"]) > 0
 
 
 def test_field_completeness_ratios_are_bounded_between_zero_and_one(tmp_path: Path) -> None:
@@ -780,7 +918,7 @@ def test_release_manifest_contains_canonical_domain_and_quality_artifact_rows(
 
     raw_source_row = manifest[manifest["artifact_type"] == "raw_source"].iloc[0].to_dict()
     assert raw_source_row["build_id"] == config.run_id
-    assert json.loads(str(raw_source_row["input_lineage"])) == []
+    assert json.loads(str(raw_source_row["input_lineage"])) == [str(raw_path.resolve())]
 
     canonical_row = manifest[manifest["artifact_type"] == "canonical_dataset"].iloc[0].to_dict()
     assert canonical_row["build_id"] == config.run_id
@@ -839,6 +977,8 @@ def test_file_manifest_captures_station_outputs_with_dual_manifest_model(
         "station_quality_profile",
         "success_marker",
         "release_manifest",
+        "quality_assessment",
+        "publication_readiness_gate",
     }.issubset(set(file_manifest["artifact_type"].astype(str)))
 
     release_manifest = pd.read_csv(config.manifest_root / "release_manifest.csv", dtype=str)
@@ -898,6 +1038,8 @@ def test_domain_usability_marks_text_first_remarks_domain_rows_as_usable(
     assert not remarks_rows.empty
     assert int(remarks_rows["usable_rows"].max()) > 0
     assert float(remarks_rows["usable_row_rate"].max()) > 0.0
+    if "artifact_mode" in remarks_rows.columns:
+        assert set(remarks_rows["artifact_mode"].astype(str)) == {"domain_splits"}
 
 
 def test_mandatory_quality_artifacts_written_even_when_quality_profiles_disabled(

@@ -95,6 +95,8 @@ def _select_cleaning_batch_station_ids(
     pulled_state: pd.DataFrame,
     *,
     raw_root: Path,
+    release_base_root: Path,
+    current_run_id: str,
     explicit_station_ids: tuple[str, ...],
     count: int,
     selection_strategy: str,
@@ -103,6 +105,15 @@ def _select_cleaning_batch_station_ids(
         raise ValueError("--count must be a positive integer")
 
     inventory = _available_raw_station_inventory(raw_root, pulled_state)
+    prior_manifest_station_ids = _prior_batch_station_ids_from_release_manifests(
+        release_base_root,
+        current_run_id=current_run_id,
+    )
+    if prior_manifest_station_ids:
+        explicit_set = set(explicit_station_ids)
+        inventory = inventory[
+            ~inventory["station_id"].astype(str).isin(prior_manifest_station_ids - explicit_set)
+        ].copy()
     available_ids = [str(value) for value in inventory["station_id"].astype(str).tolist()]
     available_set = set(available_ids)
     missing_ids = [station_id for station_id in explicit_station_ids if station_id not in available_set]
@@ -138,6 +149,38 @@ def _select_cleaning_batch_station_ids(
     raise ValueError(f"Unsupported selection strategy: {selection_strategy}")
 
 
+def _prior_batch_station_ids_from_release_manifests(
+    release_base_root: Path,
+    *,
+    current_run_id: str,
+) -> set[str]:
+    release_base_root = release_base_root.resolve()
+    if not release_base_root.exists():
+        return set()
+
+    excluded_station_ids: set[str] = set()
+    for manifest_path in sorted(release_base_root.glob("build_*/manifests/run_manifest.csv")):
+        build_dir = manifest_path.parent.parent
+        if build_dir.name == f"build_{current_run_id}":
+            continue
+        try:
+            manifest = pd.read_csv(manifest_path, dtype={"station_id": str})
+        except Exception:
+            continue
+        if "station_id" not in manifest.columns:
+            continue
+        station_ids = (
+            manifest["station_id"]
+            .astype(str)
+            .str.strip()
+            .replace("", pd.NA)
+            .dropna()
+            .tolist()
+        )
+        excluded_station_ids.update(station_ids)
+    return excluded_station_ids
+
+
 def _available_raw_station_inventory(raw_root: Path, pulled_state: pd.DataFrame) -> pd.DataFrame:
     rows: list[dict[str, object]] = []
     for record in pulled_state.to_dict(orient="records"):
@@ -161,9 +204,35 @@ def _available_raw_station_inventory(raw_root: Path, pulled_state: pd.DataFrame)
         )
     inventory = pd.DataFrame(rows)
     if inventory.empty:
-        return pd.DataFrame(columns=["station_id", "FileName", "source_path", "size_bytes", "size_quartile"])
+        return pd.DataFrame(
+            columns=[
+                "station_id",
+                "FileName",
+                "source_path",
+                "size_bytes",
+                "global_size_rank",
+                "global_size_percentile",
+                "size_quartile",
+                "quartile_rank",
+                "quartile_percentile",
+            ]
+        )
     inventory = inventory.sort_values(["size_bytes", "station_id"], kind="stable").reset_index(drop=True)
+    inventory["global_size_rank"] = range(1, len(inventory) + 1)
+    inventory["global_size_percentile"] = _distribution_percentiles(len(inventory))
     inventory["size_quartile"] = _quartile_labels(len(inventory))
+    inventory["quartile_rank"] = (
+        inventory.groupby("size_quartile", sort=False).cumcount() + 1
+    )
+    quartile_sizes = inventory.groupby("size_quartile", sort=False)["station_id"].transform("size")
+    inventory["quartile_percentile"] = [
+        _position_percentile(int(rank) - 1, int(size))
+        for rank, size in zip(
+            inventory["quartile_rank"].astype(int).tolist(),
+            quartile_sizes.astype(int).tolist(),
+            strict=False,
+        )
+    ]
     return inventory
 
 
@@ -181,6 +250,41 @@ def _quartile_target_counts(total: int) -> dict[int, int]:
     for quartile in range(1, remainder + 1):
         counts[quartile] += 1
     return counts
+
+
+def _position_percentile(index: int, total: int) -> float:
+    if total <= 1:
+        return 1.0
+    return float(index) / float(total - 1)
+
+
+def _distribution_percentiles(total: int) -> list[float]:
+    return [_position_percentile(idx, total) for idx in range(total)]
+
+
+def _spaced_sample_rows(frame: pd.DataFrame, count: int) -> list[pd.Series]:
+    if count <= 0 or frame.empty:
+        return []
+
+    total = len(frame)
+    if count >= total:
+        return [row for _, row in frame.iterrows()]
+
+    if count == 1:
+        midpoint = total // 2
+        return [frame.iloc[midpoint]]
+
+    selected_rows: list[pd.Series] = []
+    used_indices: set[int] = set()
+    for step in range(count):
+        candidate = round(step * (total - 1) / float(count - 1))
+        while candidate in used_indices and candidate < total - 1:
+            candidate += 1
+        while candidate in used_indices and candidate > 0:
+            candidate -= 1
+        used_indices.add(candidate)
+        selected_rows.append(frame.iloc[candidate])
+    return selected_rows
 
 
 def _select_cleaning_batch_station_inventory_by_size_quartiles(
@@ -203,20 +307,31 @@ def _select_cleaning_batch_station_inventory_by_size_quartiles(
         quartile = int(row["size_quartile"])
         quotas[quartile] = max(0, quotas[quartile] - 1)
 
+    quartile_four = inventory[inventory["size_quartile"] == 4]
+    quartile_four = quartile_four[~quartile_four["station_id"].isin(selected_ids)]
+    top_tail_target = min(
+        max(1, count // 25),
+        quotas[4],
+        len(quartile_four),
+    )
+    if top_tail_target > 0:
+        for _, row in quartile_four.sort_values(["size_bytes", "station_id"], ascending=[False, False]).head(top_tail_target).sort_values(["size_bytes", "station_id"], kind="stable").iterrows():
+            selected_rows.append(row)
+            selected_ids.add(str(row["station_id"]))
+        quotas[4] = max(0, quotas[4] - top_tail_target)
+
     for quartile in range(1, 5):
-        quartile_rows = inventory[inventory["size_quartile"] == quartile]
         needed = quotas[quartile]
         if needed <= 0:
             continue
-        for _, row in quartile_rows.iterrows():
+        quartile_rows = inventory[inventory["size_quartile"] == quartile]
+        quartile_rows = quartile_rows[~quartile_rows["station_id"].isin(selected_ids)].reset_index(drop=True)
+        for row in _spaced_sample_rows(quartile_rows, needed):
             station_id = str(row["station_id"])
             if station_id in selected_ids:
                 continue
             selected_rows.append(row)
             selected_ids.add(station_id)
-            needed -= 1
-            if needed <= 0:
-                break
 
     if len(selected_rows) < count:
         for _, row in inventory.iterrows():
@@ -256,6 +371,8 @@ def _stage_cleaning_batch_inputs(
                 "station_id": station_id,
                 "size_quartile": int(row.get("size_quartile", 0) or 0),
                 "size_bytes": int(row.get("size_bytes", 0) or 0),
+                "quartile_percentile": float(row.get("quartile_percentile", 0.0) or 0.0),
+                "global_size_percentile": float(row.get("global_size_percentile", 0.0) or 0.0),
                 "source_path": str(source_path.resolve()),
                 "staged_path": str(staged_path.resolve()),
             }
@@ -273,7 +390,7 @@ def _stage_cleaning_batch_inputs(
 def _batch_cleaning_run_write_flags() -> RunWriteFlags:
     return RunWriteFlags(
         write_cleaned_station=True,
-        write_domain_splits=False,
+        write_domain_splits=True,
         write_station_quality_profile=True,
         write_station_reports=False,
         write_global_summary=True,
@@ -801,7 +918,9 @@ def _parse_args() -> argparse.Namespace:
         help="Write cleaned station datasets",
     )
     cleaning_run_parser.add_argument(
+        "--domain-splits",
         "--write-domain-splits",
+        dest="write_domain_splits",
         action=argparse.BooleanOptionalAction,
         default=None,
         help="Write optional domain split datasets",
@@ -897,6 +1016,13 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         default=False,
         help="Only create the frozen staging input tree; do not start cleaning-run",
+    )
+    cleaning_batch_parser.add_argument(
+        "--domain-splits",
+        dest="write_domain_splits",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Write domain split datasets for batch runs (default: enabled)",
     )
 
     return parser.parse_args()
@@ -1042,6 +1168,8 @@ def main() -> None:
         selected_inventory = _select_cleaning_batch_station_ids(
             pulled_state,
             raw_root=raw_root,
+            release_base_root=release_base_root,
+            current_run_id=run_id,
             explicit_station_ids=explicit_station_ids,
             count=args.count,
             selection_strategy=args.selection_strategy,
@@ -1063,6 +1191,15 @@ def main() -> None:
             return
 
         default_roots = _release_roots_for_base(release_base_root, run_id)
+        batch_write_flags = _batch_cleaning_run_write_flags()
+        if args.write_domain_splits is not None:
+            batch_write_flags = RunWriteFlags(
+                write_cleaned_station=batch_write_flags.write_cleaned_station,
+                write_domain_splits=bool(args.write_domain_splits),
+                write_station_quality_profile=batch_write_flags.write_station_quality_profile,
+                write_station_reports=batch_write_flags.write_station_reports,
+                write_global_summary=batch_write_flags.write_global_summary,
+            )
         config = CleaningRunConfig(
             mode="batch_parquet_dir",
             input_root=staging_input_root,
@@ -1077,7 +1214,7 @@ def main() -> None:
             force=False,
             manifest_first=True,
             manifest_refresh=False,
-            write_flags=_batch_cleaning_run_write_flags(),
+            write_flags=batch_write_flags,
         )
         run_cleaning_run(config)
         return
@@ -1129,7 +1266,7 @@ def main() -> None:
         else:
             write_flags = RunWriteFlags(
                 write_cleaned_station=_resolve_flag(args.write_cleaned_station, True),
-                write_domain_splits=_resolve_flag(args.write_domain_splits, False),
+                write_domain_splits=_resolve_flag(args.write_domain_splits, True),
                 write_station_quality_profile=_resolve_flag(args.write_station_quality_profile, True),
                 write_station_reports=_resolve_flag(args.write_station_reports, False),
                 write_global_summary=_resolve_flag(args.write_global_summary, True),

@@ -251,7 +251,7 @@ Mode expectations:
 - `test_parquet_dir` reads `LocationData_Raw.parquet` and writes cleaned parquet outputs
   while keeping test-mode defaults (domain splits on, global summary off).
 - `batch_parquet_dir` reads `LocationData_Raw.parquet` and writes cleaned parquet outputs
-  with batch defaults (domain splits off, global summary on).
+  with batch defaults (domain splits on, global summary on).
 
 For a safer manual batch off the pulled-station registry, use the staging helper:
 
@@ -268,9 +268,13 @@ This command:
 - runs `cleaning-run` against that frozen input tree
 - writes release artifacts to `<raw-root-parent>/NOAA_CLEANED_DATA/build_<run_id>/{canonical_cleaned,domains,quality_reports,manifests}`
 
-By default, `run-cleaning-batch` uses deterministic size-quartile sampling for better
-small/medium/large runtime coverage in rehearsal batches. For publication-oriented runs,
-switch to a declared deterministic scope rule such as:
+By default, `run-cleaning-batch` uses deterministic size-quartile sampling that now spans
+the full quartile range and includes explicit top-tail selections from the largest available
+files. `selected_stations.csv` records quartile, size, quartile percentile, and global size
+percentile metadata for the staged sample. The selector also excludes station IDs already present
+in prior batch `manifests/run_manifest.csv` files under the release base root, so deleting a bad
+batch directory cleanly removes its exclusion footprint. For publication-oriented runs, switch to a declared
+deterministic scope rule such as:
 
 ```bash
 poetry run python -m noaa_climate_data.cli run-cleaning-batch \
@@ -281,6 +285,9 @@ poetry run python -m noaa_climate_data.cli run-cleaning-batch \
 
 Optional station reports (`--write-station-reports`) write station-level quality artifacts plus
 domain-specific quality reports under `reports/<station_id>/domain_quality/`.
+
+Domain splits are enabled by default for `cleaning-run` and `run-cleaning-batch`. Disable them
+explicitly with `--no-domain-splits` when needed.
 
 If your station folders currently only have `LocationData_Raw.csv`, create parquet copies first:
 

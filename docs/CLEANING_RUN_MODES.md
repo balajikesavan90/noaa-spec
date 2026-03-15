@@ -43,7 +43,7 @@ Input expectation:
 Default write behavior:
 
 - cleaned station outputs: on
-- domain splits: off
+- domain splits: on
 - station quality profiles: on
 - station reports: off
 - global summary: on
@@ -99,14 +99,18 @@ If `--run-id` already exists:
 - It mutates as stations transition across runtime states (`pending`, `running`, `completed`, `failed`, `skipped_*`).
 - Resume/recovery behavior must consult `run_status.csv` plus `_SUCCESS.json` and expected output existence checks.
 
-## Publication Quality Scoring
+## Publication Readiness vs Advisory Quality
 
-`manifests/publication_readiness_gate.json` includes score-based quality signals:
+`manifests/publication_readiness_gate.json` is integrity-only. It covers build/package checks such as:
 
-- `checks.quality_artifact_sanity.quality_score` (continuous `0..1`)
-- `scores.quality_score`, `scores.integrity_score`, and `scores.overall_score` (continuous `0..1`)
+- artifact existence and manifest coverage
+- checksum and timestamp integrity
+- structural sanity of required quality artifacts
+- build metadata completeness
 
-Reference values are still emitted for interpretation:
+Threshold-based quality findings now live in `quality_reports/quality_assessment.json`.
+
+Reference values are still emitted for advisory interpretation in that artifact:
 
 - quality-code exclusion reference rate: `0.25`
 - domain usability reference minima by domain:
@@ -117,7 +121,8 @@ Reference values are still emitted for interpretation:
   - `pressure_temperature`: `0.00`
   - `remarks`: `0.00`
 
-These reference checks are advisory quality signals, not hard-fail publication blockers.
+These reference checks are emitted as explicit gate criteria. If a configured threshold fails,
+the quality section and the top-level publication gate now reflect that failure.
 
 ## Resumability and Completion Rules
 
@@ -169,6 +174,7 @@ poetry run python -m noaa_climate_data.cli run-cleaning-batch \
 Behavior:
 
 - selects a deterministic subset of stations already marked pulled in `raw_pull_state.csv`
+- excludes station IDs already recorded in prior batch `manifests/run_manifest.csv` files under the release base root
 - stages those raw parquets into a frozen input tree
 - invokes `cleaning-run --mode batch_parquet_dir` against the staged input root
 - keeps the raw ingest cron and the cleaning batch separated at the filesystem boundary
@@ -176,7 +182,7 @@ Behavior:
 
 Selection strategies:
 
-- `size_quartiles` (default): balanced rehearsal sample across small/medium/large raw parquet sizes
+- `size_quartiles` (default): balanced rehearsal sample across small/medium/large raw parquet sizes, spread across each quartile range, with explicit top-tail picks from the largest available files
 - `station_id`: deterministic first-N by canonical station ordering for declared publication scope
 
 ### Resume a prior run id
@@ -215,8 +221,26 @@ poetry run python -m noaa_climate_data.cli cleaning-run \
   --mode test_csv_dir \
   --input-root outputs \
   --input-format csv \
-  --no-write-domain-splits
+  --no-domain-splits
 ```
+
+`run_status.csv` now records per-station phase timings and descriptive workload metrics, including:
+
+- `elapsed_read_seconds`
+- `elapsed_clean_seconds`
+- `elapsed_domain_split_seconds`
+- `elapsed_quality_profile_seconds`
+- `elapsed_write_seconds`
+- `elapsed_total_seconds`
+- `row_count_raw`
+- `row_count_cleaned`
+- `raw_columns`
+- `cleaned_columns`
+- `input_size_bytes`
+- `cleaned_size_bytes`
+
+When domain splits are disabled, `domain_usability_summary.csv` stays present but marks rows as
+fallback/advisory output using `artifact_mode=fallback_no_domain_splits` and `advisory_only=true`.
 
 When `--write-station-reports` is enabled, cleaning-run writes:
 

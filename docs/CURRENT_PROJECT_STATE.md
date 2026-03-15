@@ -20,7 +20,7 @@ The strongest current signals are:
 - spec coverage is currently reported as 3536/3536 implemented and strictly tested,
 - suspicious coverage is currently 0,
 - recent contract-check cleaning runs completed successfully on 11 local station datasets,
-- publication gating now treats quality thresholds as advisory scores instead of hard blockers.
+- publication gating now treats quality thresholds as advisory rather than hard blockers, and quality threshold findings are emitted separately in `quality_reports/quality_assessment.json`.
 
 ## Where the project stands today
 
@@ -64,7 +64,7 @@ Key facts from the run:
 Important interpretation:
 
 - The run is **operationally healthy**: all stations completed, manifests matched expectations, timestamps and checksums validated.
-- The run is **scientifically transparent rather than aggressively filtered**: quality exclusion rates are still high for some data slices, but those thresholds are now treated as advisory quality signals instead of build-failing blockers.
+- The run is **scientifically transparent rather than aggressively filtered**: quality exclusion rates are still high for some data slices, and those thresholds are now surfaced explicitly in the publication gate outcome instead of being hidden behind an all-green status.
 
 Supporting artifacts:
 

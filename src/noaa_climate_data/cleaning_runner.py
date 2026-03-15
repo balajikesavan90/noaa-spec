@@ -78,8 +78,18 @@ RUN_STATUS_COLUMNS = [
     "started_at",
     "completed_at",
     "elapsed_seconds",
+    "elapsed_read_seconds",
+    "elapsed_clean_seconds",
+    "elapsed_domain_split_seconds",
+    "elapsed_quality_profile_seconds",
+    "elapsed_write_seconds",
+    "elapsed_total_seconds",
     "row_count_raw",
     "row_count_cleaned",
+    "raw_columns",
+    "cleaned_columns",
+    "input_size_bytes",
+    "cleaned_size_bytes",
     "station_quality_profile_path",
     "success_marker_path",
     "expected_outputs",
@@ -105,6 +115,7 @@ RULE_FAMILIES = [
     "range_validation",
     "pattern_validation",
     "width_validation",
+    "structural_validation",
     "structural_parser_guard",
     "quality_code_handling",
 ]
@@ -131,11 +142,6 @@ QUALITY_SCORE_COMPONENT_WEIGHTS: dict[str, float] = {
     "bounds_validity": 0.20,
     "quality_code_exclusion": 0.50,
     "domain_usability": 0.30,
-}
-
-PUBLICATION_SCORE_COMPONENT_WEIGHTS: dict[str, float] = {
-    "integrity": 0.70,
-    "quality": 0.30,
 }
 
 QC_REASON_TO_FAMILY = {
@@ -232,21 +238,30 @@ class _QualityProfileBuilder:
             self._cache[schema_key] = schema
 
         rows_total = int(len(cleaned))
-        row_impacted_mask = pd.Series(False, index=cleaned.index)
+        structural_mask = pd.Series(False, index=cleaned.index)
+        sentinel_mask = pd.Series(False, index=cleaned.index)
+        quality_code_mask = pd.Series(False, index=cleaned.index)
+        substantive_other_mask = pd.Series(False, index=cleaned.index)
 
         qc_flag_counts_by_identifier: dict[str, int] = {}
         null_counts_by_identifier: dict[str, int] = {}
         rule_family_impact_counts = {family: 0 for family in RULE_FAMILIES}
 
         for column, identifier in schema.qc_reason_columns:
-            non_null = cleaned[column].notna()
-            row_impacted_mask = row_impacted_mask | non_null
+            reason_series = cleaned[column].astype("string")
+            non_null = reason_series.notna()
             count = int(non_null.sum())
             if identifier is not None and count > 0:
                 qc_flag_counts_by_identifier[identifier] = (
                     qc_flag_counts_by_identifier.get(identifier, 0) + count
                 )
-            value_counts = cleaned[column].dropna().astype(str).value_counts()
+            sentinel_mask = sentinel_mask | reason_series.eq("SENTINEL_MISSING").fillna(False)
+            quality_code_mask = quality_code_mask | reason_series.eq("BAD_QUALITY_CODE").fillna(False)
+            substantive_other_mask = substantive_other_mask | (
+                non_null
+                & ~reason_series.isin(["SENTINEL_MISSING", "BAD_QUALITY_CODE"]).fillna(False)
+            )
+            value_counts = reason_series.dropna().astype(str).value_counts()
             for reason, reason_count in value_counts.items():
                 family = QC_REASON_TO_FAMILY.get(reason)
                 if family is not None:
@@ -254,7 +269,6 @@ class _QualityProfileBuilder:
 
         for column, identifier, family in schema.qc_flag_columns:
             true_mask = cleaned[column].fillna(False).astype(bool)
-            row_impacted_mask = row_impacted_mask | true_mask
             count = int(true_mask.sum())
             if identifier is not None and count > 0:
                 qc_flag_counts_by_identifier[identifier] = (
@@ -262,10 +276,14 @@ class _QualityProfileBuilder:
                 )
             if family is not None:
                 rule_family_impact_counts[family] += count
+            if family == "structural_validation":
+                structural_mask = structural_mask | true_mask
+            else:
+                substantive_other_mask = substantive_other_mask | true_mask
 
         if schema.parse_error_column is not None:
             parse_error_mask = cleaned[schema.parse_error_column].notna()
-            row_impacted_mask = row_impacted_mask | parse_error_mask
+            structural_mask = structural_mask | parse_error_mask
             rule_family_impact_counts["structural_parser_guard"] += int(parse_error_mask.sum())
 
         # Track null impact per identifier at row granularity so repeated
@@ -284,16 +302,28 @@ class _QualityProfileBuilder:
         for identifier, null_mask in null_masks_by_identifier.items():
             null_counts_by_identifier[identifier] = int(null_mask.sum())
 
-        rows_with_qc_flags = int(row_impacted_mask.sum())
+        substantive_mask = sentinel_mask | quality_code_mask | substantive_other_mask
+        rows_with_qc_flags = int(substantive_mask.sum())
         fraction_rows_impacted = (
             float(rows_with_qc_flags) / float(rows_total) if rows_total > 0 else 0.0
         )
+        rows_with_structural_impacts = int(structural_mask.sum())
+        rows_with_sentinel_impacts = int(sentinel_mask.sum())
+        rows_with_quality_code_impacts = int(quality_code_mask.sum())
+        rows_with_other_substantive_impacts = int(substantive_other_mask.sum())
 
         return {
             "station_id": station_id,
             "rows_total": rows_total,
             "rows_with_qc_flags": rows_with_qc_flags,
             "fraction_rows_impacted": fraction_rows_impacted,
+            "rows_with_structural_impacts": rows_with_structural_impacts,
+            "fraction_rows_structural_impacted": (
+                float(rows_with_structural_impacts) / float(rows_total) if rows_total > 0 else 0.0
+            ),
+            "rows_with_sentinel_impacts": rows_with_sentinel_impacts,
+            "rows_with_quality_code_impacts": rows_with_quality_code_impacts,
+            "rows_with_other_substantive_impacts": rows_with_other_substantive_impacts,
             "null_counts_by_identifier": dict(sorted(null_counts_by_identifier.items())),
             "qc_flag_counts_by_identifier": dict(sorted(qc_flag_counts_by_identifier.items())),
             "rule_family_impact_counts": rule_family_impact_counts,
@@ -524,6 +554,7 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
         processed_for_limit += 1
         started_at = _pst_now_iso()
         station_start = datetime.now(timezone.utc)
+        input_size_bytes = _safe_file_size(input_path)
 
         status_df = _upsert_status(
             status_df,
@@ -533,6 +564,7 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
                 "input_path": str(input_path),
                 "status": "running",
                 "started_at": started_at,
+                "input_size_bytes": input_size_bytes,
                 "expected_outputs": _json_compact([str(path) for path in expected_outputs]),
                 "success_marker_path": str(paths.success_marker_path),
                 "error_message": "",
@@ -543,25 +575,47 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
         try:
             print(f"[{idx}/{len(manifest_rows)}] {station_id}: begin")
             print(f"[{idx}/{len(manifest_rows)}] {station_id}: read raw input")
+            phase_start = datetime.now(timezone.utc)
             raw_df = _read_raw_input(input_path, config.input_format)
+            elapsed_read_seconds = (
+                datetime.now(timezone.utc) - phase_start
+            ).total_seconds()
             row_count_raw = int(len(raw_df))
+            raw_columns = int(len(raw_df.columns))
 
             print(f"[{idx}/{len(manifest_rows)}] {station_id}: clean canonical dataset")
+            phase_start = datetime.now(timezone.utc)
             cleaned_df = _clean_canonical_dataset(raw_df)
             validate_no_sentinel_leakage(cleaned_df)
+            elapsed_clean_seconds = (
+                datetime.now(timezone.utc) - phase_start
+            ).total_seconds()
             row_count_cleaned = int(len(cleaned_df))
+            cleaned_columns = int(len(cleaned_df.columns))
 
             profile_payload: dict[str, Any] | None = None
+            elapsed_quality_profile_seconds = 0.0
             if config.write_flags.write_station_quality_profile:
+                phase_start = datetime.now(timezone.utc)
                 profile_payload = quality_builder.build(cleaned_df, station_id)
+                elapsed_quality_profile_seconds = (
+                    datetime.now(timezone.utc) - phase_start
+                ).total_seconds()
 
+            elapsed_write_seconds = 0.0
             if config.write_flags.write_cleaned_station:
                 print(f"[{idx}/{len(manifest_rows)}] {station_id}: write cleaned output")
+                phase_start = datetime.now(timezone.utc)
                 _ensure_dir(paths.station_output_dir)
                 _write_cleaned_station(cleaned_df, paths.cleaned_path, config.input_format)
+                elapsed_write_seconds += (
+                    datetime.now(timezone.utc) - phase_start
+                ).total_seconds()
 
+            elapsed_domain_split_seconds = 0.0
             if config.write_flags.write_domain_splits:
                 print(f"[{idx}/{len(manifest_rows)}] {station_id}: write domain splits")
+                phase_start = datetime.now(timezone.utc)
                 _ensure_dir(paths.domain_dir)
                 station_name = _station_name(cleaned_df, station_id)
                 station_slug = sanitize_station_slug(station_name)
@@ -577,14 +631,22 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
                     paths.domain_manifest_path,
                     sort_by=("domain",),
                 )
+                elapsed_domain_split_seconds = (
+                    datetime.now(timezone.utc) - phase_start
+                ).total_seconds()
 
             if config.write_flags.write_station_quality_profile and profile_payload is not None:
                 print(f"[{idx}/{len(manifest_rows)}] {station_id}: write station quality profile")
+                phase_start = datetime.now(timezone.utc)
                 _ensure_dir(config.quality_profile_root)
                 _write_json(paths.quality_profile_path, profile_payload)
+                elapsed_quality_profile_seconds += (
+                    datetime.now(timezone.utc) - phase_start
+                ).total_seconds()
 
             if config.write_flags.write_station_reports:
                 print(f"[{idx}/{len(manifest_rows)}] {station_id}: write station reports")
+                phase_start = datetime.now(timezone.utc)
                 _ensure_dir(paths.reports_dir)
                 report_paths = _write_station_reports_from_memory(
                     raw=raw_df,
@@ -592,7 +654,11 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
                     station_id=station_id,
                     reports_dir=paths.reports_dir,
                 )
+                elapsed_write_seconds += (
+                    datetime.now(timezone.utc) - phase_start
+                ).total_seconds()
 
+            phase_start = datetime.now(timezone.utc)
             _verify_outputs_exist(expected_outputs)
             _write_success_marker(
                 success_path=paths.success_marker_path,
@@ -605,8 +671,12 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
                 row_count_cleaned=row_count_cleaned,
                 write_flags=config.write_flags,
             )
+            elapsed_write_seconds += (
+                datetime.now(timezone.utc) - phase_start
+            ).total_seconds()
+            cleaned_size_bytes = _safe_file_size(paths.cleaned_path)
 
-            elapsed_seconds = (
+            elapsed_total_seconds = (
                 datetime.now(timezone.utc) - station_start
             ).total_seconds()
             status_df = _upsert_status(
@@ -619,9 +689,19 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
                     "status": "completed",
                     "started_at": started_at,
                     "completed_at": _pst_now_iso(),
-                    "elapsed_seconds": round(float(elapsed_seconds), 6),
+                    "elapsed_seconds": round(float(elapsed_total_seconds), 6),
+                    "elapsed_read_seconds": round(float(elapsed_read_seconds), 6),
+                    "elapsed_clean_seconds": round(float(elapsed_clean_seconds), 6),
+                    "elapsed_domain_split_seconds": round(float(elapsed_domain_split_seconds), 6),
+                    "elapsed_quality_profile_seconds": round(float(elapsed_quality_profile_seconds), 6),
+                    "elapsed_write_seconds": round(float(elapsed_write_seconds), 6),
+                    "elapsed_total_seconds": round(float(elapsed_total_seconds), 6),
                     "row_count_raw": row_count_raw,
                     "row_count_cleaned": row_count_cleaned,
+                    "raw_columns": raw_columns,
+                    "cleaned_columns": cleaned_columns,
+                    "input_size_bytes": input_size_bytes,
+                    "cleaned_size_bytes": cleaned_size_bytes,
                     "station_quality_profile_path": (
                         str(paths.quality_profile_path)
                         if config.write_flags.write_station_quality_profile
@@ -637,7 +717,7 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
             processed += 1
             print(
                 f"[{idx}/{len(manifest_rows)}] DONE {station_id} "
-                f"(elapsed={elapsed_seconds:.3f}s)"
+                f"(elapsed={elapsed_total_seconds:.3f}s)"
             )
         except Exception as exc:  # pragma: no cover - branch validated by tests
             failed += 1
@@ -654,6 +734,8 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
                     "started_at": started_at,
                     "completed_at": _pst_now_iso(),
                     "elapsed_seconds": round(float(elapsed_seconds), 6),
+                    "elapsed_total_seconds": round(float(elapsed_seconds), 6),
+                    "input_size_bytes": input_size_bytes,
                     "success_marker_path": str(paths.success_marker_path),
                     "expected_outputs": _json_compact([str(path) for path in expected_outputs]),
                     "error_message": str(exc),
@@ -683,7 +765,7 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
         )
         print(f"Quality artifact: wrote {output_path}")
     summary_path = config.reports_root / "quality_reports_summary.md"
-    _write_quality_reports_summary(summary_path, quality_frames, config.run_id)
+    _write_quality_reports_summary(summary_path, quality_frames, config.run_id, status_df)
     print(f"Quality artifact: wrote {summary_path}")
 
     release_manifest_path = config.manifest_root / "release_manifest.csv"
@@ -696,6 +778,16 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
     _write_release_manifest(release_manifest_path, release_manifest_rows)
     print(f"Release manifest: wrote {release_manifest_path}")
 
+    quality_assessment_path = config.reports_root / "quality_assessment.json"
+    quality_assessment = _build_quality_assessment(
+        config,
+        status_df,
+        quality_frames,
+        build_metadata_path=build_metadata_path,
+    )
+    _write_json(quality_assessment_path, quality_assessment)
+    print(f"Quality assessment: wrote {quality_assessment_path}")
+
     file_manifest_path = config.manifest_root / "file_manifest.csv"
     file_manifest_rows = _build_full_file_manifest_rows(
         config=config,
@@ -706,6 +798,8 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
         run_config_path=run_config_path,
         build_metadata_path=build_metadata_path,
         release_manifest_path=release_manifest_path,
+        quality_assessment_path=quality_assessment_path,
+        publication_readiness_path=None,
     )
     _write_full_file_manifest(file_manifest_path, file_manifest_rows)
     print(f"File manifest: wrote {file_manifest_path}")
@@ -721,9 +815,25 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
         build_metadata_path=build_metadata_path,
         release_manifest_path=release_manifest_path,
         file_manifest_path=file_manifest_path,
+        quality_assessment_path=quality_assessment_path,
     )
     _write_json(publication_readiness_path, publication_readiness)
     print(f"Publication readiness: wrote {publication_readiness_path}")
+
+    file_manifest_rows = _build_full_file_manifest_rows(
+        config=config,
+        status_df=status_df,
+        creation_timestamp=build_timestamp,
+        run_manifest_path=run_manifest_path,
+        run_status_path=run_status_path,
+        run_config_path=run_config_path,
+        build_metadata_path=build_metadata_path,
+        release_manifest_path=release_manifest_path,
+        quality_assessment_path=quality_assessment_path,
+        publication_readiness_path=publication_readiness_path,
+    )
+    _write_full_file_manifest(file_manifest_path, file_manifest_rows)
+    print(f"File manifest: refreshed {file_manifest_path} with publication gate coverage")
 
     total_elapsed_seconds = (datetime.now(timezone.utc) - run_started_at).total_seconds()
     total_elapsed_minutes = total_elapsed_seconds / 60.0
@@ -930,8 +1040,18 @@ def _prepare_manifest(
                 "started_at": "",
                 "completed_at": "",
                 "elapsed_seconds": "",
+                "elapsed_read_seconds": "",
+                "elapsed_clean_seconds": "",
+                "elapsed_domain_split_seconds": "",
+                "elapsed_quality_profile_seconds": "",
+                "elapsed_write_seconds": "",
+                "elapsed_total_seconds": "",
                 "row_count_raw": "",
                 "row_count_cleaned": "",
+                "raw_columns": "",
+                "cleaned_columns": "",
+                "input_size_bytes": row["input_size_bytes"],
+                "cleaned_size_bytes": "",
                 "station_quality_profile_path": "",
                 "success_marker_path": "",
                 "expected_outputs": "",
@@ -1312,8 +1432,12 @@ def _build_global_summary_from_sidecars(
         average_row_impact_rate = float(
             sum(float(profile.get("fraction_rows_impacted", 0.0)) for profile in profiles)
         ) / float(total_stations)
+        average_structural_impact_rate = float(
+            sum(float(profile.get("fraction_rows_structural_impacted", 0.0)) for profile in profiles)
+        ) / float(total_stations)
     else:
         average_row_impact_rate = 0.0
+        average_structural_impact_rate = 0.0
 
     identifier_counts: dict[str, int] = {}
     rule_family_totals = {family: 0 for family in RULE_FAMILIES}
@@ -1347,8 +1471,44 @@ def _build_global_summary_from_sidecars(
         "total_stations": total_stations,
         "total_rows": total_rows,
         "average_row_impact_rate": average_row_impact_rate,
+        "average_structural_impact_rate": average_structural_impact_rate,
         "top_identifiers_by_qc_rate": top_identifiers[:10],
         "rule_family_impact_totals": rule_family_totals,
+        "operational_outliers": _build_operational_outlier_summary(status_df),
+    }
+
+
+def _build_operational_outlier_summary(status_df: pd.DataFrame) -> dict[str, list[dict[str, Any]]]:
+    if status_df.empty:
+        return {
+            "largest_input_stations": [],
+            "widest_cleaned_schemas": [],
+        }
+
+    completed = status_df[status_df["status"].astype(str) == "completed"].copy()
+    if completed.empty:
+        return {
+            "largest_input_stations": [],
+            "widest_cleaned_schemas": [],
+        }
+
+    numeric_columns = (
+        "input_size_bytes",
+        "cleaned_columns",
+    )
+    for column in numeric_columns:
+        completed[column] = pd.to_numeric(completed[column], errors="coerce").fillna(0.0)
+
+    summary_columns = [
+        "station_id",
+        "input_size_bytes",
+        "cleaned_columns",
+        "row_count_raw",
+        "row_count_cleaned",
+    ]
+    return {
+        "largest_input_stations": completed.nlargest(5, "input_size_bytes")[summary_columns].to_dict(orient="records"),
+        "widest_cleaned_schemas": completed.nlargest(5, "cleaned_columns")[summary_columns].to_dict(orient="records"),
     }
 
 
@@ -1391,6 +1551,8 @@ def _build_mandatory_quality_artifact_frames(
         station_id = str(profile.get("station_id", ""))
         rows_total = int(profile.get("rows_total", 0))
         rows_with_qc = int(profile.get("rows_with_qc_flags", 0))
+        rows_with_sentinel = int(profile.get("rows_with_sentinel_impacts", 0))
+        rows_with_quality_code = int(profile.get("rows_with_quality_code_impacts", 0))
         null_counts = profile.get("null_counts_by_identifier", {})
         if isinstance(null_counts, dict) and null_counts:
             for field_identifier in sorted(str(identifier) for identifier in null_counts.keys()):
@@ -1431,7 +1593,9 @@ def _build_mandatory_quality_artifact_frames(
                 "station_id": station_id,
                 "rows_total": rows_total,
                 "sentinel_events": sentinel_events,
-                "sentinel_frequency": (float(sentinel_events) / float(rows_total) if rows_total > 0 else 0.0),
+                "rows_with_sentinel_impacts": rows_with_sentinel,
+                "sentinel_row_rate": (float(rows_with_sentinel) / float(rows_total) if rows_total > 0 else 0.0),
+                "sentinel_events_per_row": (float(sentinel_events) / float(rows_total) if rows_total > 0 else 0.0),
             }
         )
         quality_code_rows.append(
@@ -1440,28 +1604,17 @@ def _build_mandatory_quality_artifact_frames(
                 "station_id": station_id,
                 "rows_total": rows_total,
                 "quality_code_exclusions": quality_code_events,
+                "rows_with_quality_code_exclusions": rows_with_quality_code,
                 "quality_code_exclusion_rate": (
+                    float(rows_with_quality_code) / float(rows_total) if rows_total > 0 else 0.0
+                ),
+                "quality_code_exclusion_events_per_row": (
                     float(quality_code_events) / float(rows_total) if rows_total > 0 else 0.0
                 ),
             }
         )
     if not domain_usability_rows:
-        for profile in profiles:
-            station_id = str(profile.get("station_id", ""))
-            rows_total = int(profile.get("rows_total", 0))
-            rows_with_qc = int(profile.get("rows_with_qc_flags", 0))
-            domain_usability_rows.append(
-                {
-                    "run_id": config.run_id,
-                    "station_id": station_id,
-                    "domain": "__all__",
-                    "rows_total": rows_total,
-                    "usable_rows": rows_total - rows_with_qc,
-                    "usable_row_rate": (
-                        1.0 - float(profile.get("fraction_rows_impacted", 0.0)) if rows_total > 0 else 0.0
-                    ),
-                }
-            )
+        domain_usability_rows = _fallback_domain_usability_rows(config, status_df)
 
     field_completeness = _sorted_quality_frame(
         field_completeness_rows,
@@ -1469,15 +1622,40 @@ def _build_mandatory_quality_artifact_frames(
     )
     sentinel_frequency = _sorted_quality_frame(
         sentinel_frequency_rows,
-        ["run_id", "station_id", "rows_total", "sentinel_events", "sentinel_frequency"],
+        [
+            "run_id",
+            "station_id",
+            "rows_total",
+            "sentinel_events",
+            "rows_with_sentinel_impacts",
+            "sentinel_row_rate",
+            "sentinel_events_per_row",
+        ],
     )
     quality_code_exclusions = _sorted_quality_frame(
         quality_code_rows,
-        ["run_id", "station_id", "rows_total", "quality_code_exclusions", "quality_code_exclusion_rate"],
+        [
+            "run_id",
+            "station_id",
+            "rows_total",
+            "quality_code_exclusions",
+            "rows_with_quality_code_exclusions",
+            "quality_code_exclusion_rate",
+            "quality_code_exclusion_events_per_row",
+        ],
     )
     domain_usability_summary = _sorted_quality_frame(
         domain_usability_rows,
-        ["run_id", "station_id", "domain", "rows_total", "usable_rows", "usable_row_rate"],
+        [
+            "run_id",
+            "station_id",
+            "domain",
+            "rows_total",
+            "usable_rows",
+            "usable_row_rate",
+            "artifact_mode",
+            "advisory_only",
+        ],
     )
     station_year_quality = _build_station_year_quality_frame(config, status_df)
 
@@ -1592,9 +1770,46 @@ def _build_domain_usability_rows(
                     "rows_total": rows_total,
                     "usable_rows": usable_rows,
                     "usable_row_rate": (float(usable_rows) / float(rows_total) if rows_total > 0 else 0.0),
+                    "artifact_mode": "domain_splits",
+                    "advisory_only": False,
                 }
             )
     rows.sort(key=lambda item: (str(item.get("station_id", "")), str(item.get("domain", ""))))
+    return rows
+
+
+def _fallback_domain_usability_rows(
+    config: CleaningRunConfig,
+    status_df: pd.DataFrame,
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    completed = status_df[status_df["status"].astype(str) == "completed"].copy()
+    station_ids = sorted(set(completed["station_id"].astype(str).tolist()))
+    cleaned_ext = "csv" if config.input_format == "csv" else "parquet"
+
+    for station_id in station_ids:
+        cleaned_path = config.output_root / station_id / f"LocationData_Cleaned.{cleaned_ext}"
+        if not cleaned_path.exists():
+            continue
+        try:
+            cleaned = _read_raw_input(cleaned_path, config.input_format)
+        except Exception:
+            continue
+        rows_total = int(len(cleaned))
+        usable_rows = int(_usable_row_series(cleaned).astype(bool).sum()) if rows_total > 0 else 0
+        rows.append(
+            {
+                "run_id": config.run_id,
+                "station_id": station_id,
+                "domain": "__all__",
+                "rows_total": rows_total,
+                "usable_rows": usable_rows,
+                "usable_row_rate": (float(usable_rows) / float(rows_total) if rows_total > 0 else 0.0),
+                "artifact_mode": "fallback_no_domain_splits",
+                "advisory_only": True,
+            }
+        )
+
     return rows
 
 
@@ -1605,10 +1820,12 @@ def _build_release_manifest_rows(
     quality_frames: dict[str, pd.DataFrame],
     creation_timestamp: str,
 ) -> list[dict[str, Any]]:
+    raw_source_lineage_by_station = _raw_source_lineage_by_station(config)
     source_rows, source_artifact_ids_by_station = _source_release_manifest_rows(
         config,
         status_df,
         creation_timestamp=creation_timestamp,
+        raw_source_lineage_by_station=raw_source_lineage_by_station,
     )
 
     canonical_rows = _canonical_release_manifest_rows(
@@ -1646,6 +1863,7 @@ def _source_release_manifest_rows(
     status_df: pd.DataFrame,
     *,
     creation_timestamp: str,
+    raw_source_lineage_by_station: dict[str, list[str]],
 ) -> tuple[list[dict[str, Any]], dict[str, str]]:
     completed = status_df[status_df["status"].astype(str) == "completed"].copy()
     rows: list[dict[str, Any]] = []
@@ -1667,7 +1885,9 @@ def _source_release_manifest_rows(
                 "artifact_path": str(raw_path.resolve()),
                 "schema_version": RELEASE_MANIFEST_CONTRACT.schema_version,
                 "build_id": config.run_id,
-                "input_lineage": _json_compact([]),
+                "input_lineage": _json_compact(
+                    raw_source_lineage_by_station.get(station_id, [str(raw_path.resolve())])
+                ),
                 "row_count": int(_coerce_int(record.get("row_count_raw", 0))),
                 "checksum": _checksum_for_output_bundle([raw_path]),
                 "creation_timestamp": created_at,
@@ -1676,6 +1896,33 @@ def _source_release_manifest_rows(
 
     rows.sort(key=lambda row: str(row["artifact_id"]))
     return rows, artifact_ids_by_station
+
+
+def _raw_source_lineage_by_station(config: CleaningRunConfig) -> dict[str, list[str]]:
+    selection_manifest_path = config.input_root.parent / "selected_stations.csv"
+    if not selection_manifest_path.exists():
+        return {}
+
+    try:
+        selection_manifest = pd.read_csv(selection_manifest_path, dtype=str)
+    except Exception:
+        return {}
+
+    lineage_by_station: dict[str, list[str]] = {}
+    for record in selection_manifest.to_dict(orient="records"):
+        station_id = str(record.get("station_id", "")).strip()
+        if not station_id:
+            continue
+        lineage: list[str] = []
+        source_path = str(record.get("source_path", "")).strip()
+        staged_path = str(record.get("staged_path", "")).strip()
+        if source_path:
+            lineage.append(source_path)
+        if staged_path:
+            lineage.append(staged_path)
+        if lineage:
+            lineage_by_station[station_id] = lineage
+    return lineage_by_station
 
 
 def _canonical_release_manifest_rows(
@@ -1820,6 +2067,8 @@ def _build_full_file_manifest_rows(
     run_config_path: Path,
     build_metadata_path: Path,
     release_manifest_path: Path,
+    quality_assessment_path: Path | None,
+    publication_readiness_path: Path | None,
 ) -> list[dict[str, Any]]:
     paths: set[Path] = set()
     completed = status_df[status_df["status"].astype(str) == "completed"].copy()
@@ -1859,6 +2108,12 @@ def _build_full_file_manifest_rows(
         release_manifest_path,
         config.reports_root / "quality_reports_summary.md",
     ]
+    if quality_assessment_path is not None and quality_assessment_path.exists():
+        global_paths.append(quality_assessment_path)
+    # Intentionally exclude file_manifest.csv itself to avoid a recursive
+    # self-checksum fixed point. publication_readiness_gate.json is included.
+    if publication_readiness_path is not None and publication_readiness_path.exists():
+        global_paths.append(publication_readiness_path)
     global_paths.extend(config.reports_root / f"{name}.csv" for name in MANDATORY_QUALITY_ARTIFACT_NAMES)
     if config.write_flags.write_global_summary:
         global_paths.append(config.reports_root / "global_quality_summary.json")
@@ -1915,6 +2170,8 @@ def _full_file_manifest_artifact_type(config: CleaningRunConfig, path: Path) -> 
         return "build_metadata"
     if resolved == (config.manifest_root / "release_manifest.csv").resolve():
         return "release_manifest"
+    if resolved == (config.manifest_root / "publication_readiness_gate.json").resolve():
+        return "publication_readiness_gate"
 
     if resolved.name == "_SUCCESS.json":
         return "success_marker"
@@ -1930,6 +2187,8 @@ def _full_file_manifest_artifact_type(config: CleaningRunConfig, path: Path) -> 
     if resolved.is_relative_to(reports_root):
         if resolved.name == "quality_reports_summary.md":
             return "quality_summary"
+        if resolved.name == "quality_assessment.json":
+            return "quality_assessment"
         if resolved.name == "global_quality_summary.json":
             return "global_quality_summary"
         if resolved.parent == reports_root and resolved.suffix.lower() == ".csv":
@@ -1977,8 +2236,10 @@ def _build_publication_readiness_gate(
     build_metadata_path: Path,
     release_manifest_path: Path,
     file_manifest_path: Path,
+    quality_assessment_path: Path,
 ) -> dict[str, Any]:
     completion_check = _publication_completion_check(status_df)
+    generated_at = _build_artifact_timestamp(build_metadata_path, fallback=_pst_now_iso())
 
     release_manifest = pd.read_csv(release_manifest_path, dtype=str) if release_manifest_path.exists() else pd.DataFrame()
     file_manifest = pd.read_csv(file_manifest_path, dtype=str) if file_manifest_path.exists() else pd.DataFrame()
@@ -2000,21 +2261,25 @@ def _build_publication_readiness_gate(
         file_manifest=file_manifest,
     )
     checksum_check = _publication_checksum_check(release_manifest, file_manifest)
-    quality_check = _publication_quality_sanity_check(quality_frames)
+    structural_check = _publication_structural_sanity_check(quality_frames)
+    build_metadata_check = _publication_build_metadata_completeness_check(build_metadata_path)
 
     checks = {
         "run_completion": completion_check,
         "artifact_manifest_coverage": coverage_check,
         "timestamp_validity": timestamp_check,
         "checksum_policy_conformance": checksum_check,
-        "quality_artifact_sanity": quality_check,
+        "artifact_structural_sanity": structural_check,
+        "build_metadata_completeness": build_metadata_check,
     }
     overall_pass = all(bool(section.get("passed", False)) for section in checks.values())
     scores = _build_publication_scores(checks)
     return {
         "run_id": config.run_id,
         "passed": overall_pass,
-        "generated_at": _pst_now_iso(),
+        "generated_at": generated_at,
+        "quality_assessment_generated": quality_assessment_path.exists(),
+        "quality_assessment_path": str(quality_assessment_path.resolve()),
         "checks": checks,
         "scores": scores,
     }
@@ -2046,6 +2311,7 @@ def _publication_manifest_coverage_check(
     build_metadata_path: Path,
     release_manifest_path: Path,
 ) -> dict[str, Any]:
+    filtered_file_manifest = _filtered_file_manifest_for_gate(file_manifest)
     expected_paths: set[str] = set()
     completed = status_df[status_df["status"].astype(str) == "completed"].copy()
     for record in completed.to_dict(orient="records"):
@@ -2093,8 +2359,8 @@ def _publication_manifest_coverage_check(
             expected_paths.add(str(path.resolve()))
 
     file_manifest_paths = (
-        set(file_manifest["artifact_path"].astype(str).tolist())
-        if not file_manifest.empty
+        set(filtered_file_manifest["artifact_path"].astype(str).tolist())
+        if not filtered_file_manifest.empty
         else set()
     )
     release_manifest_paths = (
@@ -2118,6 +2384,7 @@ def _publication_timestamp_check(
     release_manifest: pd.DataFrame,
     file_manifest: pd.DataFrame,
 ) -> dict[str, Any]:
+    filtered_file_manifest = _filtered_file_manifest_for_gate(file_manifest)
     build_timestamp_valid = False
     if build_metadata_path.exists():
         try:
@@ -2133,7 +2400,7 @@ def _publication_timestamp_check(
             invalid_release_timestamps.append(str(row.get("artifact_id", "")))
 
     invalid_file_timestamps = []
-    for row in file_manifest.to_dict(orient="records"):
+    for row in filtered_file_manifest.to_dict(orient="records"):
         value = str(row.get("creation_timestamp", ""))
         if _normalize_iso_timestamp(value) is None:
             invalid_file_timestamps.append(str(row.get("artifact_id", "")))
@@ -2151,7 +2418,8 @@ def _publication_checksum_check(
     file_manifest: pd.DataFrame,
 ) -> dict[str, Any]:
     invalid_rows: list[str] = []
-    combined = pd.concat([release_manifest, file_manifest], ignore_index=True, sort=False)
+    filtered_file_manifest = _filtered_file_manifest_for_gate(file_manifest)
+    combined = pd.concat([release_manifest, filtered_file_manifest], ignore_index=True, sort=False)
     for row in combined.to_dict(orient="records"):
         artifact_id = str(row.get("artifact_id", ""))
         artifact_path = Path(str(row.get("artifact_path", "")))
@@ -2168,20 +2436,126 @@ def _publication_checksum_check(
     }
 
 
-def _publication_quality_sanity_check(quality_frames: dict[str, pd.DataFrame]) -> dict[str, Any]:
+def _filtered_file_manifest_for_gate(file_manifest: pd.DataFrame) -> pd.DataFrame:
+    if file_manifest.empty or "artifact_type" not in file_manifest.columns:
+        return file_manifest
+    return file_manifest[
+        file_manifest["artifact_type"].astype(str) != "publication_readiness_gate"
+    ].copy()
+
+
+def _publication_structural_sanity_check(
+    quality_frames: dict[str, pd.DataFrame],
+) -> dict[str, Any]:
     field_frame = quality_frames.get("field_completeness", pd.DataFrame())
     domain_frame = quality_frames.get("domain_usability_summary", pd.DataFrame())
+    sentinel_frame = quality_frames.get("sentinel_frequency", pd.DataFrame())
     quality_code_frame = quality_frames.get("quality_code_exclusions", pd.DataFrame())
+    station_year_frame = quality_frames.get("station_year_quality", pd.DataFrame())
 
-    field_ok = True
-    if not field_frame.empty and "field_completeness_ratio" in field_frame.columns:
-        field_ratios = pd.to_numeric(field_frame["field_completeness_ratio"], errors="coerce")
-        field_ok = bool(field_ratios.between(0.0, 1.0, inclusive="both").all())
+    field_ok = _frame_ratio_bounds_ok(field_frame, "field_completeness_ratio")
+    domain_ok = _frame_ratio_bounds_ok(domain_frame, "usable_row_rate")
+    sentinel_rate_ok = _frame_ratio_bounds_ok(sentinel_frame, "sentinel_row_rate")
+    quality_rate_ok = _frame_ratio_bounds_ok(quality_code_frame, "quality_code_exclusion_rate")
+    station_year_ok = _frame_ratio_bounds_ok(station_year_frame, "usable_row_rate")
 
-    domain_bounds_ok = True
-    if not domain_frame.empty and "usable_row_rate" in domain_frame.columns:
-        domain_rates = pd.to_numeric(domain_frame["usable_row_rate"], errors="coerce")
-        domain_bounds_ok = bool(domain_rates.between(0.0, 1.0, inclusive="both").all())
+    required_frames_present = {
+        name: name in quality_frames
+        for name in MANDATORY_QUALITY_ARTIFACT_NAMES
+    }
+    required_columns_present = {
+        "field_completeness_ratio": "field_completeness_ratio" in field_frame.columns,
+        "domain_usable_row_rate": "usable_row_rate" in domain_frame.columns,
+        "sentinel_row_rate": "sentinel_row_rate" in sentinel_frame.columns,
+        "quality_code_exclusion_rate": "quality_code_exclusion_rate" in quality_code_frame.columns,
+        "station_year_usable_row_rate": "usable_row_rate" in station_year_frame.columns,
+    }
+    passed = (
+        all(required_frames_present.values())
+        and all(required_columns_present.values())
+        and field_ok
+        and domain_ok
+        and sentinel_rate_ok
+        and quality_rate_ok
+        and station_year_ok
+    )
+    return {
+        "passed": passed,
+        "required_quality_artifacts_present": required_frames_present,
+        "required_columns_present": required_columns_present,
+        "field_completeness_ratio_bounds_ok": field_ok,
+        "domain_usable_row_rate_bounds_ok": domain_ok,
+        "sentinel_row_rate_bounds_ok": sentinel_rate_ok,
+        "quality_code_exclusion_rate_bounds_ok": quality_rate_ok,
+        "station_year_usable_row_rate_bounds_ok": station_year_ok,
+    }
+
+
+def _publication_build_metadata_completeness_check(build_metadata_path: Path) -> dict[str, Any]:
+    required_top_level = [
+        "build_id",
+        "build_timestamp",
+        "code_revision",
+        "config_identity",
+        "source_scope",
+    ]
+    required_source_scope = [
+        "mode",
+        "input_root",
+        "input_format",
+        "manifest_station_count",
+        "station_ids",
+        "input_paths",
+    ]
+    if not build_metadata_path.exists():
+        return {
+            "passed": False,
+            "exists": False,
+            "missing_top_level_fields": required_top_level,
+            "missing_source_scope_fields": required_source_scope,
+            "build_timestamp_valid": False,
+        }
+
+    try:
+        payload = json.loads(build_metadata_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        payload = {}
+
+    source_scope = payload.get("source_scope", {})
+    if not isinstance(source_scope, dict):
+        source_scope = {}
+
+    missing_top_level = [field for field in required_top_level if field not in payload]
+    missing_source_scope = [field for field in required_source_scope if field not in source_scope]
+    build_timestamp_valid = _normalize_iso_timestamp(payload.get("build_timestamp", "")) is not None
+    return {
+        "passed": (
+            not missing_top_level
+            and not missing_source_scope
+            and build_timestamp_valid
+        ),
+        "exists": True,
+        "missing_top_level_fields": missing_top_level,
+        "missing_source_scope_fields": missing_source_scope,
+        "build_timestamp_valid": build_timestamp_valid,
+    }
+
+
+def _build_quality_assessment(
+    config: CleaningRunConfig,
+    status_df: pd.DataFrame,
+    quality_frames: dict[str, pd.DataFrame],
+    *,
+    build_metadata_path: Path,
+) -> dict[str, Any]:
+    field_frame = quality_frames.get("field_completeness", pd.DataFrame())
+    domain_frame = quality_frames.get("domain_usability_summary", pd.DataFrame())
+    sentinel_frame = quality_frames.get("sentinel_frequency", pd.DataFrame())
+    quality_code_frame = quality_frames.get("quality_code_exclusions", pd.DataFrame())
+    station_year_frame = quality_frames.get("station_year_quality", pd.DataFrame())
+
+    field_ok = _frame_ratio_bounds_ok(field_frame, "field_completeness_ratio")
+    domain_bounds_ok = _frame_ratio_bounds_ok(domain_frame, "usable_row_rate")
 
     quality_code_threshold_ok = True
     max_quality_code_exclusion_rate = 0.0
@@ -2219,29 +2593,83 @@ def _publication_quality_sanity_check(quality_frames: dict[str, pd.DataFrame]) -
         QUALITY_SCORE_COMPONENT_WEIGHTS,
     )
 
+    sentinel_heavy_stations = _top_records(
+        sentinel_frame,
+        sort_column="sentinel_row_rate",
+        columns=[
+            "station_id",
+            "sentinel_row_rate",
+            "sentinel_events_per_row",
+            "sentinel_events",
+            "rows_with_sentinel_impacts",
+        ],
+    )
+    exclusion_heavy_stations = _top_records(
+        quality_code_frame,
+        sort_column="quality_code_exclusion_rate",
+        columns=[
+            "station_id",
+            "quality_code_exclusion_rate",
+            "quality_code_exclusion_events_per_row",
+            "quality_code_exclusions",
+            "rows_with_quality_code_exclusions",
+        ],
+    )
+    completeness_concerns = _top_records(
+        field_frame,
+        sort_column="field_completeness_ratio",
+        columns=[
+            "station_id",
+            "field_identifier",
+            "field_completeness_ratio",
+            "present_row_count",
+            "row_count",
+        ],
+        ascending=True,
+    )
+    structural_impact_summary, substantive_impact_summary = _station_quality_impact_summaries(config)
+
+    completed = status_df[status_df["status"].astype(str) == "completed"].copy()
+    total_completed = int(len(completed))
     return {
-        "passed": (
-            field_ok
-            and domain_bounds_ok
-        ),
-        "field_completeness_ratio_bounds_ok": field_ok,
-        "domain_usable_row_rate_bounds_ok": domain_bounds_ok,
-        "quality_code_exclusion_rate_threshold_ok": quality_code_threshold_ok,
-        "max_quality_code_exclusion_rate": max_quality_code_exclusion_rate,
-        "max_quality_code_exclusion_rate_allowed": MAX_QUALITY_CODE_EXCLUSION_RATE,
-        "domain_usability_thresholds_ok": domain_thresholds_ok,
-        "domain_usability_thresholds": MIN_DOMAIN_USABLE_ROW_RATE_BY_DOMAIN,
-        "domain_usability_threshold_violations": domain_threshold_violations,
-        "quality_score": quality_score,
-        "quality_score_components": {
-            "bounds_validity": bounds_validity_score,
-            "quality_code_exclusion": quality_code_exclusion_score,
-            "domain_usability": domain_usability_score,
-        },
-        "quality_score_weights": QUALITY_SCORE_COMPONENT_WEIGHTS,
-        "threshold_checks_advisory": {
+        "run_id": config.run_id,
+        "generated_at": _build_artifact_timestamp(build_metadata_path, fallback=_pst_now_iso()),
+        "advisory_only": True,
+        "threshold_policy": "advisory",
+        "completed_station_count": total_completed,
+        "threshold_evaluations": {
+            "field_completeness_ratio_bounds_ok": field_ok,
+            "domain_usable_row_rate_bounds_ok": domain_bounds_ok,
             "quality_code_exclusion_rate_threshold_ok": quality_code_threshold_ok,
+            "max_quality_code_exclusion_rate": max_quality_code_exclusion_rate,
+            "max_quality_code_exclusion_rate_allowed": MAX_QUALITY_CODE_EXCLUSION_RATE,
             "domain_usability_thresholds_ok": domain_thresholds_ok,
+            "domain_usability_thresholds": MIN_DOMAIN_USABLE_ROW_RATE_BY_DOMAIN,
+            "domain_usability_threshold_violations": domain_threshold_violations,
+        },
+        "summary_scores": {
+            "quality_score": quality_score,
+            "quality_score_components": {
+                "bounds_validity": bounds_validity_score,
+                "quality_code_exclusion": quality_code_exclusion_score,
+                "domain_usability": domain_usability_score,
+            },
+            "quality_score_weights": QUALITY_SCORE_COMPONENT_WEIGHTS,
+        },
+        "exclusion_rate_summaries": {
+            "top_quality_code_exclusion_stations": exclusion_heavy_stations,
+        },
+        "sentinel_heavy_summaries": {
+            "top_sentinel_stations": sentinel_heavy_stations,
+        },
+        "completeness_concerns": {
+            "lowest_field_completeness": completeness_concerns,
+        },
+        "impact_summaries": {
+            "structural_vs_substantive": {
+                "highest_structural_impact_stations": structural_impact_summary,
+                "highest_substantive_impact_stations": substantive_impact_summary,
+            }
         },
     }
 
@@ -2252,27 +2680,18 @@ def _build_publication_scores(checks: dict[str, dict[str, Any]]) -> dict[str, An
         "artifact_manifest_coverage",
         "timestamp_validity",
         "checksum_policy_conformance",
+        "artifact_structural_sanity",
+        "build_metadata_completeness",
     )
     integrity_components = {
         name: float(bool(checks.get(name, {}).get("passed", False)))
         for name in integrity_check_names
     }
     integrity_score = _mean_score(integrity_components.values())
-
-    quality_score = float(checks.get("quality_artifact_sanity", {}).get("quality_score", 0.0))
-    overall_score = _weighted_score(
-        {
-            "integrity": integrity_score,
-            "quality": quality_score,
-        },
-        PUBLICATION_SCORE_COMPONENT_WEIGHTS,
-    )
     return {
-        "overall_score": overall_score,
+        "overall_score": integrity_score,
         "integrity_score": integrity_score,
-        "quality_score": quality_score,
         "integrity_components": integrity_components,
-        "weights": PUBLICATION_SCORE_COMPONENT_WEIGHTS,
         "scale": "0_to_1",
     }
 
@@ -2301,6 +2720,148 @@ def _domain_usability_score(domain_threshold_violations: list[dict[str, Any]]) -
     if not deficit_ratios:
         return 1.0
     return _clamp01(1.0 - (sum(deficit_ratios) / len(deficit_ratios)))
+
+
+def _frame_ratio_bounds_ok(frame: pd.DataFrame, column: str) -> bool:
+    if column not in frame.columns:
+        return False
+    if frame.empty:
+        return True
+    values = pd.to_numeric(frame[column], errors="coerce")
+    if values.isna().any():
+        return False
+    return bool(values.between(0.0, 1.0, inclusive="both").all())
+
+
+def _top_records(
+    frame: pd.DataFrame,
+    *,
+    sort_column: str,
+    columns: list[str],
+    ascending: bool = False,
+    limit: int = 10,
+) -> list[dict[str, Any]]:
+    if frame.empty or sort_column not in frame.columns:
+        return []
+    working = frame.copy()
+    working[sort_column] = pd.to_numeric(working[sort_column], errors="coerce")
+    working = working.dropna(subset=[sort_column])
+    if working.empty:
+        return []
+    selected_columns = [column for column in columns if column in working.columns]
+    if not selected_columns:
+        return []
+    working = working.sort_values(
+        by=[sort_column] + [column for column in selected_columns if column != sort_column],
+        ascending=[ascending] + [True] * max(0, len(selected_columns) - 1),
+        kind="mergesort",
+    ).head(limit)
+    return _records_for_json(working[selected_columns])
+
+
+def _station_year_impact_summary(frame: pd.DataFrame, column: str, limit: int = 10) -> list[dict[str, Any]]:
+    if frame.empty or column not in frame.columns:
+        return []
+    columns = [
+        "station_id",
+        "year",
+        column,
+        "rows_total",
+        "rows_with_qc_flags",
+        "rows_with_structural_impacts",
+        "rows_with_sentinel_impacts",
+        "rows_with_quality_code_impacts",
+        "rows_with_other_substantive_impacts",
+    ]
+    return _top_records(
+        frame,
+        sort_column=column,
+        columns=columns,
+        ascending=False,
+        limit=limit,
+    )
+
+
+def _station_quality_impact_summaries(
+    config: CleaningRunConfig,
+    limit: int = 10,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    rows: list[dict[str, Any]] = []
+    if not config.quality_profile_root.exists():
+        return ([], [])
+
+    for path in sorted(config.quality_profile_root.glob("station_*.json")):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        rows.append(
+            {
+                "station_id": str(payload.get("station_id", "")),
+                "rows_total": _coerce_int(payload.get("rows_total", 0)),
+                "rows_with_qc_flags": _coerce_int(payload.get("rows_with_qc_flags", 0)),
+                "fraction_rows_impacted": float(payload.get("fraction_rows_impacted", 0.0) or 0.0),
+                "rows_with_structural_impacts": _coerce_int(payload.get("rows_with_structural_impacts", 0)),
+                "fraction_rows_structural_impacted": float(
+                    payload.get("fraction_rows_structural_impacted", 0.0) or 0.0
+                ),
+                "rows_with_sentinel_impacts": _coerce_int(payload.get("rows_with_sentinel_impacts", 0)),
+                "rows_with_quality_code_impacts": _coerce_int(
+                    payload.get("rows_with_quality_code_impacts", 0)
+                ),
+                "rows_with_other_substantive_impacts": _coerce_int(
+                    payload.get("rows_with_other_substantive_impacts", 0)
+                ),
+            }
+        )
+
+    if not rows:
+        return ([], [])
+
+    frame = pd.DataFrame(rows)
+    structural = _top_records(
+        frame,
+        sort_column="fraction_rows_structural_impacted",
+        columns=[
+            "station_id",
+            "fraction_rows_structural_impacted",
+            "rows_with_structural_impacts",
+            "rows_total",
+        ],
+        limit=limit,
+    )
+    substantive = _top_records(
+        frame,
+        sort_column="fraction_rows_impacted",
+        columns=[
+            "station_id",
+            "fraction_rows_impacted",
+            "rows_with_qc_flags",
+            "rows_with_sentinel_impacts",
+            "rows_with_quality_code_impacts",
+            "rows_with_other_substantive_impacts",
+            "rows_total",
+        ],
+        limit=limit,
+    )
+    return (structural, substantive)
+
+
+def _records_for_json(frame: pd.DataFrame) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    for record in frame.to_dict(orient="records"):
+        normalized: dict[str, Any] = {}
+        for key, value in record.items():
+            if pd.isna(value):
+                normalized[str(key)] = None
+            elif isinstance(value, (pd.Timestamp, datetime)):
+                normalized[str(key)] = str(value.isoformat())
+            elif hasattr(value, "item"):
+                normalized[str(key)] = value.item()
+            else:
+                normalized[str(key)] = value
+        records.append(normalized)
+    return records
 
 
 def _weighted_score(values: dict[str, float], weights: dict[str, float]) -> float:
@@ -2379,6 +2940,7 @@ def _write_quality_reports_summary(
     output_path: Path,
     quality_frames: dict[str, pd.DataFrame],
     run_id: str,
+    status_df: pd.DataFrame,
 ) -> None:
     lines = [
         "# Quality Reports Summary",
@@ -2388,6 +2950,95 @@ def _write_quality_reports_summary(
     for artifact_name in MANDATORY_QUALITY_ARTIFACT_NAMES:
         frame = quality_frames.get(artifact_name, pd.DataFrame())
         lines.append(f"- {artifact_name}: {len(frame)} rows")
+    completed = status_df[status_df["status"].astype(str) == "completed"].copy()
+    if not completed.empty:
+        completed["input_size_bytes"] = pd.to_numeric(completed["input_size_bytes"], errors="coerce").fillna(0.0)
+        completed["cleaned_columns"] = pd.to_numeric(completed["cleaned_columns"], errors="coerce").fillna(0.0)
+
+    quality_code_frame = quality_frames.get("quality_code_exclusions", pd.DataFrame())
+    sentinel_frame = quality_frames.get("sentinel_frequency", pd.DataFrame())
+    field_frame = quality_frames.get("field_completeness", pd.DataFrame())
+
+    def _top_rows(frame: pd.DataFrame, sort_column: str, columns: list[str], limit: int = 3) -> list[str]:
+        if frame.empty or sort_column not in frame.columns:
+            return []
+        top = frame.sort_values(sort_column, ascending=False).head(limit)
+        rendered: list[str] = []
+        for row in top.to_dict(orient="records"):
+            values = ", ".join(f"{column}={row.get(column)}" for column in columns)
+            rendered.append(f"- {values}")
+        return rendered
+
+    lines.extend(
+        [
+            "",
+            "## Highlights",
+        ]
+    )
+    if not completed.empty:
+        lines.append("")
+        lines.append("### Operational Outliers")
+        lines.append("- largest input stations:")
+        lines.extend(
+            _top_rows(
+                completed,
+                "input_size_bytes",
+                ["station_id", "input_size_bytes", "row_count_raw"],
+            )
+        )
+        lines.append("- widest cleaned schemas:")
+        lines.extend(
+            _top_rows(
+                completed,
+                "cleaned_columns",
+                ["station_id", "cleaned_columns", "row_count_cleaned"],
+            )
+        )
+    if not quality_code_frame.empty:
+        lines.append("")
+        lines.append("### Highest Quality-Code Exclusion Rates")
+        lines.extend(
+            _top_rows(
+                quality_code_frame,
+                "quality_code_exclusion_rate",
+                ["station_id", "quality_code_exclusion_rate", "quality_code_exclusions"],
+            )
+        )
+    if not sentinel_frame.empty:
+        lines.append("")
+        lines.append("### Highest Sentinel Event Rates")
+        lines.extend(
+            _top_rows(
+                sentinel_frame,
+                "sentinel_events_per_row",
+                ["station_id", "sentinel_events_per_row", "sentinel_events", "sentinel_row_rate"],
+            )
+        )
+    if not field_frame.empty:
+        field_low = field_frame.sort_values("field_completeness_ratio", ascending=True).head(3)
+        if not field_low.empty:
+            lines.append("")
+            lines.append("### Lowest Field Completeness")
+            for row in field_low.to_dict(orient="records"):
+                lines.append(
+                    "- "
+                    + ", ".join(
+                        [
+                            f"station_id={row.get('station_id')}",
+                            f"field_identifier={row.get('field_identifier')}",
+                            f"field_completeness_ratio={row.get('field_completeness_ratio')}",
+                        ]
+                    )
+                )
+    domain_frame = quality_frames.get("domain_usability_summary", pd.DataFrame())
+    if not domain_frame.empty and {"artifact_mode", "advisory_only"}.issubset(domain_frame.columns):
+        fallback_rows = domain_frame[domain_frame["artifact_mode"].astype(str) == "fallback_no_domain_splits"]
+        if not fallback_rows.empty:
+            lines.append("")
+            lines.append(
+                "### Domain Usability Mode\n"
+                "- advisory_only=true because domain splits were disabled; `__all__` rows summarize canonical usability only."
+            )
     lines.append("")
     _ensure_dir(output_path.parent)
     output_path.write_text("\n".join(lines), encoding="utf-8")
@@ -2561,8 +3212,18 @@ def _status_defaults() -> dict[str, Any]:
         "started_at": "",
         "completed_at": "",
         "elapsed_seconds": "",
+        "elapsed_read_seconds": "",
+        "elapsed_clean_seconds": "",
+        "elapsed_domain_split_seconds": "",
+        "elapsed_quality_profile_seconds": "",
+        "elapsed_write_seconds": "",
+        "elapsed_total_seconds": "",
         "row_count_raw": "",
         "row_count_cleaned": "",
+        "raw_columns": "",
+        "cleaned_columns": "",
+        "input_size_bytes": "",
+        "cleaned_size_bytes": "",
         "station_quality_profile_path": "",
         "success_marker_path": "",
         "expected_outputs": "",
@@ -2621,6 +3282,13 @@ def _coerce_int(value: Any) -> int:
             return int(float(str(value)))
         except (TypeError, ValueError):
             return 0
+
+
+def _safe_file_size(path: Path) -> int:
+    try:
+        return int(path.stat().st_size)
+    except OSError:
+        return 0
 
 
 def _write_manifest(path: Path, rows: list[dict[str, Any]]) -> None:
@@ -2761,6 +3429,18 @@ def _normalize_iso_timestamp(value: Any) -> str | None:
     return parsed.isoformat()
 
 
+def _build_artifact_timestamp(build_metadata_path: Path, *, fallback: str) -> str:
+    if build_metadata_path.exists():
+        try:
+            payload = json.loads(build_metadata_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            payload = {}
+        normalized = _normalize_iso_timestamp(payload.get("build_timestamp", ""))
+        if normalized is not None:
+            return normalized
+    return fallback
+
+
 def _resolve_build_timestamp(
     *,
     run_id: str,
@@ -2831,7 +3511,7 @@ def _family_from_qc_flag_column(internal_col: str) -> str | None:
     if internal_col.startswith("qc_domain_invalid_"):
         return "domain_validation"
     if internal_col.startswith("qc_control_invalid_"):
-        return "domain_validation"
+        return "structural_validation"
     if internal_col.startswith("qc_pattern_mismatch_"):
         return "pattern_validation"
     if internal_col.startswith("qc_arity_mismatch_"):

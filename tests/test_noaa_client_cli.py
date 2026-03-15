@@ -485,6 +485,9 @@ class TestCliCommands:
         selected = pd.read_csv(selection_manifest, dtype={"station_id": str})
         assert len(selected) == 4
         assert selected["size_quartile"].tolist() == [1, 2, 3, 4]
+        assert {"quartile_percentile", "global_size_percentile"}.issubset(selected.columns)
+        assert selected["global_size_percentile"].between(0.0, 1.0, inclusive="both").all()
+        assert selected.iloc[-1]["station_id"] == "01234567897"
         for station_id in selected["station_id"].tolist():
             assert (staging_input_root / station_id / "LocationData_Raw.parquet").exists()
 
@@ -495,6 +498,7 @@ class TestCliCommands:
         assert config.input_root.resolve() == staging_input_root.resolve()
         assert config.station_ids == ()
         assert config.manifest_first is True
+        assert config.write_flags.write_domain_splits is True
         assert config.output_root.resolve() == (
             raw_root.parent / "NOAA_CLEANED_DATA" / "build_20250101T000000Z" / "canonical_cleaned"
         ).resolve()
@@ -503,6 +507,200 @@ class TestCliCommands:
         assert "Staged 4 raw stations" in output
         assert "Selection strategy: size_quartiles" in output
         assert f"Release base root: {raw_root.parent / 'NOAA_CLEANED_DATA'}" in output
+
+    def test_cli_run_cleaning_batch_honors_no_domain_splits_flag(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        dated_index = tmp_path / "noaa_file_index" / "20250101"
+        dated_index.mkdir(parents=True)
+        stations_csv = dated_index / "Stations.csv"
+        pd.DataFrame({"station_id": ["01234567890"]}).to_csv(stations_csv, index=False)
+
+        state_dir = tmp_path / "noaa_file_index" / "state"
+        state_dir.mkdir(parents=True)
+        raw_root = tmp_path / "NOAA_Data"
+        station_dir = raw_root / "01234567890"
+        station_dir.mkdir(parents=True)
+        (station_dir / "LocationData_Raw.parquet").write_text("payload", encoding="utf-8")
+        pd.DataFrame(
+            [
+                {
+                    "station_id": "01234567890",
+                    "FileName": "01234567890.csv",
+                    "raw_data_pulled": True,
+                    "raw_path": "",
+                    "pulled_at": "",
+                    "registry_snapshot": str(stations_csv),
+                }
+            ]
+        ).to_csv(state_dir / "raw_pull_state.csv", index=False)
+
+        called: dict[str, object] = {}
+
+        def fake_run_cleaning_run(config: CleaningRunConfig) -> dict[str, object]:
+            called["config"] = config
+            return {"processed": 1}
+
+        monkeypatch.setattr(cli, "run_cleaning_run", fake_run_cleaning_run)
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "prog",
+                "run-cleaning-batch",
+                "--raw-root",
+                str(raw_root),
+                "--count",
+                "1",
+                "--run-id",
+                "20250101T000000Z",
+                "--no-domain-splits",
+            ],
+        )
+        cli.main()
+
+        config = called["config"]
+        assert config.write_flags.write_domain_splits is False
+
+    def test_cli_run_cleaning_batch_excludes_prior_release_manifest_stations(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        dated_index = tmp_path / "noaa_file_index" / "20250101"
+        dated_index.mkdir(parents=True)
+        stations_csv = dated_index / "Stations.csv"
+        pd.DataFrame({"station_id": ["01234567890"]}).to_csv(stations_csv, index=False)
+
+        state_dir = tmp_path / "noaa_file_index" / "state"
+        state_dir.mkdir(parents=True)
+        raw_root = tmp_path / "NOAA_Data"
+        station_ids = [f"0123456789{idx}" for idx in range(0, 6)]
+        for idx, station_id in enumerate(station_ids, start=1):
+            station_dir = raw_root / station_id
+            station_dir.mkdir(parents=True)
+            (station_dir / "LocationData_Raw.parquet").write_text("x" * idx, encoding="utf-8")
+        pd.DataFrame(
+            [
+                {
+                    "station_id": station_id,
+                    "FileName": f"{station_id}.csv",
+                    "raw_data_pulled": True,
+                    "raw_path": "",
+                    "pulled_at": "",
+                    "registry_snapshot": str(stations_csv),
+                }
+                for station_id in station_ids
+            ]
+        ).to_csv(state_dir / "raw_pull_state.csv", index=False)
+
+        prior_run_root = tmp_path / "NOAA_CLEANED_DATA" / "build_20241231T235959Z" / "manifests"
+        prior_run_root.mkdir(parents=True)
+        pd.DataFrame(
+            [
+                {
+                    "run_id": "20241231T235959Z",
+                    "station_id": "01234567890",
+                    "input_path": "/tmp/prior/01234567890/LocationData_Raw.parquet",
+                    "input_format": "parquet",
+                    "discovered_at": "2024-12-31T23:59:59Z",
+                    "input_size_bytes": 1,
+                    "status": "pending",
+                }
+            ]
+        ).to_csv(prior_run_root / "run_manifest.csv", index=False)
+
+        called: dict[str, object] = {}
+
+        def fake_run_cleaning_run(config: CleaningRunConfig) -> dict[str, object]:
+            called["config"] = config
+            return {"processed": 3}
+
+        monkeypatch.setattr(cli, "run_cleaning_run", fake_run_cleaning_run)
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "prog",
+                "run-cleaning-batch",
+                "--raw-root",
+                str(raw_root),
+                "--count",
+                "3",
+                "--run-id",
+                "20250101T000000Z",
+            ],
+        )
+        cli.main()
+
+        selection_manifest = (
+            raw_root.parent / "NOAA_CLEANING_STAGING" / "20250101T000000Z" / "selected_stations.csv"
+        )
+        selected = pd.read_csv(selection_manifest, dtype={"station_id": str})
+        assert len(selected) == 3
+        assert "01234567890" not in set(selected["station_id"].astype(str))
+
+    def test_prior_batch_station_ids_ignores_current_run_manifest(self, tmp_path: Path) -> None:
+        release_base_root = tmp_path / "NOAA_CLEANED_DATA"
+        prior_manifest_root = release_base_root / "build_20250101T000000Z" / "manifests"
+        prior_manifest_root.mkdir(parents=True)
+        pd.DataFrame(
+            [{"station_id": "01234567890"}]
+        ).to_csv(prior_manifest_root / "run_manifest.csv", index=False)
+
+        other_manifest_root = release_base_root / "build_20241231T235959Z" / "manifests"
+        other_manifest_root.mkdir(parents=True)
+        pd.DataFrame(
+            [{"station_id": "01234567891"}]
+        ).to_csv(other_manifest_root / "run_manifest.csv", index=False)
+
+        excluded = cli._prior_batch_station_ids_from_release_manifests(
+            release_base_root,
+            current_run_id="20250101T000000Z",
+        )
+        assert excluded == {"01234567891"}
+
+    def test_size_quartile_selection_spreads_within_quartiles_and_includes_top_tail(self) -> None:
+        inventory = pd.DataFrame(
+            {
+                "station_id": [f"{idx:011d}" for idx in range(16)],
+                "FileName": [f"{idx:011d}.csv" for idx in range(16)],
+                "source_path": [f"/tmp/{idx:011d}.parquet" for idx in range(16)],
+                "size_bytes": list(range(100, 1700, 100)),
+            }
+        ).sort_values(["size_bytes", "station_id"], kind="stable").reset_index(drop=True)
+        inventory["global_size_rank"] = range(1, len(inventory) + 1)
+        inventory["global_size_percentile"] = cli._distribution_percentiles(len(inventory))
+        inventory["size_quartile"] = cli._quartile_labels(len(inventory))
+        inventory["quartile_rank"] = inventory.groupby("size_quartile", sort=False).cumcount() + 1
+        quartile_sizes = inventory.groupby("size_quartile", sort=False)["station_id"].transform("size")
+        inventory["quartile_percentile"] = [
+            cli._position_percentile(int(rank) - 1, int(size))
+            for rank, size in zip(
+                inventory["quartile_rank"].astype(int).tolist(),
+                quartile_sizes.astype(int).tolist(),
+                strict=False,
+            )
+        ]
+
+        selected = cli._select_cleaning_batch_station_inventory_by_size_quartiles(
+            inventory,
+            explicit_station_ids=(),
+            count=8,
+        )
+
+        assert len(selected) == 8
+        assert selected["size_quartile"].value_counts(sort=False).to_dict() == {1: 2, 2: 2, 3: 2, 4: 2}
+
+        quartile_one = selected[selected["size_quartile"] == 1].sort_values("size_bytes")
+        assert quartile_one["size_bytes"].tolist() == [100, 400]
+
+        quartile_four = selected[selected["size_quartile"] == 4].sort_values("size_bytes")
+        assert quartile_four["size_bytes"].tolist() == [1400, 1600]
 
     def test_build_location_ids_excludes_operational_status_columns(
         self,
@@ -948,7 +1146,7 @@ class TestCliCommands:
         assert config.run_id == "20250101T000000Z"
         assert config.manifest_first is True
         assert config.write_flags.write_cleaned_station is True
-        assert config.write_flags.write_domain_splits is False
+        assert config.write_flags.write_domain_splits is True
         assert config.write_flags.write_station_quality_profile is True
         assert config.write_flags.write_station_reports is False
         assert config.write_flags.write_global_summary is True
@@ -990,7 +1188,7 @@ class TestCliCommands:
                 "--run-id",
                 "RUN_123",
                 "--manifest-first",
-                "--no-write-domain-splits",
+                "--no-domain-splits",
                 "--write-station-reports",
             ],
         )
