@@ -161,6 +161,32 @@ def test_cleaning_run_docs_enforce_release_contract_paths():
         assert legacy_path not in run_modes_text
 
 
+def test_publication_artifact_semantics_docs_match_current_split_model():
+    run_modes_text = RUN_MODES_PATH.read_text(encoding="utf-8")
+    current_state_text = (PROJECT_ROOT / "docs" / "CURRENT_PROJECT_STATE.md").read_text(encoding="utf-8")
+    implementation_report_text = (
+        PROJECT_ROOT
+        / "docs"
+        / "validation_reports"
+        / "implementation_update_after_first_100_station_audit.md"
+    ).read_text(encoding="utf-8")
+
+    combined = "\n".join((run_modes_text, current_state_text, implementation_report_text))
+
+    assert "publication_readiness_gate.json` is integrity-only" in run_modes_text
+    assert "quality_reports/quality_assessment.json" in combined
+
+    stale_phrases = (
+        "the quality section and the top-level publication gate now reflect that failure",
+        "surfaced explicitly in the publication gate outcome",
+        "quality gate was updated to use",
+        "pass/fail publication quality threshold",
+    )
+    lowered = combined.lower()
+    for phrase in stale_phrases:
+        assert phrase.lower() not in lowered
+
+
 def test_integration_tests_default_to_explicit_fixture_root():
     integration_test_text = INTEGRATION_TEST_PATH.read_text(encoding="utf-8")
 

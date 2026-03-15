@@ -121,8 +121,9 @@ Reference values are still emitted for advisory interpretation in that artifact:
   - `pressure_temperature`: `0.00`
   - `remarks`: `0.00`
 
-These reference checks are emitted as explicit gate criteria. If a configured threshold fails,
-the quality section and the top-level publication gate now reflect that failure.
+These reference checks are emitted in `quality_reports/quality_assessment.json` for
+advisory interpretation. Threshold failures are reported there, but they do not
+control the top-level `passed` result in `manifests/publication_readiness_gate.json`.
 
 ## Resumability and Completion Rules
 

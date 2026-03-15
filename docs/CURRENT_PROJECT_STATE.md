@@ -20,7 +20,7 @@ The strongest current signals are:
 - spec coverage is currently reported as 3536/3536 implemented and strictly tested,
 - suspicious coverage is currently 0,
 - recent contract-check cleaning runs completed successfully on 11 local station datasets,
-- publication gating now treats quality thresholds as advisory rather than hard blockers, and quality threshold findings are emitted separately in `quality_reports/quality_assessment.json`.
+- `publication_readiness_gate.json` now serves as an integrity/build-readiness artifact, while threshold-driven quality findings are emitted separately as advisory output in `quality_reports/quality_assessment.json`.
 
 ## Where the project stands today
 
@@ -64,7 +64,7 @@ Key facts from the run:
 Important interpretation:
 
 - The run is **operationally healthy**: all stations completed, manifests matched expectations, timestamps and checksums validated.
-- The run is **scientifically transparent rather than aggressively filtered**: quality exclusion rates are still high for some data slices, and those thresholds are now surfaced explicitly in the publication gate outcome instead of being hidden behind an all-green status.
+- The run is **scientifically transparent rather than aggressively filtered**: quality exclusion rates are still high for some data slices, and those threshold evaluations are surfaced explicitly in `quality_reports/quality_assessment.json` instead of being collapsed into the top-level gate result.
 
 Supporting artifacts:
 
@@ -89,7 +89,7 @@ The publication gate expected 361 artifacts and found all 361.
 
 Run artifacts live under [artifacts/test_runs/contract_check_20260308T183600-0700](../artifacts/test_runs/contract_check_20260308T183600-0700).
 
-This run processed the same 11 stations and the same 1,310,114 rows, but its publication gate returned `passed: false` because the quality artifact sanity check still treated the maximum quality-code exclusion rate threshold as a hard failure.
+This run processed the same 11 stations and the same 1,310,114 rows, but its top-level publication gate still returned `passed: false` under the older semantics because a quality threshold evaluation was still being used as gating logic rather than reported as advisory output.
 
 Supporting artifact:
 
@@ -99,7 +99,7 @@ Supporting artifact:
 
 The important project-state change is not the raw data volume. It is the publication policy.
 
-By March 11, the quality gate was updated to use:
+By March 11, the artifact split was updated to use:
 
 - continuous quality scoring,
 - an overall integrity/quality composite score,
@@ -344,4 +344,4 @@ Instead, it presents this repository as a domain-specific scientific data public
 
 The current state of the project is strong on reproducibility, verification plumbing, and publication artifact structure.
 
-The most notable recent step is the shift from a brittle pass/fail publication quality threshold toward a more transparent score-based publication gate. That change better matches the project’s philosophy: preserve data lineage, expose cleaning effects, and let researchers judge quality with evidence rather than hidden transformations.
+The most notable recent step is the split between an integrity-only publication gate and a separate advisory quality assessment artifact. That change better matches the project’s philosophy: preserve data lineage, expose cleaning effects, and let researchers judge quality with evidence rather than hidden transformations.

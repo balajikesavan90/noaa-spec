@@ -127,7 +127,9 @@ Changed in `src/noaa_climate_data/cleaning_runner.py`.
 - the gate now includes:
   - `quality_assessment_generated`
   - `quality_assessment_path`
-- quality thresholds remain visible, but are explicitly advisory rather than controlling top-level gate pass/fail
+- `publication_readiness_gate.json` may point to the advisory quality artifact, but its top-level `passed` value is driven only by integrity/build-readiness checks
+- `quality_assessment.json` is the advisory artifact for threshold evaluations, impact summaries, and quality scoring
+- threshold evaluations remain visible, but they are reported rather than used to control top-level gate pass/fail
 - gate timestamps now derive from build metadata for stable artifact generation
 
 ### 7. Manifests were strengthened
