@@ -7,7 +7,7 @@ and low-I/O execution. Cleaning semantics remain in ``clean_noaa_dataframe``.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 import hashlib
 import json
 import os
@@ -16,6 +16,7 @@ import re
 import subprocess
 from typing import Any
 import uuid
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 
@@ -45,7 +46,7 @@ from .research_reports import (
 
 
 STATION_ID_RE = re.compile(r"^\d{11}$")
-PST = timezone(timedelta(hours=-8), name="PST")
+PACIFIC_TZ = ZoneInfo("America/Los_Angeles")
 
 MODE_TO_RAW_FILE = {
     "test_csv_dir": "LocationData_Raw.csv",
@@ -3520,11 +3521,11 @@ def _family_from_qc_flag_column(internal_col: str) -> str | None:
 
 
 def _pst_now_iso() -> str:
-    return datetime.now(PST).isoformat()
+    return datetime.now(PACIFIC_TZ).isoformat()
 
 
 def _pst_today() -> str:
-    return datetime.now(PST).date().isoformat()
+    return datetime.now(PACIFIC_TZ).date().isoformat()
 
 
 def _ensure_dir(path: Path) -> None:
