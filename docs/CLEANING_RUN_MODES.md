@@ -22,7 +22,7 @@ Use for local CSV iteration/debugging.
 Input expectation:
 
 - `<input-root>/<station_id>/LocationData_Raw.csv`
-- station folder name must be exactly 11 digits (`^\d{11}$`)
+- station folder name must be exactly 11 alphanumeric characters (`^[A-Za-z0-9]{11}$`)
 
 Default write behavior:
 
@@ -39,7 +39,7 @@ Use for long-running parquet batch cleaning.
 Input expectation:
 
 - `<input-root>/<station_id>/LocationData_Raw.parquet`
-- station folder name must be exactly 11 digits (`^\d{11}$`)
+- station folder name must be exactly 11 alphanumeric characters (`^[A-Za-z0-9]{11}$`)
 
 Default write behavior:
 

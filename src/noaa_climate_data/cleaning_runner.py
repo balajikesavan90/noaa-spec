@@ -46,7 +46,7 @@ from .research_reports import (
 )
 
 
-STATION_ID_RE = re.compile(r"^\d{11}$")
+STATION_ID_RE = re.compile(r"^[A-Za-z0-9]{11}$")
 PACIFIC_TZ = ZoneInfo("America/Los_Angeles")
 
 MODE_TO_RAW_FILE = {
@@ -432,7 +432,10 @@ def parse_station_filters(values: list[str] | None) -> tuple[str, ...]:
             if not station_id:
                 continue
             if not STATION_ID_RE.fullmatch(station_id):
-                raise ValueError(f"Invalid --station-id value (expected 11 digits): {station_id}")
+                raise ValueError(
+                    "Invalid --station-id value (expected 11 alphanumeric characters): "
+                    f"{station_id}"
+                )
             station_ids.add(station_id)
     return tuple(sorted(station_ids))
 

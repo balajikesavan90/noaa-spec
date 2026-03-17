@@ -301,6 +301,32 @@ def test_station_discovery_excludes_non_station_directories(tmp_path: Path) -> N
     assert manifest["station_id"].astype(str).tolist() == ["01234567890"]
 
 
+def test_station_discovery_accepts_alphanumeric_11_character_station_ids(tmp_path: Path) -> None:
+    input_root = tmp_path / "inputs"
+    _write_raw_csv(input_root / "A0000453929", "A0000453929")
+
+    config = _config(
+        tmp_path,
+        mode="test_csv_dir",
+        input_format="csv",
+        run_id="run_alphanumeric_discovery",
+        input_root=input_root,
+        write_flags=_flags(cleaned=False, quality=False),
+    )
+    result = run_cleaning_run(config)
+
+    assert result["total"] == 1
+    manifest = pd.read_csv(config.manifest_root / "run_manifest.csv", dtype=str)
+    assert manifest["station_id"].astype(str).tolist() == ["A0000453929"]
+
+
+def test_parse_station_filters_accepts_alphanumeric_station_ids() -> None:
+    assert cleaning_runner.parse_station_filters(["A0000453929,01234567890"]) == (
+        "01234567890",
+        "A0000453929",
+    )
+
+
 def test_mode_specific_file_discovery(tmp_path: Path) -> None:
     input_root = tmp_path / "inputs"
     _write_raw_csv(input_root / "01234567890", "01234567890")
