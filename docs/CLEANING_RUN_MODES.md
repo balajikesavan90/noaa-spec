@@ -11,6 +11,7 @@ poetry run python -m noaa_climate_data.cli cleaning-run ...
 - Raw parquet input trees (for example on an external drive) are treated as **read-only** sources.
 - Cleaned outputs, manifests, reports, and quality profiles are written to separate artifact roots.
 - Batch runs are resumable and deterministic via `run_manifest.csv`, `run_status.csv`, and per-station `_SUCCESS.json` markers.
+- Each station is executed in a fresh subprocess so a station-level crash does not kill the parent coordinator.
 
 ## Supported Modes
 
@@ -96,8 +97,34 @@ If `--run-id` already exists:
 - It is not the execution truth table; it is a deterministic station/input snapshot.
 
 - `run_status.csv` is the execution truth table.
-- It mutates as stations transition across runtime states (`pending`, `running`, `completed`, `failed`, `skipped_*`).
+- It mutates as stations transition across runtime states (`pending`, `running`, `retrying`, `completed`, `failed`, `skipped_*`).
 - Resume/recovery behavior must consult `run_status.csv` plus `_SUCCESS.json` and expected output existence checks.
+- It also records parent-owned retry/failure metadata:
+  - `retry_count`
+  - `last_exit_code`
+  - `failure_stage`
+  - `last_error_summary`
+
+## Subprocess-Per-Station Orchestration
+
+The parent process owns:
+
+- `run_config.json`, `run_manifest.csv`, and `run_status.csv`
+- station selection and resume logic
+- subprocess launch, timeout handling, stderr capture, and bounded retries
+- terminal run-state determination and finalization gating
+
+The child worker process owns exactly one station:
+
+- read raw input
+- run the existing cleaning logic unchanged
+- write canonical, domain, and station-quality/report artifacts
+- write `_SUCCESS.json` only after all expected per-station outputs exist
+
+Relevant CLI controls:
+
+- `--max-station-retries`
+- `--station-timeout-seconds`
 
 ## Publication Readiness vs Advisory Quality
 
@@ -125,6 +152,12 @@ These reference checks are emitted in `quality_reports/quality_assessment.json` 
 advisory interpretation. Threshold failures are reported there, but they do not
 control the top-level `passed` result in `manifests/publication_readiness_gate.json`.
 
+Run-level publication artifacts are emitted only for a truthful completed run.
+
+- completed run: writes release/file manifests, advisory quality assessment, and publication readiness gate
+- failed/interrupted/partial run: does not leave those finalization artifacts behind
+- `manifests/run_state.json` always records whether the run is `completed`, `failed`, or `interrupted`
+
 ## Resumability and Completion Rules
 
 A station is considered complete only when all are true:
@@ -134,6 +167,8 @@ A station is considered complete only when all are true:
 3. station `_SUCCESS.json` exists and matches run/station/expected outputs
 
 If status says completed but marker or outputs are missing, the station is recomputed.
+
+If a worker exits `0` but expected outputs or `_SUCCESS.json` validation fail, the parent marks the station failed rather than accepting a false completion.
 
 ## Low-I/O Quality Profiles
 
@@ -161,7 +196,8 @@ poetry run python -m noaa_climate_data.cli cleaning-run \
 poetry run python -m noaa_climate_data.cli cleaning-run \
   --mode batch_parquet_dir \
   --input-root /media/<user>/LaCie/NOAA_Data \
-  --input-format parquet
+  --input-format parquet \
+  --max-station-retries 1
 ```
 
 ### Frozen pulled-station batch helper

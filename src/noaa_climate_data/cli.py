@@ -16,6 +16,7 @@ from .cleaning_runner import (
     RunWriteFlags,
     default_roots_for_mode,
     parse_station_filters,
+    run_station_worker_from_paths,
     run_cleaning_run,
 )
 from .constants import DEFAULT_END_YEAR, DEFAULT_START_YEAR
@@ -912,6 +913,18 @@ def _parse_args() -> argparse.Namespace:
         help="Rebuild run_config/run_manifest/run_status for the same run_id",
     )
     cleaning_run_parser.add_argument(
+        "--max-station-retries",
+        type=int,
+        default=1,
+        help="Maximum retries after an initial failed station worker attempt (default: 1)",
+    )
+    cleaning_run_parser.add_argument(
+        "--station-timeout-seconds",
+        type=int,
+        default=None,
+        help="Optional timeout for each station worker subprocess",
+    )
+    cleaning_run_parser.add_argument(
         "--write-cleaned-station",
         action=argparse.BooleanOptionalAction,
         default=None,
@@ -1024,6 +1037,15 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         help="Write domain split datasets for batch runs (default: enabled)",
     )
+
+    worker_parser = subparsers.add_parser(
+        "cleaning-run-station-worker",
+        help=argparse.SUPPRESS,
+    )
+    worker_parser.add_argument("--run-config-path", required=True, type=Path)
+    worker_parser.add_argument("--station-id", required=True, type=str)
+    worker_parser.add_argument("--input-path", required=True, type=Path)
+    worker_parser.add_argument("--result-path", required=True, type=Path)
 
     return parser.parse_args()
 
@@ -1214,9 +1236,20 @@ def main() -> None:
             force=False,
             manifest_first=True,
             manifest_refresh=False,
+            max_station_retries=1,
+            station_timeout_seconds=None,
             write_flags=batch_write_flags,
         )
         run_cleaning_run(config)
+        return
+
+    if args.command == "cleaning-run-station-worker":
+        run_station_worker_from_paths(
+            run_config_path=args.run_config_path,
+            station_id=args.station_id,
+            input_path=args.input_path,
+            result_path=args.result_path,
+        )
         return
 
     if args.command == "clean-parquet":
@@ -1289,6 +1322,8 @@ def main() -> None:
                 manifest_first_default if args.manifest_first is None else bool(args.manifest_first)
             ),
             manifest_refresh=bool(args.manifest_refresh),
+            max_station_retries=int(args.max_station_retries),
+            station_timeout_seconds=args.station_timeout_seconds,
             write_flags=write_flags,
         )
         run_cleaning_run(config)

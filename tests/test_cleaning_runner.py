@@ -4,6 +4,7 @@ from datetime import datetime
 import json
 from pathlib import Path
 import re
+import sys
 
 import pandas as pd
 import pytest
@@ -114,6 +115,8 @@ def _config(
     station_ids: tuple[str, ...] = (),
     limit: int | None = None,
     force: bool = False,
+    max_station_retries: int = 1,
+    station_timeout_seconds: int | None = None,
     write_flags: RunWriteFlags | None = None,
     output_root: Path | None = None,
     reports_root: Path | None = None,
@@ -135,6 +138,8 @@ def _config(
         force=force,
         manifest_first=(mode == "batch_parquet_dir") if manifest_first is None else manifest_first,
         manifest_refresh=manifest_refresh,
+        max_station_retries=max_station_retries,
+        station_timeout_seconds=station_timeout_seconds,
         write_flags=write_flags or _flags(),
     )
 
@@ -1154,36 +1159,17 @@ def test_batch_mode_does_not_write_into_input_tree(tmp_path: Path) -> None:
 
 def test_parquet_write_handles_mixed_object_columns(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    input_root = tmp_path / "parquet_inputs"
-    station_id = "01234567890"
-    _write_raw_parquet(input_root / station_id, station_id)
-
-    def fake_clean_canonical_dataset(raw: pd.DataFrame) -> pd.DataFrame:
-        return pd.DataFrame(
-            {
-                "station_id": [station_id, station_id],
-                "wind_type_code": ["N", 1.0],
-                "qc_note": [None, "ok"],
-            }
-        )
-
-    monkeypatch.setattr(cleaning_runner, "_clean_canonical_dataset", fake_clean_canonical_dataset)
-
-    config = _config(
-        tmp_path,
-        mode="batch_parquet_dir",
-        input_format="parquet",
-        run_id="run_parquet_mixed_object",
-        input_root=input_root,
-        write_flags=_flags(cleaned=True, quality=False, domain=False, reports=False, global_summary=False),
+    frame = pd.DataFrame(
+        {
+            "station_id": ["01234567890", "01234567890"],
+            "wind_type_code": ["N", 1.0],
+            "qc_note": [None, "ok"],
+        }
     )
-    result = run_cleaning_run(config)
 
-    assert result["failed"] == 0
-    cleaned_path = config.output_root / station_id / "LocationData_Cleaned.parquet"
-    assert cleaned_path.exists()
+    cleaned_path = tmp_path / "LocationData_Cleaned.parquet"
+    cleaning_runner._write_cleaned_station(frame, cleaned_path, "parquet")
 
     cleaned = pd.read_parquet(cleaned_path)
     assert cleaned["wind_type_code"].tolist() == ["N", "1.0"]
@@ -1354,30 +1340,49 @@ def test_run_recovery_with_same_run_id_is_idempotent_after_interruption(
         input_format="csv",
         run_id="run_recovery_idempotent",
         input_root=input_root,
+        max_station_retries=0,
         write_flags=_flags(cleaned=True, domain=True, quality=True, reports=False, global_summary=False),
     )
 
-    original_clean = cleaning_runner._clean_canonical_dataset
+    original_command = cleaning_runner._station_subprocess_command
     state = {"failed_once": False}
 
-    def flaky_clean(raw: pd.DataFrame) -> pd.DataFrame:
+    def flaky_command(
+        *,
+        run_config_path: Path,
+        station_id: str,
+        input_path: Path,
+        result_path: Path,
+    ) -> list[str]:
         if not state["failed_once"]:
             state["failed_once"] = True
-            raise RuntimeError("simulated interruption")
-        return original_clean(raw)
+            return [
+                sys.executable,
+                "-c",
+                "import sys; sys.stderr.write('simulated interruption\\n'); raise SystemExit(2)",
+            ]
+        return original_command(
+            run_config_path=run_config_path,
+            station_id=station_id,
+            input_path=input_path,
+            result_path=result_path,
+        )
 
-    monkeypatch.setattr(cleaning_runner, "_clean_canonical_dataset", flaky_clean)
+    monkeypatch.setattr(cleaning_runner, "_station_subprocess_command", flaky_command)
     first = run_cleaning_run(config)
     assert first["failed"] == 1
+    assert first["finalized"] is False
+    assert first["state"] == "failed"
 
     status_after_failure = pd.read_csv(config.manifest_root / "run_status.csv", dtype=str)
     assert status_after_failure["status"].astype(str).tolist() == ["failed"]
     assert not (config.output_root / station_id / "_SUCCESS.json").exists()
+    assert not (config.manifest_root / "release_manifest.csv").exists()
 
-    monkeypatch.setattr(cleaning_runner, "_clean_canonical_dataset", original_clean)
     second = run_cleaning_run(config)
     assert second["failed"] == 0
     assert second["processed"] == 1
+    assert second["finalized"] is True
 
     status_after_recovery = pd.read_csv(config.manifest_root / "run_status.csv", dtype=str)
     assert status_after_recovery["status"].astype(str).tolist() == ["completed"]
@@ -1389,3 +1394,229 @@ def test_run_recovery_with_same_run_id_is_idempotent_after_interruption(
     assert release_manifest["artifact_id"].is_unique
     file_manifest = pd.read_csv(config.manifest_root / "file_manifest.csv", dtype=str)
     assert file_manifest["artifact_id"].is_unique
+
+
+def test_station_subprocess_crash_marks_failed_without_killing_parent(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_root = tmp_path / "inputs"
+    station_id = "01234567890"
+    _write_raw_csv(input_root / station_id, station_id)
+
+    def crashing_command(**_: object) -> list[str]:
+        return [
+            sys.executable,
+            "-c",
+            "import os, signal; os.kill(os.getpid(), signal.SIGSEGV)",
+        ]
+
+    monkeypatch.setattr(cleaning_runner, "_station_subprocess_command", crashing_command)
+
+    config = _config(
+        tmp_path,
+        mode="test_csv_dir",
+        input_format="csv",
+        run_id="run_station_crash",
+        input_root=input_root,
+        max_station_retries=0,
+        write_flags=_flags(cleaned=True, quality=True),
+    )
+    result = run_cleaning_run(config)
+
+    assert result["failed"] == 1
+    assert result["state"] == "failed"
+    assert result["finalized"] is False
+
+    run_status = pd.read_csv(config.manifest_root / "run_status.csv", dtype=str)
+    row = run_status.iloc[0].to_dict()
+    assert row["status"] == "failed"
+    assert row["retry_count"] == "1"
+    assert row["failure_stage"] == "child_process_crash"
+    assert row["last_error_summary"]
+    assert row["last_exit_code"] in {"-11", "139"}
+    assert not (config.manifest_root / "release_manifest.csv").exists()
+    run_state = json.loads((config.manifest_root / "run_state.json").read_text(encoding="utf-8"))
+    assert run_state["state"] == "failed"
+    assert run_state["finalized"] is False
+
+
+def test_station_retry_succeeds_after_one_nonzero_exit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_root = tmp_path / "inputs"
+    station_id = "01234567890"
+    _write_raw_csv(input_root / station_id, station_id)
+
+    original_command = cleaning_runner._station_subprocess_command
+    state = {"failed_once": False}
+
+    def flaky_command(
+        *,
+        run_config_path: Path,
+        station_id: str,
+        input_path: Path,
+        result_path: Path,
+    ) -> list[str]:
+        if not state["failed_once"]:
+            state["failed_once"] = True
+            return [
+                sys.executable,
+                "-c",
+                "import sys; sys.stderr.write('transient worker failure\\n'); raise SystemExit(3)",
+            ]
+        return original_command(
+            run_config_path=run_config_path,
+            station_id=station_id,
+            input_path=input_path,
+            result_path=result_path,
+        )
+
+    monkeypatch.setattr(cleaning_runner, "_station_subprocess_command", flaky_command)
+
+    config = _config(
+        tmp_path,
+        mode="test_csv_dir",
+        input_format="csv",
+        run_id="run_station_retry",
+        input_root=input_root,
+        max_station_retries=1,
+        write_flags=_flags(cleaned=True, domain=True, quality=True),
+    )
+    result = run_cleaning_run(config)
+
+    assert result["failed"] == 0
+    assert result["processed"] == 1
+    assert result["finalized"] is True
+
+    run_status = pd.read_csv(config.manifest_root / "run_status.csv", dtype=str)
+    row = run_status.iloc[0].to_dict()
+    assert row["status"] == "completed"
+    assert row["retry_count"] == "1"
+    assert row["last_exit_code"] == "0"
+
+
+def test_station_not_marked_completed_without_all_expected_outputs_and_success_marker(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_root = tmp_path / "inputs"
+    station_id = "01234567890"
+    _write_raw_csv(input_root / station_id, station_id)
+
+    def incomplete_success_command(
+        *,
+        run_config_path: Path,
+        station_id: str,
+        input_path: Path,
+        result_path: Path,
+    ) -> list[str]:
+        code = """
+import json
+from pathlib import Path
+import pandas as pd
+from noaa_climate_data.cleaning_runner import (
+    StationProcessingResult,
+    _station_paths,
+    _write_cleaned_station,
+    _write_station_worker_result,
+    cleaning_run_config_from_payload,
+)
+
+config_payload = json.loads(Path(__import__("sys").argv[1]).read_text(encoding="utf-8"))
+config = cleaning_run_config_from_payload(config_payload)
+station_id = __import__("sys").argv[2]
+input_path = Path(__import__("sys").argv[3])
+result_path = Path(__import__("sys").argv[4])
+paths = _station_paths(config, station_id)
+_write_cleaned_station(pd.DataFrame({"station_id": [station_id], "value": ["ok"]}), paths.cleaned_path, config.input_format)
+_write_station_worker_result(
+    result_path,
+    StationProcessingResult(
+        station_id=station_id,
+        input_path=str(input_path.resolve()),
+        output_path=str(paths.cleaned_path),
+        station_quality_profile_path="",
+        success_marker_path=str(paths.success_marker_path),
+        expected_outputs=[str(paths.cleaned_path.resolve())],
+        row_count_raw=1,
+        row_count_cleaned=1,
+        raw_columns=1,
+        cleaned_columns=2,
+        input_size_bytes=1,
+        cleaned_size_bytes=1,
+        elapsed_read_seconds=0.0,
+        elapsed_clean_seconds=0.0,
+        elapsed_domain_split_seconds=0.0,
+        elapsed_quality_profile_seconds=0.0,
+        elapsed_write_seconds=0.0,
+        elapsed_total_seconds=0.0,
+    ),
+)
+"""
+        return [
+            sys.executable,
+            "-c",
+            code,
+            str(run_config_path),
+            station_id,
+            str(input_path),
+            str(result_path),
+        ]
+
+    monkeypatch.setattr(cleaning_runner, "_station_subprocess_command", incomplete_success_command)
+
+    config = _config(
+        tmp_path,
+        mode="test_csv_dir",
+        input_format="csv",
+        run_id="run_missing_success_marker",
+        input_root=input_root,
+        max_station_retries=0,
+        write_flags=_flags(cleaned=True, quality=False, domain=False),
+    )
+    result = run_cleaning_run(config)
+
+    assert result["failed"] == 1
+    run_status = pd.read_csv(config.manifest_root / "run_status.csv", dtype=str)
+    row = run_status.iloc[0].to_dict()
+    assert row["status"] == "failed"
+    assert row["failure_stage"] == "success_marker_validation"
+    assert not (config.output_root / station_id / "_SUCCESS.json").exists()
+
+
+def test_partial_limit_run_is_not_finalized_and_resume_completes_same_run_id(
+    tmp_path: Path,
+) -> None:
+    input_root = tmp_path / "inputs"
+    for station_id in ("01234567890", "01234567891"):
+        _write_raw_csv(input_root / station_id, station_id)
+
+    config = _config(
+        tmp_path,
+        mode="test_csv_dir",
+        input_format="csv",
+        run_id="run_limit_resume",
+        input_root=input_root,
+        limit=1,
+        write_flags=_flags(cleaned=True, domain=True, quality=True),
+    )
+
+    first = run_cleaning_run(config)
+    assert first["processed"] == 1
+    assert first["finalized"] is False
+    assert first["state"] == "interrupted"
+    assert not (config.manifest_root / "release_manifest.csv").exists()
+
+    first_status = pd.read_csv(config.manifest_root / "run_status.csv", dtype=str)
+    assert set(first_status["status"].astype(str)) == {"completed", "skipped_limit"}
+
+    second = run_cleaning_run(config)
+    assert second["processed"] == 1
+    assert second["finalized"] is True
+    assert second["state"] == "completed"
+    assert (config.manifest_root / "release_manifest.csv").exists()
+
+    second_status = pd.read_csv(config.manifest_root / "run_status.csv", dtype=str)
+    assert set(second_status["status"].astype(str)) == {"completed"}

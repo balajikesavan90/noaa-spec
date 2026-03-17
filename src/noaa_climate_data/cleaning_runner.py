@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 from typing import Any
 import uuid
 from zoneinfo import ZoneInfo
@@ -94,6 +95,10 @@ RUN_STATUS_COLUMNS = [
     "station_quality_profile_path",
     "success_marker_path",
     "expected_outputs",
+    "retry_count",
+    "last_exit_code",
+    "failure_stage",
+    "last_error_summary",
     "error_message",
 ]
 
@@ -203,6 +208,8 @@ class CleaningRunConfig:
     force: bool
     manifest_first: bool
     manifest_refresh: bool
+    max_station_retries: int
+    station_timeout_seconds: int | None
     write_flags: RunWriteFlags
 
 
@@ -223,6 +230,45 @@ class _QualitySchema:
     qc_flag_columns: list[tuple[str, str | None, str | None]]
     null_value_columns: list[tuple[str, str]]
     parse_error_column: str | None
+
+
+@dataclass(frozen=True)
+class StationProcessingResult:
+    station_id: str
+    input_path: str
+    output_path: str
+    station_quality_profile_path: str
+    success_marker_path: str
+    expected_outputs: list[str]
+    row_count_raw: int
+    row_count_cleaned: int
+    raw_columns: int
+    cleaned_columns: int
+    input_size_bytes: int
+    cleaned_size_bytes: int
+    elapsed_read_seconds: float
+    elapsed_clean_seconds: float
+    elapsed_domain_split_seconds: float
+    elapsed_quality_profile_seconds: float
+    elapsed_write_seconds: float
+    elapsed_total_seconds: float
+
+
+WORKER_RESULT_SCHEMA_VERSION = "v1"
+STATION_WORKER_RESULT_DIRNAME = "station_results"
+FINALIZATION_ARTIFACT_RELATIVE_PATHS = (
+    "quality_reports/field_completeness.csv",
+    "quality_reports/sentinel_frequency.csv",
+    "quality_reports/quality_code_exclusions.csv",
+    "quality_reports/domain_usability_summary.csv",
+    "quality_reports/station_year_quality.csv",
+    "quality_reports/quality_reports_summary.md",
+    "quality_reports/quality_assessment.json",
+    "quality_reports/global_quality_summary.json",
+    "manifests/release_manifest.csv",
+    "manifests/file_manifest.csv",
+    "manifests/publication_readiness_gate.json",
+)
 
 
 class _QualityProfileBuilder:
@@ -462,22 +508,30 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
         f"quality_profile_root={config.quality_profile_root} "
         f"manifest_root={config.manifest_root} "
         f"manifest_first={config.manifest_first} "
+        f"max_station_retries={config.max_station_retries} "
+        f"station_timeout_seconds={config.station_timeout_seconds} "
         f"write_flags={_write_flags_for_log(config.write_flags)} "
         f"discovered_stations={len(manifest_rows)}"
     )
-
-    quality_builder = _QualityProfileBuilder()
 
     processed = 0
     skipped = 0
     failed = 0
     processed_for_limit = 0
+    station_filter_set = set(config.station_ids)
+    release_manifest_path = config.manifest_root / "release_manifest.csv"
+    file_manifest_path = config.manifest_root / "file_manifest.csv"
+    publication_readiness_path = config.manifest_root / "publication_readiness_gate.json"
+    quality_assessment_path = config.reports_root / "quality_assessment.json"
 
     for idx, row in enumerate(manifest_rows, start=1):
         station_id = str(row["station_id"])
         input_path = Path(str(row["input_path"]))
+        paths = _station_paths(config, station_id)
+        expected_outputs = _expected_output_paths(config, paths)
+        worker_result_path = _station_worker_result_path(config, station_id)
 
-        if config.station_ids and station_id not in set(config.station_ids):
+        if station_filter_set and station_id not in station_filter_set:
             skipped += 1
             print(f"[{idx}/{len(manifest_rows)}] SKIP {station_id}: filtered by station-id")
             status_df = _upsert_status(
@@ -508,9 +562,6 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
             )
             _write_status(run_status_path, status_df)
             continue
-
-        paths = _station_paths(config, station_id)
-        expected_outputs = _expected_output_paths(config, paths)
 
         if not input_path.exists():
             skipped += 1
@@ -554,287 +605,297 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
 
         processed_for_limit += 1
         started_at = _pst_now_iso()
-        station_start = datetime.now(timezone.utc)
         input_size_bytes = _safe_file_size(input_path)
+        cumulative_failures = _coerce_int(prior_status.get("retry_count", 0)) if prior_status else 0
+        invocation_failures = 0
+        station_completed = False
 
-        status_df = _upsert_status(
-            status_df,
-            {
-                "run_id": config.run_id,
-                "station_id": station_id,
-                "input_path": str(input_path),
-                "status": "running",
-                "started_at": started_at,
-                "input_size_bytes": input_size_bytes,
-                "expected_outputs": _json_compact([str(path) for path in expected_outputs]),
-                "success_marker_path": str(paths.success_marker_path),
-                "error_message": "",
-            },
-        )
-        _write_status(run_status_path, status_df)
+        while invocation_failures <= config.max_station_retries:
+            attempt_number = invocation_failures + 1
+            if worker_result_path.exists():
+                worker_result_path.unlink()
 
-        try:
-            print(f"[{idx}/{len(manifest_rows)}] {station_id}: begin")
-            print(f"[{idx}/{len(manifest_rows)}] {station_id}: read raw input")
-            phase_start = datetime.now(timezone.utc)
-            raw_df = _read_raw_input(input_path, config.input_format)
-            elapsed_read_seconds = (
-                datetime.now(timezone.utc) - phase_start
-            ).total_seconds()
-            row_count_raw = int(len(raw_df))
-            raw_columns = int(len(raw_df.columns))
-
-            print(f"[{idx}/{len(manifest_rows)}] {station_id}: clean canonical dataset")
-            phase_start = datetime.now(timezone.utc)
-            cleaned_df = _clean_canonical_dataset(raw_df)
-            validate_no_sentinel_leakage(cleaned_df)
-            elapsed_clean_seconds = (
-                datetime.now(timezone.utc) - phase_start
-            ).total_seconds()
-            row_count_cleaned = int(len(cleaned_df))
-            cleaned_columns = int(len(cleaned_df.columns))
-
-            profile_payload: dict[str, Any] | None = None
-            elapsed_quality_profile_seconds = 0.0
-            if config.write_flags.write_station_quality_profile:
-                phase_start = datetime.now(timezone.utc)
-                profile_payload = quality_builder.build(cleaned_df, station_id)
-                elapsed_quality_profile_seconds = (
-                    datetime.now(timezone.utc) - phase_start
-                ).total_seconds()
-
-            elapsed_write_seconds = 0.0
-            if config.write_flags.write_cleaned_station:
-                print(f"[{idx}/{len(manifest_rows)}] {station_id}: write cleaned output")
-                phase_start = datetime.now(timezone.utc)
-                _ensure_dir(paths.station_output_dir)
-                _write_cleaned_station(cleaned_df, paths.cleaned_path, config.input_format)
-                elapsed_write_seconds += (
-                    datetime.now(timezone.utc) - phase_start
-                ).total_seconds()
-
-            elapsed_domain_split_seconds = 0.0
-            if config.write_flags.write_domain_splits:
-                print(f"[{idx}/{len(manifest_rows)}] {station_id}: write domain splits")
-                phase_start = datetime.now(timezone.utc)
-                _ensure_dir(paths.domain_dir)
-                station_name = _station_name(cleaned_df, station_id)
-                station_slug = sanitize_station_slug(station_name)
-                domain_rows = write_domain_datasets_from_registry(
-                    cleaned_df,
-                    station_slug=station_slug,
-                    station_name=station_name,
-                    output_dir=paths.domain_dir,
-                    output_format=config.input_format,
-                )
-                write_deterministic_csv(
-                    pd.DataFrame(domain_rows),
-                    paths.domain_manifest_path,
-                    sort_by=("domain",),
-                )
-                elapsed_domain_split_seconds = (
-                    datetime.now(timezone.utc) - phase_start
-                ).total_seconds()
-
-            if config.write_flags.write_station_quality_profile and profile_payload is not None:
-                print(f"[{idx}/{len(manifest_rows)}] {station_id}: write station quality profile")
-                phase_start = datetime.now(timezone.utc)
-                _ensure_dir(config.quality_profile_root)
-                _write_json(paths.quality_profile_path, profile_payload)
-                elapsed_quality_profile_seconds += (
-                    datetime.now(timezone.utc) - phase_start
-                ).total_seconds()
-
-            if config.write_flags.write_station_reports:
-                print(f"[{idx}/{len(manifest_rows)}] {station_id}: write station reports")
-                phase_start = datetime.now(timezone.utc)
-                _ensure_dir(paths.reports_dir)
-                report_paths = _write_station_reports_from_memory(
-                    raw=raw_df,
-                    cleaned=cleaned_df,
-                    station_id=station_id,
-                    reports_dir=paths.reports_dir,
-                )
-                elapsed_write_seconds += (
-                    datetime.now(timezone.utc) - phase_start
-                ).total_seconds()
-
-            phase_start = datetime.now(timezone.utc)
-            _verify_outputs_exist(expected_outputs)
-            _write_success_marker(
-                success_path=paths.success_marker_path,
-                run_id=config.run_id,
-                station_id=station_id,
-                input_path=input_path,
-                input_format=config.input_format,
-                expected_outputs=expected_outputs,
-                row_count_raw=row_count_raw,
-                row_count_cleaned=row_count_cleaned,
-                write_flags=config.write_flags,
-            )
-            elapsed_write_seconds += (
-                datetime.now(timezone.utc) - phase_start
-            ).total_seconds()
-            cleaned_size_bytes = _safe_file_size(paths.cleaned_path)
-
-            elapsed_total_seconds = (
-                datetime.now(timezone.utc) - station_start
-            ).total_seconds()
             status_df = _upsert_status(
                 status_df,
                 {
                     "run_id": config.run_id,
                     "station_id": station_id,
                     "input_path": str(input_path),
-                    "output_path": str(paths.cleaned_path if config.write_flags.write_cleaned_station else paths.station_output_dir),
-                    "status": "completed",
+                    "status": "running",
                     "started_at": started_at,
-                    "completed_at": _pst_now_iso(),
-                    "elapsed_seconds": round(float(elapsed_total_seconds), 6),
-                    "elapsed_read_seconds": round(float(elapsed_read_seconds), 6),
-                    "elapsed_clean_seconds": round(float(elapsed_clean_seconds), 6),
-                    "elapsed_domain_split_seconds": round(float(elapsed_domain_split_seconds), 6),
-                    "elapsed_quality_profile_seconds": round(float(elapsed_quality_profile_seconds), 6),
-                    "elapsed_write_seconds": round(float(elapsed_write_seconds), 6),
-                    "elapsed_total_seconds": round(float(elapsed_total_seconds), 6),
-                    "row_count_raw": row_count_raw,
-                    "row_count_cleaned": row_count_cleaned,
-                    "raw_columns": raw_columns,
-                    "cleaned_columns": cleaned_columns,
+                    "completed_at": "",
                     "input_size_bytes": input_size_bytes,
-                    "cleaned_size_bytes": cleaned_size_bytes,
-                    "station_quality_profile_path": (
-                        str(paths.quality_profile_path)
-                        if config.write_flags.write_station_quality_profile
-                        else ""
-                    ),
-                    "success_marker_path": str(paths.success_marker_path),
                     "expected_outputs": _json_compact([str(path) for path in expected_outputs]),
+                    "success_marker_path": str(paths.success_marker_path),
+                    "retry_count": cumulative_failures,
+                    "last_exit_code": "",
+                    "failure_stage": "",
+                    "last_error_summary": "",
                     "error_message": "",
                 },
             )
             _write_status(run_status_path, status_df)
 
-            processed += 1
             print(
-                f"[{idx}/{len(manifest_rows)}] DONE {station_id} "
-                f"(elapsed={elapsed_total_seconds:.3f}s)"
+                f"[{idx}/{len(manifest_rows)}] {station_id}: begin attempt "
+                f"{attempt_number}/{config.max_station_retries + 1}"
             )
-        except Exception as exc:  # pragma: no cover - branch validated by tests
-            failed += 1
-            elapsed_seconds = (
-                datetime.now(timezone.utc) - station_start
-            ).total_seconds()
+
+            command = _station_subprocess_command(
+                run_config_path=run_config_path,
+                station_id=station_id,
+                input_path=input_path,
+                result_path=worker_result_path,
+            )
+            timed_out = False
+            exit_code: int | None = None
+            stdout = ""
+            stderr = ""
+            try:
+                proc = subprocess.run(
+                    command,
+                    capture_output=True,
+                    text=True,
+                    timeout=config.station_timeout_seconds,
+                    env=_station_subprocess_env(),
+                )
+                exit_code = int(proc.returncode)
+                stdout = proc.stdout
+                stderr = proc.stderr
+            except subprocess.TimeoutExpired as exc:
+                timed_out = True
+                stdout = exc.stdout or ""
+                stderr = exc.stderr or ""
+
+            worker_payload = _load_station_worker_result(worker_result_path)
+            completed_ok = (
+                not timed_out
+                and exit_code == 0
+                and worker_payload is not None
+                and _all_exist(expected_outputs)
+                and _validate_success_marker(
+                    success_path=paths.success_marker_path,
+                    run_id=config.run_id,
+                    station_id=station_id,
+                    expected_outputs=expected_outputs,
+                )
+            )
+
+            if completed_ok:
+                elapsed_total_seconds = float(worker_payload.get("elapsed_total_seconds", 0.0))
+                status_df = _upsert_status(
+                    status_df,
+                    {
+                        "run_id": config.run_id,
+                        "station_id": station_id,
+                        "input_path": str(input_path),
+                        "output_path": str(worker_payload.get("output_path", "")),
+                        "status": "completed",
+                        "started_at": started_at,
+                        "completed_at": _pst_now_iso(),
+                        "elapsed_seconds": round(elapsed_total_seconds, 6),
+                        "elapsed_read_seconds": round(float(worker_payload.get("elapsed_read_seconds", 0.0)), 6),
+                        "elapsed_clean_seconds": round(float(worker_payload.get("elapsed_clean_seconds", 0.0)), 6),
+                        "elapsed_domain_split_seconds": round(
+                            float(worker_payload.get("elapsed_domain_split_seconds", 0.0)),
+                            6,
+                        ),
+                        "elapsed_quality_profile_seconds": round(
+                            float(worker_payload.get("elapsed_quality_profile_seconds", 0.0)),
+                            6,
+                        ),
+                        "elapsed_write_seconds": round(float(worker_payload.get("elapsed_write_seconds", 0.0)), 6),
+                        "elapsed_total_seconds": round(elapsed_total_seconds, 6),
+                        "row_count_raw": _coerce_int(worker_payload.get("row_count_raw", 0)),
+                        "row_count_cleaned": _coerce_int(worker_payload.get("row_count_cleaned", 0)),
+                        "raw_columns": _coerce_int(worker_payload.get("raw_columns", 0)),
+                        "cleaned_columns": _coerce_int(worker_payload.get("cleaned_columns", 0)),
+                        "input_size_bytes": input_size_bytes,
+                        "cleaned_size_bytes": _coerce_int(worker_payload.get("cleaned_size_bytes", 0)),
+                        "station_quality_profile_path": str(
+                            worker_payload.get("station_quality_profile_path", "")
+                        ),
+                        "success_marker_path": str(paths.success_marker_path),
+                        "expected_outputs": _json_compact([str(path) for path in expected_outputs]),
+                        "retry_count": cumulative_failures,
+                        "last_exit_code": "0",
+                        "failure_stage": "",
+                        "last_error_summary": "",
+                        "error_message": "",
+                    },
+                )
+                _write_status(run_status_path, status_df)
+                processed += 1
+                station_completed = True
+                print(
+                    f"[{idx}/{len(manifest_rows)}] DONE {station_id} "
+                    f"(elapsed={elapsed_total_seconds:.3f}s)"
+                )
+                break
+
+            failure_stage = _failure_stage_for_exit_code(exit_code, timed_out=timed_out)
+            if failure_stage == "" and worker_payload is None:
+                failure_stage = "worker_result_missing"
+            if failure_stage == "" and not _all_exist(expected_outputs):
+                failure_stage = "output_validation"
+            if failure_stage == "" and not _validate_success_marker(
+                success_path=paths.success_marker_path,
+                run_id=config.run_id,
+                station_id=station_id,
+                expected_outputs=expected_outputs,
+            ):
+                failure_stage = "success_marker_validation"
+
+            error_summary = _summarize_subprocess_error(stderr, stdout, timed_out=timed_out)
+            if worker_payload is not None and failure_stage in {"output_validation", "success_marker_validation"}:
+                error_summary = (
+                    "station worker exited successfully but required outputs or "
+                    "_SUCCESS.json validation failed"
+                )
+
+            cumulative_failures += 1
+            invocation_failures += 1
+            exhausted = invocation_failures > config.max_station_retries
             status_df = _upsert_status(
                 status_df,
                 {
                     "run_id": config.run_id,
                     "station_id": station_id,
                     "input_path": str(input_path),
-                    "status": "failed",
+                    "status": "failed" if exhausted else "retrying",
                     "started_at": started_at,
                     "completed_at": _pst_now_iso(),
-                    "elapsed_seconds": round(float(elapsed_seconds), 6),
-                    "elapsed_total_seconds": round(float(elapsed_seconds), 6),
                     "input_size_bytes": input_size_bytes,
                     "success_marker_path": str(paths.success_marker_path),
                     "expected_outputs": _json_compact([str(path) for path in expected_outputs]),
-                    "error_message": str(exc),
+                    "retry_count": cumulative_failures,
+                    "last_exit_code": "timeout" if timed_out else str(exit_code if exit_code is not None else ""),
+                    "failure_stage": failure_stage,
+                    "last_error_summary": error_summary,
+                    "error_message": error_summary,
                 },
             )
             _write_status(run_status_path, status_df)
+
+            if exhausted:
+                failed += 1
+                print(
+                    f"[{idx}/{len(manifest_rows)}] FAIL {station_id}: {error_summary} "
+                    f"(attempts_this_invocation={invocation_failures} cumulative_failures={cumulative_failures})"
+                )
+                break
+
             print(
-                f"[{idx}/{len(manifest_rows)}] FAIL {station_id}: {exc} "
-                f"(elapsed={elapsed_seconds:.3f}s)"
+                f"[{idx}/{len(manifest_rows)}] RETRY {station_id}: {error_summary} "
+                f"(next_attempt={invocation_failures + 1}/{config.max_station_retries + 1})"
             )
 
-    if config.write_flags.write_global_summary:
-        print("Global summary: begin")
-        summary = _build_global_summary_from_sidecars(config, status_df)
-        global_summary_path = config.reports_root / "global_quality_summary.json"
-        _ensure_dir(config.reports_root)
-        _write_json(global_summary_path, summary)
-        print(f"Global summary: wrote {global_summary_path}")
+        if not station_completed and not worker_result_path.exists():
+            status_df = _load_status(run_status_path)
 
-    quality_frames = _build_mandatory_quality_artifact_frames(config, status_df)
-    for artifact_name, frame in quality_frames.items():
-        output_path = config.reports_root / f"{artifact_name}.csv"
-        write_deterministic_csv(
-            frame,
-            output_path,
-            sort_by=QUALITY_ARTIFACT_SORT_KEYS.get(artifact_name, ("station_id",)),
+    stale_finalization_artifacts_removed: list[str] = []
+    finalized = False
+    run_state = _terminal_run_state(status_df)
+
+    if run_state["finalizable"]:
+        if config.write_flags.write_global_summary:
+            print("Global summary: begin")
+            summary = _build_global_summary_from_sidecars(config, status_df)
+            global_summary_path = config.reports_root / "global_quality_summary.json"
+            _ensure_dir(config.reports_root)
+            _write_json(global_summary_path, summary)
+            print(f"Global summary: wrote {global_summary_path}")
+
+        quality_frames = _build_mandatory_quality_artifact_frames(config, status_df)
+        for artifact_name, frame in quality_frames.items():
+            output_path = config.reports_root / f"{artifact_name}.csv"
+            write_deterministic_csv(
+                frame,
+                output_path,
+                sort_by=QUALITY_ARTIFACT_SORT_KEYS.get(artifact_name, ("station_id",)),
+            )
+            print(f"Quality artifact: wrote {output_path}")
+        summary_path = config.reports_root / "quality_reports_summary.md"
+        _write_quality_reports_summary(summary_path, quality_frames, config.run_id, status_df)
+        print(f"Quality artifact: wrote {summary_path}")
+
+        release_manifest_rows = _build_release_manifest_rows(
+            config=config,
+            status_df=status_df,
+            quality_frames=quality_frames,
+            creation_timestamp=build_timestamp,
         )
-        print(f"Quality artifact: wrote {output_path}")
-    summary_path = config.reports_root / "quality_reports_summary.md"
-    _write_quality_reports_summary(summary_path, quality_frames, config.run_id, status_df)
-    print(f"Quality artifact: wrote {summary_path}")
+        _write_release_manifest(release_manifest_path, release_manifest_rows)
+        print(f"Release manifest: wrote {release_manifest_path}")
 
-    release_manifest_path = config.manifest_root / "release_manifest.csv"
-    release_manifest_rows = _build_release_manifest_rows(
+        quality_assessment = _build_quality_assessment(
+            config,
+            status_df,
+            quality_frames,
+            build_metadata_path=build_metadata_path,
+        )
+        _write_json(quality_assessment_path, quality_assessment)
+        print(f"Quality assessment: wrote {quality_assessment_path}")
+
+        file_manifest_rows = _build_full_file_manifest_rows(
+            config=config,
+            status_df=status_df,
+            creation_timestamp=build_timestamp,
+            run_manifest_path=run_manifest_path,
+            run_status_path=run_status_path,
+            run_config_path=run_config_path,
+            build_metadata_path=build_metadata_path,
+            release_manifest_path=release_manifest_path,
+            quality_assessment_path=quality_assessment_path,
+            publication_readiness_path=None,
+        )
+        _write_full_file_manifest(file_manifest_path, file_manifest_rows)
+        print(f"File manifest: wrote {file_manifest_path}")
+
+        publication_readiness = _build_publication_readiness_gate(
+            config=config,
+            status_df=status_df,
+            quality_frames=quality_frames,
+            run_manifest_path=run_manifest_path,
+            run_status_path=run_status_path,
+            run_config_path=run_config_path,
+            build_metadata_path=build_metadata_path,
+            release_manifest_path=release_manifest_path,
+            file_manifest_path=file_manifest_path,
+            quality_assessment_path=quality_assessment_path,
+        )
+        _write_json(publication_readiness_path, publication_readiness)
+        print(f"Publication readiness: wrote {publication_readiness_path}")
+
+        file_manifest_rows = _build_full_file_manifest_rows(
+            config=config,
+            status_df=status_df,
+            creation_timestamp=build_timestamp,
+            run_manifest_path=run_manifest_path,
+            run_status_path=run_status_path,
+            run_config_path=run_config_path,
+            build_metadata_path=build_metadata_path,
+            release_manifest_path=release_manifest_path,
+            quality_assessment_path=quality_assessment_path,
+            publication_readiness_path=publication_readiness_path,
+        )
+        _write_full_file_manifest(file_manifest_path, file_manifest_rows)
+        print(f"File manifest: refreshed {file_manifest_path} with publication gate coverage")
+        finalized = True
+    else:
+        stale_finalization_artifacts_removed = _clear_nonterminal_finalization_artifacts(config)
+        print(
+            "Run finalization skipped: "
+            f"state={run_state['state']} finalizable={run_state['finalizable']}"
+        )
+
+    run_state_payload = _write_run_state_artifact(
         config=config,
         status_df=status_df,
-        quality_frames=quality_frames,
-        creation_timestamp=build_timestamp,
+        run_started_at=run_started_at,
+        finalized=finalized,
+        stale_finalization_artifacts_removed=stale_finalization_artifacts_removed,
     )
-    _write_release_manifest(release_manifest_path, release_manifest_rows)
-    print(f"Release manifest: wrote {release_manifest_path}")
-
-    quality_assessment_path = config.reports_root / "quality_assessment.json"
-    quality_assessment = _build_quality_assessment(
-        config,
-        status_df,
-        quality_frames,
-        build_metadata_path=build_metadata_path,
-    )
-    _write_json(quality_assessment_path, quality_assessment)
-    print(f"Quality assessment: wrote {quality_assessment_path}")
-
-    file_manifest_path = config.manifest_root / "file_manifest.csv"
-    file_manifest_rows = _build_full_file_manifest_rows(
-        config=config,
-        status_df=status_df,
-        creation_timestamp=build_timestamp,
-        run_manifest_path=run_manifest_path,
-        run_status_path=run_status_path,
-        run_config_path=run_config_path,
-        build_metadata_path=build_metadata_path,
-        release_manifest_path=release_manifest_path,
-        quality_assessment_path=quality_assessment_path,
-        publication_readiness_path=None,
-    )
-    _write_full_file_manifest(file_manifest_path, file_manifest_rows)
-    print(f"File manifest: wrote {file_manifest_path}")
-
-    publication_readiness_path = config.manifest_root / "publication_readiness_gate.json"
-    publication_readiness = _build_publication_readiness_gate(
-        config=config,
-        status_df=status_df,
-        quality_frames=quality_frames,
-        run_manifest_path=run_manifest_path,
-        run_status_path=run_status_path,
-        run_config_path=run_config_path,
-        build_metadata_path=build_metadata_path,
-        release_manifest_path=release_manifest_path,
-        file_manifest_path=file_manifest_path,
-        quality_assessment_path=quality_assessment_path,
-    )
-    _write_json(publication_readiness_path, publication_readiness)
-    print(f"Publication readiness: wrote {publication_readiness_path}")
-
-    file_manifest_rows = _build_full_file_manifest_rows(
-        config=config,
-        status_df=status_df,
-        creation_timestamp=build_timestamp,
-        run_manifest_path=run_manifest_path,
-        run_status_path=run_status_path,
-        run_config_path=run_config_path,
-        build_metadata_path=build_metadata_path,
-        release_manifest_path=release_manifest_path,
-        quality_assessment_path=quality_assessment_path,
-        publication_readiness_path=publication_readiness_path,
-    )
-    _write_full_file_manifest(file_manifest_path, file_manifest_rows)
-    print(f"File manifest: refreshed {file_manifest_path} with publication gate coverage")
 
     total_elapsed_seconds = (datetime.now(timezone.utc) - run_started_at).total_seconds()
     total_elapsed_minutes = total_elapsed_seconds / 60.0
@@ -842,6 +903,7 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
     print(
         "cleaning-run summary: "
         f"processed={processed} skipped={skipped} failed={failed} total={len(manifest_rows)} "
+        f"state={run_state_payload['state']} finalized={finalized} "
         f"elapsed_seconds={total_elapsed_seconds:.3f} "
         f"elapsed_minutes={total_elapsed_minutes:.3f}"
     )
@@ -850,8 +912,11 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
         "skipped": skipped,
         "failed": failed,
         "total": len(manifest_rows),
+        "state": run_state_payload["state"],
+        "finalized": finalized,
         "run_manifest": run_manifest_path,
         "run_status": run_status_path,
+        "run_state": _run_state_path(config),
         "release_manifest": release_manifest_path,
         "file_manifest": file_manifest_path,
         "publication_readiness_gate": publication_readiness_path,
@@ -883,6 +948,10 @@ def _validate_config(config: CleaningRunConfig) -> None:
         raise FileNotFoundError(f"Input root not found or not a directory: {config.input_root}")
     if config.limit is not None and config.limit <= 0:
         raise ValueError("--limit must be a positive integer")
+    if config.max_station_retries < 0:
+        raise ValueError("--max-station-retries must be zero or greater")
+    if config.station_timeout_seconds is not None and config.station_timeout_seconds <= 0:
+        raise ValueError("--station-timeout-seconds must be a positive integer")
 
     input_root = config.input_root.resolve()
     write_roots = {
@@ -1056,6 +1125,10 @@ def _prepare_manifest(
                 "station_quality_profile_path": "",
                 "success_marker_path": "",
                 "expected_outputs": "",
+                "retry_count": "0",
+                "last_exit_code": "",
+                "failure_stage": "",
+                "last_error_summary": "",
                 "error_message": "",
             }
             for row in manifest_rows
@@ -1287,6 +1360,236 @@ def _checksum_for_output_bundle(paths: list[Path]) -> str:
                 digest.update(chunk)
         digest.update(b"\0")
     return digest.hexdigest()
+
+
+def _station_worker_result_path(config: CleaningRunConfig, station_id: str) -> Path:
+    return (
+        config.manifest_root
+        / STATION_WORKER_RESULT_DIRNAME
+        / f"station_{station_id}.json"
+    ).resolve()
+
+
+def _write_station_worker_result(path: Path, result: StationProcessingResult) -> None:
+    _ensure_dir(path.parent)
+    payload = {
+        "schema_version": WORKER_RESULT_SCHEMA_VERSION,
+        "station_id": result.station_id,
+        "input_path": result.input_path,
+        "output_path": result.output_path,
+        "station_quality_profile_path": result.station_quality_profile_path,
+        "success_marker_path": result.success_marker_path,
+        "expected_outputs": result.expected_outputs,
+        "row_count_raw": result.row_count_raw,
+        "row_count_cleaned": result.row_count_cleaned,
+        "raw_columns": result.raw_columns,
+        "cleaned_columns": result.cleaned_columns,
+        "input_size_bytes": result.input_size_bytes,
+        "cleaned_size_bytes": result.cleaned_size_bytes,
+        "elapsed_read_seconds": round(float(result.elapsed_read_seconds), 6),
+        "elapsed_clean_seconds": round(float(result.elapsed_clean_seconds), 6),
+        "elapsed_domain_split_seconds": round(float(result.elapsed_domain_split_seconds), 6),
+        "elapsed_quality_profile_seconds": round(float(result.elapsed_quality_profile_seconds), 6),
+        "elapsed_write_seconds": round(float(result.elapsed_write_seconds), 6),
+        "elapsed_total_seconds": round(float(result.elapsed_total_seconds), 6),
+    }
+    _write_json(path, payload)
+
+
+def _load_station_worker_result(path: Path) -> dict[str, Any] | None:
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if str(payload.get("schema_version", "")) != WORKER_RESULT_SCHEMA_VERSION:
+        return None
+    return payload
+
+
+def _station_subprocess_command(
+    *,
+    run_config_path: Path,
+    station_id: str,
+    input_path: Path,
+    result_path: Path,
+) -> list[str]:
+    return [
+        sys.executable,
+        "-m",
+        "noaa_climate_data.cli",
+        "cleaning-run-station-worker",
+        "--run-config-path",
+        str(run_config_path),
+        "--station-id",
+        station_id,
+        "--input-path",
+        str(input_path),
+        "--result-path",
+        str(result_path),
+    ]
+
+
+def _station_subprocess_env() -> dict[str, str]:
+    env = os.environ.copy()
+    src_root = Path(__file__).resolve().parents[1]
+    existing = env.get("PYTHONPATH", "")
+    pythonpath_parts = [str(src_root)]
+    if existing:
+        pythonpath_parts.append(existing)
+    env["PYTHONPATH"] = os.pathsep.join(pythonpath_parts)
+    return env
+
+
+def _failure_stage_for_exit_code(exit_code: int | None, *, timed_out: bool) -> str:
+    if timed_out:
+        return "subprocess_timeout"
+    if exit_code is None:
+        return "subprocess_unknown"
+    if exit_code < 0 or exit_code in {134, 136, 137, 139}:
+        return "child_process_crash"
+    if exit_code == 0:
+        return ""
+    return "child_process_nonzero_exit"
+
+
+def _summarize_subprocess_error(stderr: str, stdout: str, *, timed_out: bool) -> str:
+    if timed_out:
+        return "station worker timed out"
+    text = stderr.strip() or stdout.strip()
+    if not text:
+        return "station worker exited without error output"
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    summary = lines[-1] if lines else text.strip()
+    if len(summary) > 500:
+        summary = summary[:497] + "..."
+    return summary
+
+
+def _run_station_processing(
+    *,
+    config: CleaningRunConfig,
+    station_id: str,
+    input_path: Path,
+) -> StationProcessingResult:
+    paths = _station_paths(config, station_id)
+    expected_outputs = _expected_output_paths(config, paths)
+    quality_builder = _QualityProfileBuilder()
+    station_start = datetime.now(timezone.utc)
+    input_size_bytes = _safe_file_size(input_path)
+
+    phase_start = datetime.now(timezone.utc)
+    raw_df = _read_raw_input(input_path, config.input_format)
+    elapsed_read_seconds = (datetime.now(timezone.utc) - phase_start).total_seconds()
+    row_count_raw = int(len(raw_df))
+    raw_columns = int(len(raw_df.columns))
+
+    phase_start = datetime.now(timezone.utc)
+    cleaned_df = _clean_canonical_dataset(raw_df)
+    validate_no_sentinel_leakage(cleaned_df)
+    elapsed_clean_seconds = (datetime.now(timezone.utc) - phase_start).total_seconds()
+    row_count_cleaned = int(len(cleaned_df))
+    cleaned_columns = int(len(cleaned_df.columns))
+
+    profile_payload: dict[str, Any] | None = None
+    elapsed_quality_profile_seconds = 0.0
+    if config.write_flags.write_station_quality_profile:
+        phase_start = datetime.now(timezone.utc)
+        profile_payload = quality_builder.build(cleaned_df, station_id)
+        elapsed_quality_profile_seconds = (
+            datetime.now(timezone.utc) - phase_start
+        ).total_seconds()
+
+    elapsed_write_seconds = 0.0
+    if config.write_flags.write_cleaned_station:
+        _ensure_dir(paths.station_output_dir)
+        phase_start = datetime.now(timezone.utc)
+        _write_cleaned_station(cleaned_df, paths.cleaned_path, config.input_format)
+        elapsed_write_seconds += (datetime.now(timezone.utc) - phase_start).total_seconds()
+
+    elapsed_domain_split_seconds = 0.0
+    if config.write_flags.write_domain_splits:
+        _ensure_dir(paths.domain_dir)
+        phase_start = datetime.now(timezone.utc)
+        station_name = _station_name(cleaned_df, station_id)
+        station_slug = sanitize_station_slug(station_name)
+        domain_rows = write_domain_datasets_from_registry(
+            cleaned_df,
+            station_slug=station_slug,
+            station_name=station_name,
+            output_dir=paths.domain_dir,
+            output_format=config.input_format,
+        )
+        write_deterministic_csv(
+            pd.DataFrame(domain_rows),
+            paths.domain_manifest_path,
+            sort_by=("domain",),
+        )
+        elapsed_domain_split_seconds = (
+            datetime.now(timezone.utc) - phase_start
+        ).total_seconds()
+
+    if config.write_flags.write_station_quality_profile and profile_payload is not None:
+        _ensure_dir(config.quality_profile_root)
+        phase_start = datetime.now(timezone.utc)
+        _write_json(paths.quality_profile_path, profile_payload)
+        elapsed_quality_profile_seconds += (
+            datetime.now(timezone.utc) - phase_start
+        ).total_seconds()
+
+    if config.write_flags.write_station_reports:
+        _ensure_dir(paths.reports_dir)
+        phase_start = datetime.now(timezone.utc)
+        _write_station_reports_from_memory(
+            raw=raw_df,
+            cleaned=cleaned_df,
+            station_id=station_id,
+            reports_dir=paths.reports_dir,
+        )
+        elapsed_write_seconds += (datetime.now(timezone.utc) - phase_start).total_seconds()
+
+    phase_start = datetime.now(timezone.utc)
+    _verify_outputs_exist(expected_outputs)
+    _write_success_marker(
+        success_path=paths.success_marker_path,
+        run_id=config.run_id,
+        station_id=station_id,
+        input_path=input_path,
+        input_format=config.input_format,
+        expected_outputs=expected_outputs,
+        row_count_raw=row_count_raw,
+        row_count_cleaned=row_count_cleaned,
+        write_flags=config.write_flags,
+    )
+    elapsed_write_seconds += (datetime.now(timezone.utc) - phase_start).total_seconds()
+    cleaned_size_bytes = _safe_file_size(paths.cleaned_path)
+    elapsed_total_seconds = (datetime.now(timezone.utc) - station_start).total_seconds()
+
+    return StationProcessingResult(
+        station_id=station_id,
+        input_path=str(input_path.resolve()),
+        output_path=str(
+            paths.cleaned_path if config.write_flags.write_cleaned_station else paths.station_output_dir
+        ),
+        station_quality_profile_path=(
+            str(paths.quality_profile_path) if config.write_flags.write_station_quality_profile else ""
+        ),
+        success_marker_path=str(paths.success_marker_path),
+        expected_outputs=[str(path.resolve()) for path in expected_outputs],
+        row_count_raw=row_count_raw,
+        row_count_cleaned=row_count_cleaned,
+        raw_columns=raw_columns,
+        cleaned_columns=cleaned_columns,
+        input_size_bytes=input_size_bytes,
+        cleaned_size_bytes=cleaned_size_bytes,
+        elapsed_read_seconds=elapsed_read_seconds,
+        elapsed_clean_seconds=elapsed_clean_seconds,
+        elapsed_domain_split_seconds=elapsed_domain_split_seconds,
+        elapsed_quality_profile_seconds=elapsed_quality_profile_seconds,
+        elapsed_write_seconds=elapsed_write_seconds,
+        elapsed_total_seconds=elapsed_total_seconds,
+    )
 
 
 def _read_raw_input(path: Path, input_format: str) -> pd.DataFrame:
@@ -2675,6 +2978,90 @@ def _build_quality_assessment(
     }
 
 
+def _terminal_run_state(status_df: pd.DataFrame) -> dict[str, Any]:
+    statuses = status_df["status"].astype(str).tolist() if not status_df.empty else []
+    counts = pd.Series(statuses).value_counts().to_dict() if statuses else {}
+    total = int(len(statuses))
+    completed = int(counts.get("completed", 0))
+    failed = int(counts.get("failed", 0))
+    retrying = int(counts.get("retrying", 0))
+    running = int(counts.get("running", 0))
+    pending = int(counts.get("pending", 0))
+    skipped = sum(
+        int(count)
+        for status, count in counts.items()
+        if str(status).startswith("skipped")
+    )
+    interrupted = int(counts.get("interrupted", 0))
+
+    finalizable = total > 0 and completed == total
+    if finalizable:
+        state = "completed"
+    elif failed > 0:
+        state = "failed"
+    elif pending > 0 or running > 0 or retrying > 0 or interrupted > 0 or skipped > 0:
+        state = "interrupted"
+    else:
+        state = "interrupted"
+
+    return {
+        "state": state,
+        "finalizable": finalizable,
+        "counts": {
+            "total": total,
+            "completed": completed,
+            "failed": failed,
+            "retrying": retrying,
+            "running": running,
+            "pending": pending,
+            "skipped": skipped,
+            "interrupted": interrupted,
+        },
+    }
+
+
+def _run_state_path(config: CleaningRunConfig) -> Path:
+    return (config.manifest_root / "run_state.json").resolve()
+
+
+def _clear_nonterminal_finalization_artifacts(config: CleaningRunConfig) -> list[str]:
+    build_root = config.output_root.parent.resolve()
+    removed: list[str] = []
+    for relative_path in FINALIZATION_ARTIFACT_RELATIVE_PATHS:
+        path = (build_root / relative_path).resolve()
+        if not path.exists():
+            continue
+        path.unlink()
+        removed.append(str(path))
+    return removed
+
+
+def _write_run_state_artifact(
+    *,
+    config: CleaningRunConfig,
+    status_df: pd.DataFrame,
+    run_started_at: datetime,
+    finalized: bool,
+    stale_finalization_artifacts_removed: list[str],
+) -> dict[str, Any]:
+    run_state = _terminal_run_state(status_df)
+    payload = {
+        "run_id": config.run_id,
+        "state": run_state["state"],
+        "finalizable": run_state["finalizable"],
+        "finalized": finalized,
+        "generated_at": _pst_now_iso(),
+        "elapsed_total_seconds": round(
+            float((datetime.now(timezone.utc) - run_started_at).total_seconds()),
+            6,
+        ),
+        "counts": run_state["counts"],
+        "stale_finalization_artifacts_removed": stale_finalization_artifacts_removed,
+    }
+    _write_json(_run_state_path(config), payload)
+    return payload
+
+
 def _build_publication_scores(checks: dict[str, dict[str, Any]]) -> dict[str, Any]:
     integrity_check_names = (
         "run_completion",
@@ -3228,6 +3615,10 @@ def _status_defaults() -> dict[str, Any]:
         "station_quality_profile_path": "",
         "success_marker_path": "",
         "expected_outputs": "",
+        "retry_count": "",
+        "last_exit_code": "",
+        "failure_stage": "",
+        "last_error_summary": "",
         "error_message": "",
     }
 
@@ -3344,6 +3735,8 @@ def _run_config_payload(config: CleaningRunConfig) -> dict[str, Any]:
         "station_filters": list(config.station_ids),
         "limit": config.limit,
         "manifest_first": config.manifest_first,
+        "max_station_retries": config.max_station_retries,
+        "station_timeout_seconds": config.station_timeout_seconds,
         "write_flags": {
             "write_cleaned_station": config.write_flags.write_cleaned_station,
             "write_domain_splits": config.write_flags.write_domain_splits,
@@ -3370,6 +3763,8 @@ def _canonical_config_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "station_filters": sorted(str(value) for value in payload.get("station_filters", [])),
         "limit": payload.get("limit"),
         "manifest_first": bool(payload.get("manifest_first", False)),
+        "max_station_retries": _coerce_int(payload.get("max_station_retries", 0)),
+        "station_timeout_seconds": payload.get("station_timeout_seconds"),
         "write_flags": {
             key: bool(value)
             for key, value in sorted(dict(payload.get("write_flags", {})).items())
@@ -3398,6 +3793,41 @@ def _canonical_build_metadata_payload(payload: dict[str, Any]) -> dict[str, Any]
             "input_paths": sorted(str(value) for value in source_scope.get("input_paths", [])),
         },
     }
+
+
+def cleaning_run_config_from_payload(payload: dict[str, Any]) -> CleaningRunConfig:
+    roots = dict(payload.get("roots", {}))
+    write_flags_payload = dict(payload.get("write_flags", {}))
+    return CleaningRunConfig(
+        mode=str(payload.get("mode", "")),
+        input_root=Path(str(payload.get("input_root", ""))),
+        input_format=str(payload.get("input_format", "")),
+        output_root=Path(str(roots.get("output_root", ""))),
+        reports_root=Path(str(roots.get("reports_root", ""))),
+        quality_profile_root=Path(str(roots.get("quality_profile_root", ""))),
+        manifest_root=Path(str(roots.get("manifest_root", ""))),
+        run_id=str(payload.get("run_id", "")),
+        limit=payload.get("limit"),
+        station_ids=tuple(str(value) for value in payload.get("station_filters", [])),
+        force=False,
+        manifest_first=bool(payload.get("manifest_first", False)),
+        manifest_refresh=False,
+        max_station_retries=_coerce_int(payload.get("max_station_retries", 0)),
+        station_timeout_seconds=(
+            _coerce_int(payload.get("station_timeout_seconds", 0))
+            if payload.get("station_timeout_seconds") not in (None, "")
+            else None
+        ),
+        write_flags=RunWriteFlags(
+            write_cleaned_station=bool(write_flags_payload.get("write_cleaned_station", False)),
+            write_domain_splits=bool(write_flags_payload.get("write_domain_splits", False)),
+            write_station_quality_profile=bool(
+                write_flags_payload.get("write_station_quality_profile", False)
+            ),
+            write_station_reports=bool(write_flags_payload.get("write_station_reports", False)),
+            write_global_summary=bool(write_flags_payload.get("write_global_summary", False)),
+        ),
+    )
 
 
 def _config_diff(existing: dict[str, Any], incoming: dict[str, Any]) -> str:
@@ -3482,6 +3912,23 @@ def _resolve_code_revision() -> str:
         return "unknown"
     revision = proc.stdout.strip()
     return revision or "unknown"
+
+
+def run_station_worker_from_paths(
+    *,
+    run_config_path: Path,
+    station_id: str,
+    input_path: Path,
+    result_path: Path,
+) -> None:
+    payload = json.loads(run_config_path.read_text(encoding="utf-8"))
+    config = cleaning_run_config_from_payload(payload)
+    result = _run_station_processing(
+        config=config,
+        station_id=station_id,
+        input_path=input_path,
+    )
+    _write_station_worker_result(result_path, result)
 
 
 def _identifier_from_qc_reason_column(internal_col: str) -> str | None:

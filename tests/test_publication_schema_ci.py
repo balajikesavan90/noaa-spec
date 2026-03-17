@@ -66,6 +66,8 @@ def _run_fixture_build(
         force=force,
         manifest_first=False,
         manifest_refresh=False,
+        max_station_retries=1,
+        station_timeout_seconds=None,
         write_flags=write_flags
         or RunWriteFlags(
             write_cleaned_station=True,
