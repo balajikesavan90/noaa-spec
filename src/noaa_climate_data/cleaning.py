@@ -1036,6 +1036,27 @@ def _cleanup_rule_missing_text(value: object, column: str) -> object:
     return value
 
 
+def _cleanup_rule_missing_text_for_part_rule(
+    value: object,
+    part_rule: FieldPartRule,
+) -> object:
+    if not isinstance(value, str):
+        return value
+    if _is_missing_value(value, part_rule):
+        return None
+    return value
+
+
+def _columns_requiring_missing_text_cleanup(columns: Iterable[str]) -> dict[str, FieldPartRule]:
+    cleanup_columns: dict[str, FieldPartRule] = {}
+    for column in columns:
+        part_rule = _part_rule_for_parsed_column(column)
+        if part_rule is None or part_rule.missing_values is None:
+            continue
+        cleanup_columns[column] = part_rule
+    return cleanup_columns
+
+
 def _record_structure_error(raw_line: object) -> str | None:
     """Validate fixed record structure and overall record/block size limits."""
     if raw_line is None or (isinstance(raw_line, float) and pd.isna(raw_line)):
@@ -1521,6 +1542,8 @@ def clean_noaa_dataframe(
         if add_mask.empty or add_mask.all():
             cleaned = cleaned.drop(columns=["ADD"])
 
+    source_columns = list(cleaned.columns)
+
     # Priority parsing: handle REM before generic expansion to preserve typed parsing (step 2)
     processed_columns = set()
     if "REM" in cleaned.columns:
@@ -1550,11 +1573,15 @@ def clean_noaa_dataframe(
         cleaned["REM__text"] = remark_texts
         cleaned["REM__types"] = remark_type_lists
         cleaned["REM__texts_json"] = remark_text_lists
-        processed_columns.add("REM")
+        processed_columns.update(
+            {"REM", "REM__type", "REM__text", "REM__types", "REM__texts_json"}
+        )
+    if "QNN" in cleaned.columns:
+        processed_columns.add("QNN")
 
     expansion_frames: list[pd.DataFrame] = []
 
-    for column in cleaned.columns:
+    for column in source_columns:
         # Skip columns already processed by priority parsing
         if column in processed_columns:
             continue
@@ -1588,8 +1615,9 @@ def clean_noaa_dataframe(
             continue
 
         parsed_rows = []
-        for row_idx, value in series.fillna("").astype(str).items():
-            if rejected_mask.loc[row_idx]:
+        normalized_values = series.fillna("").astype(str)
+        for is_rejected, value in zip(rejected_mask.to_numpy(dtype=bool), normalized_values, strict=False):
+            if is_rejected:
                 parsed_rows.append({})
                 continue
             if value == "":
@@ -1620,11 +1648,17 @@ def clean_noaa_dataframe(
         cleaned["QNN__source_flags"] = qnn_flags
         cleaned["QNN__data_values"] = qnn_values
 
-    for column in cleaned.columns:
+    cleanup_columns = _columns_requiring_missing_text_cleanup(cleaned.columns)
+    for column, part_rule in cleanup_columns.items():
         series = cleaned[column]
         if not pd.api.types.is_object_dtype(series) and not pd.api.types.is_string_dtype(series):
             continue
-        cleaned[column] = series.apply(lambda value: _cleanup_rule_missing_text(value, column))
+        cleaned[column] = series.apply(
+            lambda value, column_part_rule=part_rule: _cleanup_rule_missing_text_for_part_rule(
+                value,
+                column_part_rule,
+            )
+        )
 
     cleaned = _annotate_control_field_qc_flags(cleaned)
     _assert_unique_cleaned_columns(columns=cleaned.columns, stage="pre_rename")
