@@ -104,6 +104,31 @@ def _write_chunking_raw_parquet(station_dir: Path, station_id: str, rows: int = 
     return raw_path
 
 
+def _sample_chunking_schema_drift_raw_df(station_id: str) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "STATION": [station_id] * 4,
+            "DATE": [
+                "2020-01-01T00:00:00",
+                "2020-01-01T01:00:00",
+                "2020-01-01T02:00:00",
+                "2020-01-01T03:00:00",
+            ],
+            "TIME": ["0000", "0100", "0200", "0300"],
+            "TMP": ["", "", "0010,1", "0011,1"],
+            "AA1": ["", "", "01,0000,1,1", "01,0001,1,1"],
+            "REM": ["plain remark", "plain remark", "MET1234 late", "MET5678 late"],
+        }
+    )
+
+
+def _write_chunking_schema_drift_raw_parquet(station_dir: Path, station_id: str) -> Path:
+    station_dir.mkdir(parents=True, exist_ok=True)
+    raw_path = station_dir / "LocationData_Raw.parquet"
+    _sample_chunking_schema_drift_raw_df(station_id).to_parquet(raw_path, index=False)
+    return raw_path
+
+
 def _flags(
     *,
     cleaned: bool = True,
@@ -1678,6 +1703,18 @@ def test_plan_station_chunks_is_deterministic() -> None:
     ]
 
 
+def test_union_cleaned_chunk_columns_uses_deterministic_precedence_order() -> None:
+    union = cleaning_runner._union_cleaned_chunk_columns(
+        [
+            ("STATION", "DATE", "TMP"),
+            ("STATION", "DATE", "AA1", "TMP"),
+            ("STATION", "DATE", "REM", "AA1"),
+        ]
+    )
+
+    assert union == ("STATION", "DATE", "REM", "AA1", "TMP")
+
+
 def test_chunked_station_processing_matches_whole_file_output(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     input_root = tmp_path / "inputs"
     station_id = "01234567890"
@@ -1731,6 +1768,77 @@ def test_chunked_station_processing_matches_whole_file_output(tmp_path: Path, mo
         (chunked_config.quality_profile_root / f"station_{station_id}.json").read_text(encoding="utf-8")
     )
     assert chunked_profile == whole_profile
+
+
+def test_chunked_station_processing_handles_schema_drift_with_whole_file_equivalence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_root = tmp_path / "inputs"
+    station_id = "01234567890"
+    _write_chunking_schema_drift_raw_parquet(input_root / station_id, station_id)
+
+    whole_config = _config(
+        tmp_path,
+        mode="test_parquet_dir",
+        input_format="parquet",
+        run_id="run_whole_station_schema_drift",
+        input_root=input_root,
+        write_flags=_flags(cleaned=True, domain=True, quality=True, reports=False, global_summary=False),
+        output_root=tmp_path / "whole_schema_drift" / "canonical_cleaned",
+        reports_root=tmp_path / "whole_schema_drift" / "quality_reports",
+        quality_root=tmp_path / "whole_schema_drift" / "quality_reports" / "station_quality",
+        manifest_root=tmp_path / "whole_schema_drift" / "manifests",
+    )
+    whole_result = run_cleaning_run(whole_config)
+    assert whole_result["failed"] == 0
+
+    monkeypatch.setenv(cleaning_runner.STATION_CHUNKING_THRESHOLD_ENV, "2")
+    monkeypatch.setenv(cleaning_runner.STATION_CHUNK_ROW_COUNT_ENV, "2")
+
+    chunked_config = _config(
+        tmp_path,
+        mode="test_parquet_dir",
+        input_format="parquet",
+        run_id="run_chunked_station_schema_drift",
+        input_root=input_root,
+        write_flags=_flags(cleaned=True, domain=True, quality=True, reports=False, global_summary=False),
+        output_root=tmp_path / "chunked_schema_drift" / "canonical_cleaned",
+        reports_root=tmp_path / "chunked_schema_drift" / "quality_reports",
+        quality_root=tmp_path / "chunked_schema_drift" / "quality_reports" / "station_quality",
+        manifest_root=tmp_path / "chunked_schema_drift" / "manifests",
+    )
+    chunked_result = run_cleaning_run(chunked_config)
+    assert chunked_result["failed"] == 0
+
+    whole_cleaned = pd.read_parquet(whole_config.output_root / station_id / "LocationData_Cleaned.parquet")
+    chunked_cleaned = pd.read_parquet(
+        chunked_config.output_root / station_id / "LocationData_Cleaned.parquet"
+    )
+    pd.testing.assert_frame_equal(chunked_cleaned, whole_cleaned, check_dtype=False)
+
+    assert "AA1" in chunked_cleaned.columns
+    assert chunked_cleaned["AA1"].tolist() == whole_cleaned["AA1"].tolist()
+
+    whole_profile = json.loads(
+        (whole_config.quality_profile_root / f"station_{station_id}.json").read_text(encoding="utf-8")
+    )
+    chunked_profile = json.loads(
+        (chunked_config.quality_profile_root / f"station_{station_id}.json").read_text(encoding="utf-8")
+    )
+    assert chunked_profile == whole_profile
+
+    whole_domain_manifest = pd.read_csv(
+        whole_config.output_root.parent / "domains" / station_id / "station_split_manifest.csv"
+    )
+    chunked_domain_manifest = pd.read_csv(
+        chunked_config.output_root.parent / "domains" / station_id / "station_split_manifest.csv"
+    )
+    pd.testing.assert_frame_equal(
+        chunked_domain_manifest.drop(columns=["file", "size_mb"]),
+        whole_domain_manifest.drop(columns=["file", "size_mb"]),
+        check_dtype=False,
+    )
 
 
 def test_chunked_station_output_is_deterministic_across_repeated_runs(

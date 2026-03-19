@@ -20,7 +20,9 @@ from typing import Any
 import uuid
 from zoneinfo import ZoneInfo
 
+import numpy as np
 import pandas as pd
+import pyarrow as pa
 import pyarrow.parquet as pq
 
 from . import __version__
@@ -1668,9 +1670,9 @@ def _run_station_processing_chunked(
     row_count_cleaned = 0
     station_name = station_id
     station_name_resolved = False
-    quality_profiles: list[dict[str, Any]] = []
     cleaned_chunk_paths: list[Path] = []
-    canonical_schema: tuple[str, ...] | None = None
+    chunk_schemas: list[tuple[str, ...]] = []
+    column_dtypes: dict[str, Any] = {}
 
     phase_start = datetime.now(timezone.utc)
     for plan, raw_chunk in zip(chunk_plans, _iter_raw_chunks(input_path, config.input_format), strict=True):
@@ -1686,12 +1688,15 @@ def _run_station_processing_chunked(
         cleaned_chunk = _clean_canonical_dataset(raw_chunk)
         validate_no_sentinel_leakage(cleaned_chunk)
         elapsed_clean_seconds += (datetime.now(timezone.utc) - phase_start).total_seconds()
-
-        if canonical_schema is None:
-            canonical_schema = tuple(cleaned_chunk.columns)
-            cleaned_columns = int(len(canonical_schema))
-        else:
-            cleaned_chunk = _align_cleaned_chunk_schema(cleaned_chunk, canonical_schema)
+        chunk_schema = tuple(cleaned_chunk.columns)
+        chunk_schemas.append(chunk_schema)
+        _record_chunk_column_dtypes(column_dtypes, cleaned_chunk)
+        _log_chunk_schema_delta(
+            station_id=station_id,
+            plan=plan,
+            prior_schema=tuple(_union_cleaned_chunk_columns(chunk_schemas[:-1])),
+            chunk_schema=chunk_schema,
+        )
 
         if not station_name_resolved:
             candidate_name = _station_name(cleaned_chunk, station_id)
@@ -1700,13 +1705,6 @@ def _run_station_processing_chunked(
                 station_name_resolved = True
 
         row_count_cleaned += int(len(cleaned_chunk))
-
-        if config.write_flags.write_station_quality_profile:
-            phase_profile = datetime.now(timezone.utc)
-            quality_profiles.append(quality_builder.build(cleaned_chunk, station_id))
-            elapsed_quality_profile_seconds += (
-                datetime.now(timezone.utc) - phase_profile
-            ).total_seconds()
 
         chunk_output_path = _runtime_cleaned_chunk_path(runtime_root, config.input_format, plan)
         phase_write = datetime.now(timezone.utc)
@@ -1721,6 +1719,14 @@ def _run_station_processing_chunked(
             f"planned={len(chunk_plans)} cleaned={len(cleaned_chunk_paths)}"
         )
 
+    canonical_schema = _union_cleaned_chunk_columns(chunk_schemas)
+    canonical_dtypes = _resolve_station_column_dtypes(
+        chunk_schemas=chunk_schemas,
+        observed_dtypes=column_dtypes,
+        ordered_columns=canonical_schema,
+    )
+    cleaned_columns = int(len(canonical_schema))
+
     if config.write_flags.write_cleaned_station:
         _ensure_dir(paths.station_output_dir)
         phase_write = datetime.now(timezone.utc)
@@ -1728,6 +1734,8 @@ def _run_station_processing_chunked(
             chunk_paths=cleaned_chunk_paths,
             output_path=paths.cleaned_path,
             input_format=config.input_format,
+            aligned_columns=canonical_schema,
+            column_dtypes=canonical_dtypes,
         )
         elapsed_write_seconds += (datetime.now(timezone.utc) - phase_write).total_seconds()
 
@@ -1743,12 +1751,23 @@ def _run_station_processing_chunked(
             station_slug=sanitize_station_slug(station_name),
             station_name=station_name,
             row_count_cleaned=row_count_cleaned,
+            aligned_columns=canonical_schema,
+            column_dtypes=canonical_dtypes,
         )
         elapsed_domain_split_seconds = (datetime.now(timezone.utc) - phase_domain).total_seconds()
 
     if config.write_flags.write_station_quality_profile:
         _ensure_dir(config.quality_profile_root)
         phase_profile = datetime.now(timezone.utc)
+        quality_profiles = [
+            quality_builder.build(aligned_chunk, station_id)
+            for aligned_chunk in _iter_aligned_cleaned_chunks(
+                chunk_paths=cleaned_chunk_paths,
+                input_format=config.input_format,
+                aligned_columns=canonical_schema,
+                column_dtypes=canonical_dtypes,
+            )
+        ]
         _write_json(paths.quality_profile_path, _merge_quality_profiles(station_id, quality_profiles))
         elapsed_quality_profile_seconds += (datetime.now(timezone.utc) - phase_profile).total_seconds()
 
@@ -1898,18 +1917,188 @@ def _runtime_chunk_setting(*, env_name: str, default: int) -> int:
 def _align_cleaned_chunk_schema(
     cleaned_chunk: pd.DataFrame,
     expected_columns: tuple[str, ...],
+    *,
+    expected_dtypes: dict[str, Any] | None = None,
 ) -> pd.DataFrame:
-    actual_columns = tuple(cleaned_chunk.columns)
-    if actual_columns == expected_columns:
-        return cleaned_chunk
+    schema_changed = tuple(cleaned_chunk.columns) != expected_columns
+    aligned = cleaned_chunk.copy()
+    for column in expected_columns:
+        if column not in aligned.columns:
+            aligned[column] = _missing_series_for_dtype(
+                row_count=len(aligned),
+                dtype=expected_dtypes.get(column) if expected_dtypes is not None else None,
+            )
+    if schema_changed:
+        aligned = _recompute_row_usability_summary(aligned)
+    if expected_dtypes is not None:
+        aligned = _coerce_chunk_column_dtypes(aligned, expected_dtypes)
+    return aligned.loc[:, list(expected_columns)]
 
-    if set(actual_columns) != set(expected_columns):
+
+def _union_cleaned_chunk_columns(chunk_schemas: list[tuple[str, ...]]) -> tuple[str, ...]:
+    if not chunk_schemas:
+        return ()
+
+    first_seen_order: list[str] = []
+    seen: set[str] = set()
+    adjacency: dict[str, set[str]] = {}
+    in_degree: dict[str, int] = {}
+
+    for chunk_schema in chunk_schemas:
+        for column in chunk_schema:
+            if column not in seen:
+                seen.add(column)
+                first_seen_order.append(column)
+                adjacency.setdefault(column, set())
+                in_degree.setdefault(column, 0)
+        for left, right in zip(chunk_schema, chunk_schema[1:], strict=False):
+            followers = adjacency.setdefault(left, set())
+            adjacency.setdefault(right, set())
+            in_degree.setdefault(left, 0)
+            in_degree.setdefault(right, 0)
+            if right in followers:
+                continue
+            followers.add(right)
+            in_degree[right] += 1
+
+    priority = {column: index for index, column in enumerate(first_seen_order)}
+    ready = [column for column in first_seen_order if in_degree[column] == 0]
+    ordered: list[str] = []
+
+    while ready:
+        ready.sort(key=lambda column: priority[column])
+        column = ready.pop(0)
+        ordered.append(column)
+        for follower in sorted(adjacency.get(column, ()), key=lambda item: priority[item]):
+            in_degree[follower] -= 1
+            if in_degree[follower] == 0:
+                ready.append(follower)
+
+    if len(ordered) != len(first_seen_order):
         raise ValueError(
-            "Chunked cleaning produced inconsistent canonical schema. "
-            f"expected={list(expected_columns)} actual={list(actual_columns)}"
+            "Chunked cleaning produced cyclic schema ordering constraints. "
+            f"chunk_schemas={chunk_schemas}"
         )
 
-    return cleaned_chunk.loc[:, list(expected_columns)]
+    return tuple(ordered)
+
+
+def _log_chunk_schema_delta(
+    *,
+    station_id: str,
+    plan: StationChunkPlan,
+    prior_schema: tuple[str, ...],
+    chunk_schema: tuple[str, ...],
+) -> None:
+    if not prior_schema:
+        return
+    added_columns = [column for column in chunk_schema if column not in set(prior_schema)]
+    if not added_columns:
+        return
+    print(
+        f"{station_id}: chunk {plan.chunk_index + 1} introduced {len(added_columns)} "
+        f"new cleaned columns: {added_columns}"
+    )
+
+
+def _record_chunk_column_dtypes(target: dict[str, Any], cleaned_chunk: pd.DataFrame) -> None:
+    for column in cleaned_chunk.columns:
+        if column in target:
+            continue
+        target[column] = cleaned_chunk[column].dtype
+
+
+def _resolve_station_column_dtypes(
+    *,
+    chunk_schemas: list[tuple[str, ...]],
+    observed_dtypes: dict[str, Any],
+    ordered_columns: tuple[str, ...],
+) -> dict[str, Any]:
+    resolved: dict[str, Any] = {}
+    for column in ordered_columns:
+        observed_dtype = observed_dtypes.get(column)
+        if observed_dtype is None:
+            continue
+        missing_in_any_chunk = any(column not in chunk_schema for chunk_schema in chunk_schemas)
+        if column == "row_has_any_usable_metric":
+            resolved[column] = "bool"
+            continue
+        if column in {"usable_metric_count", "usable_metric_fraction"}:
+            resolved[column] = "object" if missing_in_any_chunk else observed_dtype
+            continue
+        if not missing_in_any_chunk:
+            resolved[column] = observed_dtype
+            continue
+        if pd.api.types.is_bool_dtype(observed_dtype):
+            resolved[column] = "object"
+            continue
+        if pd.api.types.is_integer_dtype(observed_dtype):
+            resolved[column] = "float64"
+            continue
+        if pd.api.types.is_float_dtype(observed_dtype):
+            resolved[column] = "float64"
+            continue
+        if pd.api.types.is_string_dtype(observed_dtype):
+            resolved[column] = "object"
+            continue
+        resolved[column] = observed_dtype
+    return resolved
+
+
+def _missing_series_for_dtype(*, row_count: int, dtype: Any | None) -> pd.Series:
+    if dtype is None:
+        return pd.Series([np.nan] * row_count, dtype="object")
+
+    if pd.api.types.is_bool_dtype(dtype):
+        return pd.Series(pd.array([pd.NA] * row_count, dtype="boolean"))
+    if pd.api.types.is_integer_dtype(dtype):
+        return pd.Series(pd.array([pd.NA] * row_count, dtype="Int64"))
+    if pd.api.types.is_float_dtype(dtype):
+        return pd.Series(np.full(row_count, np.nan, dtype=float))
+    if pd.api.types.is_datetime64_any_dtype(dtype):
+        return pd.Series([pd.NaT] * row_count, dtype=dtype)
+    if pd.api.types.is_string_dtype(dtype):
+        return pd.Series(pd.array([pd.NA] * row_count, dtype="string"))
+    if dtype == "object":
+        return pd.Series([np.nan] * row_count, dtype="object")
+
+    try:
+        return pd.Series([pd.NA] * row_count, dtype=dtype)
+    except (TypeError, ValueError):
+        return pd.Series([np.nan] * row_count, dtype="object")
+
+
+def _coerce_chunk_column_dtypes(
+    cleaned_chunk: pd.DataFrame,
+    expected_dtypes: dict[str, Any],
+) -> pd.DataFrame:
+    coerced = cleaned_chunk
+    for column, dtype in expected_dtypes.items():
+        if column not in coerced.columns:
+            continue
+        if coerced[column].dtype == dtype:
+            continue
+        try:
+            coerced[column] = coerced[column].astype(dtype)
+        except (TypeError, ValueError):
+            continue
+    return coerced
+
+
+def _recompute_row_usability_summary(cleaned_chunk: pd.DataFrame) -> pd.DataFrame:
+    qc_pass_columns = [column for column in cleaned_chunk.columns if column.endswith("__qc_pass")]
+    if not qc_pass_columns:
+        return cleaned_chunk
+
+    recomputed = cleaned_chunk.copy()
+    qc_pass_frame = recomputed[qc_pass_columns].fillna(False).astype(bool)
+    usable_metric_count = qc_pass_frame.sum(axis=1)
+    recomputed["row_has_any_usable_metric"] = qc_pass_frame.any(axis=1)
+    recomputed["usable_metric_count"] = usable_metric_count.astype("object")
+    recomputed["usable_metric_fraction"] = (
+        usable_metric_count / len(qc_pass_columns) if qc_pass_columns else 0.0
+    ).astype("object")
+    return recomputed
 
 
 def _station_runtime_chunk_root(config: CleaningRunConfig, station_id: str) -> Path:
@@ -1935,40 +2124,104 @@ def _stream_collate_cleaned_chunks(
     chunk_paths: list[Path],
     output_path: Path,
     input_format: str,
+    aligned_columns: tuple[str, ...] | None = None,
+    column_dtypes: dict[str, Any] | None = None,
 ) -> None:
     if input_format == "csv":
-        _stream_collate_csv_files(chunk_paths, output_path)
+        _stream_collate_csv_files(
+            chunk_paths,
+            output_path,
+            input_format=input_format,
+            aligned_columns=aligned_columns,
+            column_dtypes=column_dtypes,
+        )
         return
     if input_format == "parquet":
-        _stream_collate_parquet_files(chunk_paths, output_path)
+        _stream_collate_parquet_files(
+            chunk_paths,
+            output_path,
+            input_format=input_format,
+            aligned_columns=aligned_columns,
+            column_dtypes=column_dtypes,
+        )
         return
     raise ValueError(f"Unsupported input format: {input_format}")
 
 
-def _stream_collate_csv_files(chunk_paths: list[Path], output_path: Path) -> None:
+def _iter_aligned_cleaned_chunks(
+    *,
+    chunk_paths: list[Path],
+    input_format: str,
+    aligned_columns: tuple[str, ...] | None,
+    column_dtypes: dict[str, Any] | None,
+) -> Any:
+    for chunk_path in chunk_paths:
+        chunk = _read_raw_input(chunk_path, input_format)
+        if aligned_columns is not None:
+            chunk = _align_cleaned_chunk_schema(
+                chunk,
+                aligned_columns,
+                expected_dtypes=column_dtypes,
+            )
+        yield chunk
+
+
+def _stream_collate_csv_files(
+    chunk_paths: list[Path],
+    output_path: Path,
+    *,
+    input_format: str,
+    aligned_columns: tuple[str, ...] | None,
+    column_dtypes: dict[str, Any] | None,
+) -> None:
     _ensure_dir(output_path.parent)
     tmp_path = output_path.parent / f".{output_path.name}.tmp-{os.getpid()}-{uuid.uuid4().hex}"
     try:
-        with tmp_path.open("w", encoding="utf-8", newline="") as target:
-            for index, chunk_path in enumerate(chunk_paths):
-                with chunk_path.open("r", encoding="utf-8", newline="") as source:
-                    for line_number, line in enumerate(source):
-                        if index > 0 and line_number == 0:
-                            continue
-                        target.write(line)
+        wrote_header = False
+        with tmp_path.open("w", encoding="utf-8", newline="") as handle:
+            for chunk in _iter_aligned_cleaned_chunks(
+                chunk_paths=chunk_paths,
+                input_format=input_format,
+                aligned_columns=aligned_columns,
+                column_dtypes=column_dtypes,
+            ):
+                chunk.to_csv(
+                    handle,
+                    index=False,
+                    header=not wrote_header,
+                    lineterminator="\n",
+                    na_rep="",
+                    encoding="utf-8",
+                )
+                wrote_header = True
         os.replace(tmp_path, output_path)
     finally:
         if tmp_path.exists():
             tmp_path.unlink()
 
 
-def _stream_collate_parquet_files(chunk_paths: list[Path], output_path: Path) -> None:
+def _stream_collate_parquet_files(
+    chunk_paths: list[Path],
+    output_path: Path,
+    *,
+    input_format: str,
+    aligned_columns: tuple[str, ...] | None,
+    column_dtypes: dict[str, Any] | None,
+) -> None:
     _ensure_dir(output_path.parent)
     tmp_path = output_path.parent / f".{output_path.name}.tmp-{os.getpid()}-{uuid.uuid4().hex}"
     writer: pq.ParquetWriter | None = None
     try:
-        for chunk_path in chunk_paths:
-            table = pq.read_table(chunk_path)
+        for chunk in _iter_aligned_cleaned_chunks(
+            chunk_paths=chunk_paths,
+            input_format=input_format,
+            aligned_columns=aligned_columns,
+            column_dtypes=column_dtypes,
+        ):
+            table = pa.Table.from_pandas(
+                _normalize_object_columns_for_parquet(chunk),
+                preserve_index=False,
+            )
             if writer is None:
                 writer = pq.ParquetWriter(tmp_path, table.schema, compression="snappy")
             writer.write_table(table)
@@ -2058,13 +2311,21 @@ def _write_chunked_domain_outputs(
     station_slug: str,
     station_name: str,
     row_count_cleaned: int,
+    aligned_columns: tuple[str, ...],
+    column_dtypes: dict[str, Any],
 ) -> None:
     suffix = "csv" if output_format == "csv" else "parquet"
     chunk_paths_by_domain: dict[str, list[Path]] = {}
     columns_by_domain: dict[str, int] = {}
 
-    for chunk_index, cleaned_chunk_path in enumerate(cleaned_chunk_paths):
-        cleaned_chunk = _read_raw_input(cleaned_chunk_path, output_format)
+    for chunk_index, cleaned_chunk in enumerate(
+        _iter_aligned_cleaned_chunks(
+            chunk_paths=cleaned_chunk_paths,
+            input_format=output_format,
+            aligned_columns=aligned_columns,
+            column_dtypes=column_dtypes,
+        )
+    ):
         for definition, domain_df in project_domain_datasets_from_registry(cleaned_chunk):
             columns_by_domain.setdefault(definition.domain_name, int(len(domain_df.columns)))
             chunk_output_path = (
@@ -2093,6 +2354,7 @@ def _write_chunked_domain_outputs(
             chunk_paths=domain_chunk_paths,
             output_path=output_path,
             input_format=output_format,
+            column_dtypes=None,
         )
         size_mb = output_path.stat().st_size / (1024 * 1024)
         manifest_rows.append(
@@ -2197,7 +2459,7 @@ def _normalize_object_columns_for_parquet(frame: pd.DataFrame) -> pd.DataFrame:
 def _coerce_to_nullable_text(value: object) -> object:
     if value is None:
         return pd.NA
-    if isinstance(value, float) and pd.isna(value):
+    if pd.isna(value):
         return pd.NA
     if isinstance(value, (bytes, bytearray)):
         return value.decode("utf-8", errors="replace")
