@@ -127,6 +127,7 @@ For oversized stations, the worker may switch to internal fixed-row chunking.
 - station-level canonical/domain/quality outputs remain the only public artifacts
 - cleaned chunks are written under `release/build_<run_id>/.runtime/station_chunks/<station_id>/`
 - runtime chunk artifacts are excluded from release manifests and file manifests
+- default chunking policy uses a `250,000`-row threshold and `250,000`-row fixed chunks
 - chunk order and collation order are deterministic so station row ordering and cleaning semantics remain stable
 
 Relevant CLI controls:
