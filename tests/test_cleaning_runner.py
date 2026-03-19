@@ -1841,6 +1841,39 @@ def test_chunked_station_processing_handles_schema_drift_with_whole_file_equival
     )
 
 
+def test_stream_collate_parquet_ignores_chunk_specific_pandas_metadata(tmp_path: Path) -> None:
+    chunk_dir = tmp_path / "chunks"
+    chunk_dir.mkdir(parents=True, exist_ok=True)
+    chunk_one = chunk_dir / "chunk_00000.parquet"
+    chunk_two = chunk_dir / "chunk_00001.parquet"
+
+    pd.DataFrame(
+        {
+            "station_id": ["01234567890", "01234567890"],
+            "flag": pd.Series([True, pd.NA], dtype="boolean"),
+        }
+    ).to_parquet(chunk_one, index=False)
+    pd.DataFrame(
+        {
+            "station_id": ["01234567890"],
+            "flag": pd.Series([False], dtype="object"),
+        }
+    ).to_parquet(chunk_two, index=False)
+
+    output_path = tmp_path / "LocationData_Cleaned.parquet"
+    cleaning_runner._stream_collate_cleaned_chunks(
+        chunk_paths=[chunk_one, chunk_two],
+        output_path=output_path,
+        input_format="parquet",
+        aligned_columns=("station_id", "flag"),
+        column_dtypes={"station_id": "object", "flag": "bool"},
+    )
+
+    collated = pd.read_parquet(output_path)
+    assert collated["station_id"].tolist() == ["01234567890", "01234567890", "01234567890"]
+    assert collated["flag"].astype("boolean").tolist() == [True, pd.NA, False]
+
+
 def test_chunked_station_output_is_deterministic_across_repeated_runs(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

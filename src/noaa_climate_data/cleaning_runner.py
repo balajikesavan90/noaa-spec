@@ -2218,9 +2218,8 @@ def _stream_collate_parquet_files(
             aligned_columns=aligned_columns,
             column_dtypes=column_dtypes,
         ):
-            table = pa.Table.from_pandas(
+            table = _parquet_table_without_pandas_metadata(
                 _normalize_object_columns_for_parquet(chunk),
-                preserve_index=False,
             )
             if writer is None:
                 writer = pq.ParquetWriter(tmp_path, table.schema, compression="snappy")
@@ -2235,6 +2234,11 @@ def _stream_collate_parquet_files(
             writer.close()
         if tmp_path.exists():
             tmp_path.unlink()
+
+
+def _parquet_table_without_pandas_metadata(frame: pd.DataFrame) -> pa.Table:
+    table = pa.Table.from_pandas(frame, preserve_index=False)
+    return table.replace_schema_metadata(None)
 
 
 def _merge_quality_profiles(
