@@ -121,6 +121,14 @@ The child worker process owns exactly one station:
 - write canonical, domain, and station-quality/report artifacts
 - write `_SUCCESS.json` only after all expected per-station outputs exist
 
+For oversized stations, the worker may switch to internal fixed-row chunking.
+
+- chunking is a runtime-only execution strategy, not a publication contract change
+- station-level canonical/domain/quality outputs remain the only public artifacts
+- cleaned chunks are written under `release/build_<run_id>/.runtime/station_chunks/<station_id>/`
+- runtime chunk artifacts are excluded from release manifests and file manifests
+- chunk order and collation order are deterministic so station row ordering and cleaning semantics remain stable
+
 Relevant CLI controls:
 
 - `--max-station-retries`
@@ -172,9 +180,10 @@ If a worker exits `0` but expected outputs or `_SUCCESS.json` validation fail, t
 
 ## Low-I/O Quality Profiles
 
-Station quality profiles are computed in-memory from the cleaned DataFrame during processing.
+Station quality profiles are computed during processing from cleaned station rows.
 
-- no reread of cleaned outputs for profile generation
+- whole-file stations compute profiles directly from the in-memory cleaned DataFrame
+- chunked stations merge deterministic per-chunk profiles before writing the final sidecar
 - profile sidecars written under: `quality_reports/station_quality/station_<station_id>.json`
 
 Optional global summary (`quality_reports/global_quality_summary.json`) is built from sidecars, not cleaned station datasets.

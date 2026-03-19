@@ -13,6 +13,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 from typing import Any
@@ -20,6 +21,7 @@ import uuid
 from zoneinfo import ZoneInfo
 
 import pandas as pd
+import pyarrow.parquet as pq
 
 from . import __version__
 from .cleaning import clean_noaa_dataframe
@@ -35,7 +37,8 @@ from .contracts import (
 from .constants import to_internal_column
 from .deterministic_io import write_deterministic_csv, write_deterministic_parquet
 from .domain_split import sanitize_station_slug
-from .domains.publisher import write_domain_datasets_from_registry
+from .domains.publisher import project_domain_datasets_from_registry, write_domain_datasets_from_registry
+from .domains.registry import domain_definitions
 from .pipeline import _extract_time_columns
 from .research_reports import (
     ResearchReportContext,
@@ -183,6 +186,11 @@ TEST_MODE_STATION_ORDER_INDEX = {
     station_id: index for index, station_id in enumerate(TEST_MODE_STATION_ORDER)
 }
 
+STATION_CHUNKING_ROW_COUNT_THRESHOLD = 250_000
+STATION_CHUNK_ROW_COUNT = 100_000
+STATION_CHUNKING_THRESHOLD_ENV = "NOAA_STATION_CHUNKING_ROW_COUNT_THRESHOLD"
+STATION_CHUNK_ROW_COUNT_ENV = "NOAA_STATION_CHUNK_ROW_COUNT"
+
 
 @dataclass(frozen=True)
 class RunWriteFlags:
@@ -252,6 +260,17 @@ class StationProcessingResult:
     elapsed_quality_profile_seconds: float
     elapsed_write_seconds: float
     elapsed_total_seconds: float
+
+
+@dataclass(frozen=True)
+class StationChunkPlan:
+    chunk_index: int
+    start_row: int
+    end_row: int
+
+    @property
+    def row_count(self) -> int:
+        return self.end_row - self.start_row
 
 
 WORKER_RESULT_SCHEMA_VERSION = "v1"
@@ -1476,6 +1495,27 @@ def _run_station_processing(
     station_id: str,
     input_path: Path,
 ) -> StationProcessingResult:
+    row_count_raw = _raw_input_row_count(input_path, config.input_format)
+    if _should_use_chunked_station_processing(row_count_raw):
+        return _run_station_processing_chunked(
+            config=config,
+            station_id=station_id,
+            input_path=input_path,
+            row_count_raw=row_count_raw,
+        )
+    return _run_station_processing_whole_file(
+        config=config,
+        station_id=station_id,
+        input_path=input_path,
+    )
+
+
+def _run_station_processing_whole_file(
+    *,
+    config: CleaningRunConfig,
+    station_id: str,
+    input_path: Path,
+) -> StationProcessingResult:
     paths = _station_paths(config, station_id)
     expected_outputs = _expected_output_paths(config, paths)
     quality_builder = _QualityProfileBuilder()
@@ -1595,12 +1635,488 @@ def _run_station_processing(
     )
 
 
+def _run_station_processing_chunked(
+    *,
+    config: CleaningRunConfig,
+    station_id: str,
+    input_path: Path,
+    row_count_raw: int,
+) -> StationProcessingResult:
+    paths = _station_paths(config, station_id)
+    expected_outputs = _expected_output_paths(config, paths)
+    quality_builder = _QualityProfileBuilder()
+    station_start = datetime.now(timezone.utc)
+    input_size_bytes = _safe_file_size(input_path)
+    chunk_plans = _plan_station_chunks(row_count_raw)
+    runtime_root = _station_runtime_chunk_root(config, station_id)
+    _cleanup_runtime_chunk_artifacts(runtime_root)
+    _ensure_dir(runtime_root)
+
+    print(
+        f"{station_id}: chunked cleaning path "
+        f"(rows={row_count_raw} threshold={_station_chunking_row_count_threshold()} "
+        f"chunks={len(chunk_plans)} chunk_rows={_station_chunk_row_count()})"
+    )
+
+    elapsed_read_seconds = 0.0
+    elapsed_clean_seconds = 0.0
+    elapsed_write_seconds = 0.0
+    elapsed_quality_profile_seconds = 0.0
+    elapsed_domain_split_seconds = 0.0
+    raw_columns = 0
+    cleaned_columns = 0
+    row_count_cleaned = 0
+    station_name = station_id
+    station_name_resolved = False
+    quality_profiles: list[dict[str, Any]] = []
+    cleaned_chunk_paths: list[Path] = []
+    canonical_schema: tuple[str, ...] | None = None
+
+    phase_start = datetime.now(timezone.utc)
+    for plan, raw_chunk in zip(chunk_plans, _iter_raw_chunks(input_path, config.input_format), strict=True):
+        elapsed_read_seconds += (datetime.now(timezone.utc) - phase_start).total_seconds()
+        if raw_columns == 0:
+            raw_columns = int(len(raw_chunk.columns))
+
+        print(
+            f"{station_id}: cleaning chunk {plan.chunk_index + 1}/{len(chunk_plans)} "
+            f"rows={plan.start_row}:{plan.end_row}"
+        )
+        phase_start = datetime.now(timezone.utc)
+        cleaned_chunk = _clean_canonical_dataset(raw_chunk)
+        validate_no_sentinel_leakage(cleaned_chunk)
+        elapsed_clean_seconds += (datetime.now(timezone.utc) - phase_start).total_seconds()
+
+        if canonical_schema is None:
+            canonical_schema = tuple(cleaned_chunk.columns)
+            cleaned_columns = int(len(canonical_schema))
+        else:
+            cleaned_chunk = _align_cleaned_chunk_schema(cleaned_chunk, canonical_schema)
+
+        if not station_name_resolved:
+            candidate_name = _station_name(cleaned_chunk, station_id)
+            if candidate_name != station_id or station_name == station_id:
+                station_name = candidate_name
+                station_name_resolved = True
+
+        row_count_cleaned += int(len(cleaned_chunk))
+
+        if config.write_flags.write_station_quality_profile:
+            phase_profile = datetime.now(timezone.utc)
+            quality_profiles.append(quality_builder.build(cleaned_chunk, station_id))
+            elapsed_quality_profile_seconds += (
+                datetime.now(timezone.utc) - phase_profile
+            ).total_seconds()
+
+        chunk_output_path = _runtime_cleaned_chunk_path(runtime_root, config.input_format, plan)
+        phase_write = datetime.now(timezone.utc)
+        _write_cleaned_station(cleaned_chunk, chunk_output_path, config.input_format)
+        elapsed_write_seconds += (datetime.now(timezone.utc) - phase_write).total_seconds()
+        cleaned_chunk_paths.append(chunk_output_path)
+        phase_start = datetime.now(timezone.utc)
+
+    if len(cleaned_chunk_paths) != len(chunk_plans):
+        raise RuntimeError(
+            f"Chunk execution mismatch for station {station_id}: "
+            f"planned={len(chunk_plans)} cleaned={len(cleaned_chunk_paths)}"
+        )
+
+    if config.write_flags.write_cleaned_station:
+        _ensure_dir(paths.station_output_dir)
+        phase_write = datetime.now(timezone.utc)
+        _stream_collate_cleaned_chunks(
+            chunk_paths=cleaned_chunk_paths,
+            output_path=paths.cleaned_path,
+            input_format=config.input_format,
+        )
+        elapsed_write_seconds += (datetime.now(timezone.utc) - phase_write).total_seconds()
+
+    if config.write_flags.write_domain_splits:
+        _ensure_dir(paths.domain_dir)
+        phase_domain = datetime.now(timezone.utc)
+        _write_chunked_domain_outputs(
+            cleaned_chunk_paths=cleaned_chunk_paths,
+            runtime_root=runtime_root,
+            output_dir=paths.domain_dir,
+            manifest_path=paths.domain_manifest_path,
+            output_format=config.input_format,
+            station_slug=sanitize_station_slug(station_name),
+            station_name=station_name,
+            row_count_cleaned=row_count_cleaned,
+        )
+        elapsed_domain_split_seconds = (datetime.now(timezone.utc) - phase_domain).total_seconds()
+
+    if config.write_flags.write_station_quality_profile:
+        _ensure_dir(config.quality_profile_root)
+        phase_profile = datetime.now(timezone.utc)
+        _write_json(paths.quality_profile_path, _merge_quality_profiles(station_id, quality_profiles))
+        elapsed_quality_profile_seconds += (datetime.now(timezone.utc) - phase_profile).total_seconds()
+
+    if config.write_flags.write_station_reports:
+        phase_write = datetime.now(timezone.utc)
+        _write_station_reports_from_memory(
+            raw=_read_raw_input(input_path, config.input_format),
+            cleaned=_read_raw_input(paths.cleaned_path, config.input_format),
+            station_id=station_id,
+            reports_dir=paths.reports_dir,
+        )
+        elapsed_write_seconds += (datetime.now(timezone.utc) - phase_write).total_seconds()
+
+    phase_write = datetime.now(timezone.utc)
+    _verify_outputs_exist(expected_outputs)
+    _write_success_marker(
+        success_path=paths.success_marker_path,
+        run_id=config.run_id,
+        station_id=station_id,
+        input_path=input_path,
+        input_format=config.input_format,
+        expected_outputs=expected_outputs,
+        row_count_raw=row_count_raw,
+        row_count_cleaned=row_count_cleaned,
+        write_flags=config.write_flags,
+    )
+    elapsed_write_seconds += (datetime.now(timezone.utc) - phase_write).total_seconds()
+
+    cleaned_size_bytes = _safe_file_size(paths.cleaned_path)
+    elapsed_total_seconds = (datetime.now(timezone.utc) - station_start).total_seconds()
+
+    return StationProcessingResult(
+        station_id=station_id,
+        input_path=str(input_path.resolve()),
+        output_path=str(
+            paths.cleaned_path if config.write_flags.write_cleaned_station else paths.station_output_dir
+        ),
+        station_quality_profile_path=(
+            str(paths.quality_profile_path) if config.write_flags.write_station_quality_profile else ""
+        ),
+        success_marker_path=str(paths.success_marker_path),
+        expected_outputs=[str(path.resolve()) for path in expected_outputs],
+        row_count_raw=row_count_raw,
+        row_count_cleaned=row_count_cleaned,
+        raw_columns=raw_columns,
+        cleaned_columns=cleaned_columns,
+        input_size_bytes=input_size_bytes,
+        cleaned_size_bytes=cleaned_size_bytes,
+        elapsed_read_seconds=elapsed_read_seconds,
+        elapsed_clean_seconds=elapsed_clean_seconds,
+        elapsed_domain_split_seconds=elapsed_domain_split_seconds,
+        elapsed_quality_profile_seconds=elapsed_quality_profile_seconds,
+        elapsed_write_seconds=elapsed_write_seconds,
+        elapsed_total_seconds=elapsed_total_seconds,
+    )
+
+
 def _read_raw_input(path: Path, input_format: str) -> pd.DataFrame:
     if input_format == "csv":
         return pd.read_csv(path, low_memory=False)
     if input_format == "parquet":
         return pd.read_parquet(path)
     raise ValueError(f"Unsupported input format: {input_format}")
+
+
+def _raw_input_row_count(path: Path, input_format: str) -> int:
+    if input_format == "csv":
+        with path.open("r", encoding="utf-8", newline="") as handle:
+            row_count = sum(1 for _ in handle)
+        return max(row_count - 1, 0)
+    if input_format == "parquet":
+        return int(pq.ParquetFile(path).metadata.num_rows)
+    raise ValueError(f"Unsupported input format: {input_format}")
+
+
+def _should_use_chunked_station_processing(row_count: int) -> bool:
+    return row_count > _station_chunking_row_count_threshold()
+
+
+def _plan_station_chunks(
+    row_count: int,
+    *,
+    chunk_row_count: int | None = None,
+) -> tuple[StationChunkPlan, ...]:
+    if row_count < 0:
+        raise ValueError("row_count must be zero or greater")
+    if chunk_row_count is None:
+        chunk_row_count = _station_chunk_row_count()
+    if chunk_row_count <= 0:
+        raise ValueError("chunk_row_count must be positive")
+
+    plans: list[StationChunkPlan] = []
+    chunk_index = 0
+    start_row = 0
+    while start_row < row_count:
+        end_row = min(start_row + chunk_row_count, row_count)
+        plans.append(
+            StationChunkPlan(
+                chunk_index=chunk_index,
+                start_row=start_row,
+                end_row=end_row,
+            )
+        )
+        start_row = end_row
+        chunk_index += 1
+    return tuple(plans)
+
+
+def _iter_raw_chunks(path: Path, input_format: str) -> Any:
+    chunk_row_count = _station_chunk_row_count()
+    if input_format == "csv":
+        return pd.read_csv(path, low_memory=False, chunksize=chunk_row_count)
+    if input_format == "parquet":
+        parquet_file = pq.ParquetFile(path)
+        batches = parquet_file.iter_batches(batch_size=chunk_row_count)
+        return (
+            batch.to_pandas(split_blocks=True, self_destruct=True)
+            for batch in batches
+        )
+    raise ValueError(f"Unsupported input format: {input_format}")
+
+
+def _station_chunking_row_count_threshold() -> int:
+    return _runtime_chunk_setting(
+        env_name=STATION_CHUNKING_THRESHOLD_ENV,
+        default=STATION_CHUNKING_ROW_COUNT_THRESHOLD,
+    )
+
+
+def _station_chunk_row_count() -> int:
+    return _runtime_chunk_setting(
+        env_name=STATION_CHUNK_ROW_COUNT_ENV,
+        default=STATION_CHUNK_ROW_COUNT,
+    )
+
+
+def _runtime_chunk_setting(*, env_name: str, default: int) -> int:
+    raw_value = os.environ.get(env_name, "").strip()
+    if raw_value == "":
+        return default
+    value = int(raw_value)
+    if value <= 0:
+        raise ValueError(f"{env_name} must be a positive integer when set")
+    return value
+
+
+def _align_cleaned_chunk_schema(
+    cleaned_chunk: pd.DataFrame,
+    expected_columns: tuple[str, ...],
+) -> pd.DataFrame:
+    actual_columns = tuple(cleaned_chunk.columns)
+    if actual_columns == expected_columns:
+        return cleaned_chunk
+
+    if set(actual_columns) != set(expected_columns):
+        raise ValueError(
+            "Chunked cleaning produced inconsistent canonical schema. "
+            f"expected={list(expected_columns)} actual={list(actual_columns)}"
+        )
+
+    return cleaned_chunk.loc[:, list(expected_columns)]
+
+
+def _station_runtime_chunk_root(config: CleaningRunConfig, station_id: str) -> Path:
+    return (
+        config.output_root.parent
+        / ".runtime"
+        / "station_chunks"
+        / station_id
+    ).resolve()
+
+
+def _runtime_cleaned_chunk_path(
+    runtime_root: Path,
+    input_format: str,
+    plan: StationChunkPlan,
+) -> Path:
+    suffix = "csv" if input_format == "csv" else "parquet"
+    return runtime_root / "cleaned" / f"chunk_{plan.chunk_index:05d}.{suffix}"
+
+
+def _stream_collate_cleaned_chunks(
+    *,
+    chunk_paths: list[Path],
+    output_path: Path,
+    input_format: str,
+) -> None:
+    if input_format == "csv":
+        _stream_collate_csv_files(chunk_paths, output_path)
+        return
+    if input_format == "parquet":
+        _stream_collate_parquet_files(chunk_paths, output_path)
+        return
+    raise ValueError(f"Unsupported input format: {input_format}")
+
+
+def _stream_collate_csv_files(chunk_paths: list[Path], output_path: Path) -> None:
+    _ensure_dir(output_path.parent)
+    tmp_path = output_path.parent / f".{output_path.name}.tmp-{os.getpid()}-{uuid.uuid4().hex}"
+    try:
+        with tmp_path.open("w", encoding="utf-8", newline="") as target:
+            for index, chunk_path in enumerate(chunk_paths):
+                with chunk_path.open("r", encoding="utf-8", newline="") as source:
+                    for line_number, line in enumerate(source):
+                        if index > 0 and line_number == 0:
+                            continue
+                        target.write(line)
+        os.replace(tmp_path, output_path)
+    finally:
+        if tmp_path.exists():
+            tmp_path.unlink()
+
+
+def _stream_collate_parquet_files(chunk_paths: list[Path], output_path: Path) -> None:
+    _ensure_dir(output_path.parent)
+    tmp_path = output_path.parent / f".{output_path.name}.tmp-{os.getpid()}-{uuid.uuid4().hex}"
+    writer: pq.ParquetWriter | None = None
+    try:
+        for chunk_path in chunk_paths:
+            table = pq.read_table(chunk_path)
+            if writer is None:
+                writer = pq.ParquetWriter(tmp_path, table.schema, compression="snappy")
+            writer.write_table(table)
+        if writer is None:
+            raise ValueError(f"No chunk inputs provided for parquet collation: {output_path}")
+        writer.close()
+        writer = None
+        os.replace(tmp_path, output_path)
+    finally:
+        if writer is not None:
+            writer.close()
+        if tmp_path.exists():
+            tmp_path.unlink()
+
+
+def _merge_quality_profiles(
+    station_id: str,
+    profiles: list[dict[str, Any]],
+) -> dict[str, Any]:
+    if not profiles:
+        return _QualityProfileBuilder().build(pd.DataFrame(), station_id)
+
+    rows_total = sum(int(profile.get("rows_total", 0)) for profile in profiles)
+    rows_with_qc_flags = sum(int(profile.get("rows_with_qc_flags", 0)) for profile in profiles)
+    rows_with_structural_impacts = sum(
+        int(profile.get("rows_with_structural_impacts", 0)) for profile in profiles
+    )
+    rows_with_sentinel_impacts = sum(
+        int(profile.get("rows_with_sentinel_impacts", 0)) for profile in profiles
+    )
+    rows_with_quality_code_impacts = sum(
+        int(profile.get("rows_with_quality_code_impacts", 0)) for profile in profiles
+    )
+    rows_with_other_substantive_impacts = sum(
+        int(profile.get("rows_with_other_substantive_impacts", 0)) for profile in profiles
+    )
+
+    null_counts_by_identifier: dict[str, int] = {}
+    qc_flag_counts_by_identifier: dict[str, int] = {}
+    rule_family_impact_counts = {family: 0 for family in RULE_FAMILIES}
+
+    for profile in profiles:
+        null_counts = profile.get("null_counts_by_identifier", {})
+        if isinstance(null_counts, dict):
+            for identifier, count in null_counts.items():
+                key = str(identifier)
+                null_counts_by_identifier[key] = null_counts_by_identifier.get(key, 0) + int(count)
+
+        qc_counts = profile.get("qc_flag_counts_by_identifier", {})
+        if isinstance(qc_counts, dict):
+            for identifier, count in qc_counts.items():
+                key = str(identifier)
+                qc_flag_counts_by_identifier[key] = qc_flag_counts_by_identifier.get(key, 0) + int(count)
+
+        family_counts = profile.get("rule_family_impact_counts", {})
+        if isinstance(family_counts, dict):
+            for family in RULE_FAMILIES:
+                rule_family_impact_counts[family] += int(family_counts.get(family, 0))
+
+    return {
+        "station_id": station_id,
+        "rows_total": rows_total,
+        "rows_with_qc_flags": rows_with_qc_flags,
+        "fraction_rows_impacted": (
+            float(rows_with_qc_flags) / float(rows_total) if rows_total > 0 else 0.0
+        ),
+        "rows_with_structural_impacts": rows_with_structural_impacts,
+        "fraction_rows_structural_impacted": (
+            float(rows_with_structural_impacts) / float(rows_total) if rows_total > 0 else 0.0
+        ),
+        "rows_with_sentinel_impacts": rows_with_sentinel_impacts,
+        "rows_with_quality_code_impacts": rows_with_quality_code_impacts,
+        "rows_with_other_substantive_impacts": rows_with_other_substantive_impacts,
+        "null_counts_by_identifier": dict(sorted(null_counts_by_identifier.items())),
+        "qc_flag_counts_by_identifier": dict(sorted(qc_flag_counts_by_identifier.items())),
+        "rule_family_impact_counts": rule_family_impact_counts,
+    }
+
+
+def _write_chunked_domain_outputs(
+    *,
+    cleaned_chunk_paths: list[Path],
+    runtime_root: Path,
+    output_dir: Path,
+    manifest_path: Path,
+    output_format: str,
+    station_slug: str,
+    station_name: str,
+    row_count_cleaned: int,
+) -> None:
+    suffix = "csv" if output_format == "csv" else "parquet"
+    chunk_paths_by_domain: dict[str, list[Path]] = {}
+    columns_by_domain: dict[str, int] = {}
+
+    for chunk_index, cleaned_chunk_path in enumerate(cleaned_chunk_paths):
+        cleaned_chunk = _read_raw_input(cleaned_chunk_path, output_format)
+        for definition, domain_df in project_domain_datasets_from_registry(cleaned_chunk):
+            columns_by_domain.setdefault(definition.domain_name, int(len(domain_df.columns)))
+            chunk_output_path = (
+                runtime_root
+                / "domains"
+                / definition.domain_name
+                / f"chunk_{chunk_index:05d}.{suffix}"
+            )
+            _ensure_dir(chunk_output_path.parent)
+            if output_format == "csv":
+                write_deterministic_csv(domain_df, chunk_output_path)
+            else:
+                write_deterministic_parquet(
+                    _normalize_object_columns_for_parquet(domain_df),
+                    chunk_output_path,
+                )
+            chunk_paths_by_domain.setdefault(definition.domain_name, []).append(chunk_output_path)
+
+    manifest_rows: list[dict[str, object]] = []
+    for definition in domain_definitions():
+        domain_chunk_paths = chunk_paths_by_domain.get(definition.domain_name, [])
+        if not domain_chunk_paths:
+            continue
+        output_path = output_dir / f"{station_slug}__{definition.domain_name}.{suffix}"
+        _stream_collate_cleaned_chunks(
+            chunk_paths=domain_chunk_paths,
+            output_path=output_path,
+            input_format=output_format,
+        )
+        size_mb = output_path.stat().st_size / (1024 * 1024)
+        manifest_rows.append(
+            {
+                "station_name": station_name,
+                "domain": definition.domain_name,
+                "rows": row_count_cleaned,
+                "columns": columns_by_domain[definition.domain_name],
+                "file": str(output_path),
+                "size_mb": round(size_mb, 2),
+                "contract_schema_version": DOMAIN_DATASET_CONTRACT.schema_version,
+            }
+        )
+
+    write_deterministic_csv(
+        pd.DataFrame(manifest_rows),
+        manifest_path,
+        sort_by=("domain",),
+    )
+
+
+def _cleanup_runtime_chunk_artifacts(runtime_root: Path) -> None:
+    if runtime_root.exists():
+        shutil.rmtree(runtime_root)
 
 
 def _clean_canonical_dataset(raw: pd.DataFrame) -> pd.DataFrame:

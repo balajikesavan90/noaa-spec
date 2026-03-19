@@ -86,6 +86,24 @@ def _write_raw_parquet(station_dir: Path, station_id: str) -> Path:
     return raw_path
 
 
+def _sample_chunking_raw_df(station_id: str, rows: int = 7) -> pd.DataFrame:
+    data = {
+        "STATION": [station_id] * rows,
+        "DATE": [f"2020-01-01T{hour:02d}:00:00" for hour in range(rows)],
+        "TIME": [f"{hour:02d}00" for hour in range(rows)],
+        "TMP": [f"{10 + hour:04d},1" for hour in range(rows)],
+        "REM": [f"remark-{hour % 3}" for hour in range(rows)],
+    }
+    return pd.DataFrame(data)
+
+
+def _write_chunking_raw_parquet(station_dir: Path, station_id: str, rows: int = 7) -> Path:
+    station_dir.mkdir(parents=True, exist_ok=True)
+    raw_path = station_dir / "LocationData_Raw.parquet"
+    _sample_chunking_raw_df(station_id, rows=rows).to_parquet(raw_path, index=False)
+    return raw_path
+
+
 def _flags(
     *,
     cleaned: bool = True,
@@ -1646,3 +1664,171 @@ def test_partial_limit_run_is_not_finalized_and_resume_completes_same_run_id(
 
     second_status = pd.read_csv(config.manifest_root / "run_status.csv", dtype=str)
     assert set(second_status["status"].astype(str)) == {"completed"}
+
+
+def test_plan_station_chunks_is_deterministic() -> None:
+    first = cleaning_runner._plan_station_chunks(250_001, chunk_row_count=100_000)
+    second = cleaning_runner._plan_station_chunks(250_001, chunk_row_count=100_000)
+
+    assert first == second
+    assert [(plan.start_row, plan.end_row) for plan in first] == [
+        (0, 100_000),
+        (100_000, 200_000),
+        (200_000, 250_001),
+    ]
+
+
+def test_chunked_station_processing_matches_whole_file_output(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    input_root = tmp_path / "inputs"
+    station_id = "01234567890"
+    _write_chunking_raw_parquet(input_root / station_id, station_id, rows=7)
+
+    whole_config = _config(
+        tmp_path,
+        mode="test_parquet_dir",
+        input_format="parquet",
+        run_id="run_whole_station",
+        input_root=input_root,
+        write_flags=_flags(cleaned=True, domain=True, quality=True, reports=False, global_summary=False),
+        output_root=tmp_path / "whole" / "canonical_cleaned",
+        reports_root=tmp_path / "whole" / "quality_reports",
+        quality_root=tmp_path / "whole" / "quality_reports" / "station_quality",
+        manifest_root=tmp_path / "whole" / "manifests",
+    )
+    whole_result = run_cleaning_run(whole_config)
+    assert whole_result["failed"] == 0
+
+    monkeypatch.setenv(cleaning_runner.STATION_CHUNKING_THRESHOLD_ENV, "3")
+    monkeypatch.setenv(cleaning_runner.STATION_CHUNK_ROW_COUNT_ENV, "2")
+
+    chunked_config = _config(
+        tmp_path,
+        mode="test_parquet_dir",
+        input_format="parquet",
+        run_id="run_chunked_station",
+        input_root=input_root,
+        write_flags=_flags(cleaned=True, domain=True, quality=True, reports=False, global_summary=False),
+        output_root=tmp_path / "chunked" / "canonical_cleaned",
+        reports_root=tmp_path / "chunked" / "quality_reports",
+        quality_root=tmp_path / "chunked" / "quality_reports" / "station_quality",
+        manifest_root=tmp_path / "chunked" / "manifests",
+    )
+    chunked_result = run_cleaning_run(chunked_config)
+    assert chunked_result["failed"] == 0
+
+    whole_cleaned = pd.read_parquet(whole_config.output_root / station_id / "LocationData_Cleaned.parquet")
+    chunked_cleaned = pd.read_parquet(
+        chunked_config.output_root / station_id / "LocationData_Cleaned.parquet"
+    )
+    pd.testing.assert_frame_equal(chunked_cleaned, whole_cleaned, check_dtype=False)
+    assert chunked_cleaned["STATION"].astype(str).tolist() == [station_id] * 7
+    assert chunked_cleaned["TMP"].astype(str).tolist() == whole_cleaned["TMP"].astype(str).tolist()
+
+    whole_profile = json.loads(
+        (whole_config.quality_profile_root / f"station_{station_id}.json").read_text(encoding="utf-8")
+    )
+    chunked_profile = json.loads(
+        (chunked_config.quality_profile_root / f"station_{station_id}.json").read_text(encoding="utf-8")
+    )
+    assert chunked_profile == whole_profile
+
+
+def test_chunked_station_output_is_deterministic_across_repeated_runs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_root = tmp_path / "inputs"
+    station_id = "01234567890"
+    _write_chunking_raw_parquet(input_root / station_id, station_id, rows=7)
+
+    monkeypatch.setenv(cleaning_runner.STATION_CHUNKING_THRESHOLD_ENV, "3")
+    monkeypatch.setenv(cleaning_runner.STATION_CHUNK_ROW_COUNT_ENV, "2")
+
+    checksums: list[str] = []
+    for run_id in ("run_chunked_once", "run_chunked_twice"):
+        build_root = tmp_path / run_id
+        config = _config(
+            tmp_path,
+            mode="test_parquet_dir",
+            input_format="parquet",
+            run_id=run_id,
+            input_root=input_root,
+            write_flags=_flags(cleaned=True, domain=False, quality=True, reports=False, global_summary=False),
+            output_root=build_root / "canonical_cleaned",
+            reports_root=build_root / "quality_reports",
+            quality_root=build_root / "quality_reports" / "station_quality",
+            manifest_root=build_root / "manifests",
+        )
+        result = run_cleaning_run(config)
+        assert result["failed"] == 0
+        checksums.append(_sha256(config.output_root / station_id / "LocationData_Cleaned.parquet"))
+
+    assert checksums[0] == checksums[1]
+
+
+def test_runtime_chunk_artifacts_are_excluded_from_publication_manifests(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_root = tmp_path / "inputs"
+    station_id = "01234567890"
+    _write_chunking_raw_parquet(input_root / station_id, station_id, rows=7)
+
+    monkeypatch.setenv(cleaning_runner.STATION_CHUNKING_THRESHOLD_ENV, "3")
+    monkeypatch.setenv(cleaning_runner.STATION_CHUNK_ROW_COUNT_ENV, "2")
+
+    config = _config(
+        tmp_path,
+        mode="test_parquet_dir",
+        input_format="parquet",
+        run_id="run_chunk_manifest_scope",
+        input_root=input_root,
+        write_flags=_flags(cleaned=True, domain=True, quality=True, reports=False, global_summary=False),
+    )
+    result = run_cleaning_run(config)
+    assert result["failed"] == 0
+
+    runtime_root = config.output_root.parent / ".runtime" / "station_chunks" / station_id
+    assert runtime_root.exists()
+    assert list(runtime_root.rglob("*.parquet"))
+
+    release_manifest = pd.read_csv(config.manifest_root / "release_manifest.csv", dtype=str)
+    file_manifest = pd.read_csv(config.manifest_root / "file_manifest.csv", dtype=str)
+    assert not release_manifest["artifact_path"].astype(str).str.contains("/.runtime/").any()
+    assert not file_manifest["artifact_path"].astype(str).str.contains("/.runtime/").any()
+
+
+def test_oversized_station_chunked_path_completes_with_station_level_outputs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_root = tmp_path / "inputs"
+    station_id = "01234567890"
+    _write_chunking_raw_parquet(input_root / station_id, station_id, rows=8)
+
+    monkeypatch.setenv(cleaning_runner.STATION_CHUNKING_THRESHOLD_ENV, "3")
+    monkeypatch.setenv(cleaning_runner.STATION_CHUNK_ROW_COUNT_ENV, "2")
+
+    config = _config(
+        tmp_path,
+        mode="test_parquet_dir",
+        input_format="parquet",
+        run_id="run_chunked_smoke",
+        input_root=input_root,
+        write_flags=_flags(cleaned=True, domain=True, quality=True, reports=False, global_summary=False),
+    )
+    result = run_cleaning_run(config)
+
+    assert result["failed"] == 0
+    assert result["processed"] == 1
+    assert result["state"] == "completed"
+    assert (config.output_root / station_id / "LocationData_Cleaned.parquet").exists()
+    assert (config.output_root / station_id / "_SUCCESS.json").exists()
+    assert (config.output_root.parent / "domains" / station_id / "station_split_manifest.csv").exists()
+    assert (config.quality_profile_root / f"station_{station_id}.json").exists()
+
+    run_status = pd.read_csv(config.manifest_root / "run_status.csv", dtype=str)
+    row = run_status.iloc[0].to_dict()
+    assert row["status"] == "completed"
+    assert row["row_count_raw"] == "8"
+    assert row["row_count_cleaned"] == "8"

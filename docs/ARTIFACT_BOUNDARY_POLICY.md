@@ -44,6 +44,7 @@ The following locations are runtime/operational surfaces and are not the publica
 - `artifacts/parquet_runs/`
 - `noaa_file_index/`
 - `noaa_file_index/state/`
+- `release/build_<build_id>/.runtime/`
 
 These paths are for local processing, debugging, or transient operational records.
 

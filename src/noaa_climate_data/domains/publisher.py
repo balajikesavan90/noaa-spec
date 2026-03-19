@@ -11,6 +11,20 @@ from ..deterministic_io import write_deterministic_csv, write_deterministic_parq
 from .registry import DomainDefinition, domain_definitions
 
 
+def project_domain_datasets_from_registry(
+    cleaned: pd.DataFrame,
+) -> list[tuple[DomainDefinition, pd.DataFrame]]:
+    normalized = _with_standard_join_keys(cleaned)
+    projected: list[tuple[DomainDefinition, pd.DataFrame]] = []
+    for definition in domain_definitions():
+        selected_columns = _selected_columns_for_definition(normalized, definition)
+        if not selected_columns:
+            continue
+        _validate_emitted_columns(definition, selected_columns)
+        projected.append((definition, normalized[selected_columns]))
+    return projected
+
+
 def write_domain_datasets_from_registry(
     cleaned: pd.DataFrame,
     *,
@@ -19,21 +33,14 @@ def write_domain_datasets_from_registry(
     output_dir: Path,
     output_format: str,
 ) -> list[dict[str, object]]:
-    cleaned = _with_standard_join_keys(cleaned)
     output_dir.mkdir(parents=True, exist_ok=True)
     if output_format not in {"csv", "parquet"}:
         raise ValueError(f"Unsupported domain split output format: {output_format}")
 
     manifest_rows: list[dict[str, object]] = []
-    for definition in domain_definitions():
-        selected_columns = _selected_columns_for_definition(cleaned, definition)
-        if not selected_columns:
-            continue
-        _validate_emitted_columns(definition, selected_columns)
-
+    for definition, domain_df in project_domain_datasets_from_registry(cleaned):
         output_suffix = "csv" if output_format == "csv" else "parquet"
         output_file = output_dir / f"{station_slug}__{definition.domain_name}.{output_suffix}"
-        domain_df = cleaned[selected_columns]
         if output_format == "csv":
             write_deterministic_csv(domain_df, output_file, sort_by=tuple(definition.join_keys))
         else:
@@ -48,8 +55,8 @@ def write_domain_datasets_from_registry(
             {
                 "station_name": station_name,
                 "domain": definition.domain_name,
-                "rows": int(len(cleaned)),
-                "columns": int(len(selected_columns)),
+                "rows": int(len(domain_df)),
+                "columns": int(len(domain_df.columns)),
                 "file": str(output_file),
                 "size_mb": round(size_mb, 2),
                 "contract_schema_version": DOMAIN_DATASET_CONTRACT.schema_version,
