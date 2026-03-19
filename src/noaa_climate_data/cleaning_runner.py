@@ -1672,7 +1672,7 @@ def _run_station_processing_chunked(
     station_name_resolved = False
     cleaned_chunk_paths: list[Path] = []
     chunk_schemas: list[tuple[str, ...]] = []
-    column_dtypes: dict[str, Any] = {}
+    column_dtypes: dict[str, list[Any]] = {}
 
     phase_start = datetime.now(timezone.utc)
     for plan, raw_chunk in zip(chunk_plans, _iter_raw_chunks(input_path, config.input_format), strict=True):
@@ -2001,24 +2001,27 @@ def _log_chunk_schema_delta(
     )
 
 
-def _record_chunk_column_dtypes(target: dict[str, Any], cleaned_chunk: pd.DataFrame) -> None:
+def _record_chunk_column_dtypes(target: dict[str, list[Any]], cleaned_chunk: pd.DataFrame) -> None:
     for column in cleaned_chunk.columns:
-        if column in target:
+        observed = cleaned_chunk[column].dtype
+        existing = target.setdefault(column, [])
+        if any(dtype == observed for dtype in existing):
             continue
-        target[column] = cleaned_chunk[column].dtype
+        existing.append(observed)
 
 
 def _resolve_station_column_dtypes(
     *,
     chunk_schemas: list[tuple[str, ...]],
-    observed_dtypes: dict[str, Any],
+    observed_dtypes: dict[str, list[Any]],
     ordered_columns: tuple[str, ...],
 ) -> dict[str, Any]:
     resolved: dict[str, Any] = {}
     for column in ordered_columns:
-        observed_dtype = observed_dtypes.get(column)
-        if observed_dtype is None:
+        observed_dtype_candidates = observed_dtypes.get(column, [])
+        if not observed_dtype_candidates:
             continue
+        observed_dtype = _resolve_observed_chunk_dtype(observed_dtype_candidates)
         missing_in_any_chunk = any(column not in chunk_schema for chunk_schema in chunk_schemas)
         if column == "row_has_any_usable_metric":
             resolved[column] = "bool"
@@ -2043,6 +2046,29 @@ def _resolve_station_column_dtypes(
             continue
         resolved[column] = observed_dtype
     return resolved
+
+
+def _resolve_observed_chunk_dtype(observed_dtypes: list[Any]) -> Any:
+    if len(observed_dtypes) == 1:
+        return observed_dtypes[0]
+
+    if any(pd.api.types.is_string_dtype(dtype) or dtype == "object" for dtype in observed_dtypes):
+        return "object"
+    if any(pd.api.types.is_datetime64_any_dtype(dtype) for dtype in observed_dtypes):
+        if all(pd.api.types.is_datetime64_any_dtype(dtype) for dtype in observed_dtypes):
+            return observed_dtypes[0]
+        return "object"
+    if any(pd.api.types.is_float_dtype(dtype) for dtype in observed_dtypes):
+        return "float64"
+    if any(pd.api.types.is_integer_dtype(dtype) for dtype in observed_dtypes):
+        if all(pd.api.types.is_integer_dtype(dtype) for dtype in observed_dtypes):
+            return "Int64"
+        return "float64"
+    if any(pd.api.types.is_bool_dtype(dtype) for dtype in observed_dtypes):
+        if all(pd.api.types.is_bool_dtype(dtype) for dtype in observed_dtypes):
+            return "bool"
+        return "object"
+    return observed_dtypes[0]
 
 
 def _missing_series_for_dtype(*, row_count: int, dtype: Any | None) -> pd.Series:

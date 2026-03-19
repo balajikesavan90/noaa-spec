@@ -1874,6 +1874,52 @@ def test_stream_collate_parquet_ignores_chunk_specific_pandas_metadata(tmp_path:
     assert collated["flag"].astype("boolean").tolist() == [True, pd.NA, False]
 
 
+def test_stream_collate_parquet_handles_mixed_chunk_dtypes_for_qc_reason_columns(
+    tmp_path: Path,
+) -> None:
+    chunk_dir = tmp_path / "chunks"
+    chunk_dir.mkdir(parents=True, exist_ok=True)
+    chunk_one = chunk_dir / "chunk_00000.parquet"
+    chunk_two = chunk_dir / "chunk_00001.parquet"
+
+    pd.DataFrame(
+        {
+            "station_id": ["01234567890"],
+            "MD1__part3__qc_reason": pd.Series([pd.NA], dtype="Float64"),
+        }
+    ).to_parquet(chunk_one, index=False)
+    pd.DataFrame(
+        {
+            "station_id": ["01234567890"],
+            "MD1__part3__qc_reason": pd.Series(["SENTINEL_MISSING"], dtype="string"),
+        }
+    ).to_parquet(chunk_two, index=False)
+
+    observed_dtypes: dict[str, list[object]] = {}
+    chunk_schemas: list[tuple[str, ...]] = []
+    for path in (chunk_one, chunk_two):
+        chunk = pd.read_parquet(path)
+        chunk_schemas.append(tuple(chunk.columns))
+        cleaning_runner._record_chunk_column_dtypes(observed_dtypes, chunk)
+
+    output_path = tmp_path / "LocationData_Cleaned.parquet"
+    cleaning_runner._stream_collate_cleaned_chunks(
+        chunk_paths=[chunk_one, chunk_two],
+        output_path=output_path,
+        input_format="parquet",
+        aligned_columns=("station_id", "MD1__part3__qc_reason"),
+        column_dtypes=cleaning_runner._resolve_station_column_dtypes(
+            chunk_schemas=chunk_schemas,
+            observed_dtypes=observed_dtypes,
+            ordered_columns=("station_id", "MD1__part3__qc_reason"),
+        ),
+    )
+
+    collated = pd.read_parquet(output_path)
+    assert collated["station_id"].tolist() == ["01234567890", "01234567890"]
+    assert collated["MD1__part3__qc_reason"].astype("string").tolist() == [pd.NA, "SENTINEL_MISSING"]
+
+
 def test_chunked_station_output_is_deterministic_across_repeated_runs(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
