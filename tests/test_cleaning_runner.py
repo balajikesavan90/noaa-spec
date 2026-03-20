@@ -195,6 +195,10 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _bundle_checksum(path: Path) -> str:
+    return cleaning_runner._checksum_for_output_bundle([path])
+
+
 def test_quality_profile_null_counts_are_per_identifier_rows_not_part_sums() -> None:
     builder = cleaning_runner._QualityProfileBuilder()
     cleaned = pd.DataFrame(
@@ -1088,6 +1092,159 @@ def test_file_manifest_uses_unique_artifact_ids_for_multi_station_raw_inputs(
         for station_id in station_ids
     }
     assert set(raw_rows["artifact_id"].astype(str)) == expected_ids
+
+
+def test_checksum_registered_artifact_paths_cannot_be_rewritten(tmp_path: Path) -> None:
+    cleaning_runner._reset_artifact_checksum_registry()
+    path = tmp_path / "artifact.json"
+    path.write_text('{"a":1}\n', encoding="utf-8")
+    cleaning_runner._ARTIFACT_CHECKSUM_REGISTRY.register_existing_file(
+        path,
+        source="test_registration",
+    )
+
+    with pytest.raises(RuntimeError, match="Attempted to rewrite finalized artifact"):
+        cleaning_runner._write_json(path, {"a": 2})
+
+    cleaning_runner._reset_artifact_checksum_registry()
+
+
+def test_release_and_file_manifest_agree_on_shared_artifact_checksums(tmp_path: Path) -> None:
+    input_root = tmp_path / "inputs"
+    station_id = "01234567890"
+    _write_raw_csv(input_root / station_id, station_id)
+
+    config = _config(
+        tmp_path,
+        mode="test_csv_dir",
+        input_format="csv",
+        run_id="run_manifest_checksum_alignment",
+        input_root=input_root,
+        write_flags=_flags(cleaned=True, domain=True, quality=True, reports=False, global_summary=False),
+    )
+    run_cleaning_run(config)
+
+    release_manifest = pd.read_csv(config.manifest_root / "release_manifest.csv", dtype=str)
+    file_manifest = pd.read_csv(config.manifest_root / "file_manifest.csv", dtype=str)
+
+    file_lookup = {
+        str(row["artifact_path"]): str(row["checksum"])
+        for row in file_manifest.to_dict(orient="records")
+    }
+    for row in release_manifest.to_dict(orient="records"):
+        artifact_path = str(row["artifact_path"])
+        assert artifact_path in file_lookup
+        assert str(row["checksum"]) == file_lookup[artifact_path]
+
+
+def test_publication_gate_matches_final_manifest_snapshot(tmp_path: Path) -> None:
+    input_root = tmp_path / "inputs"
+    station_id = "01234567890"
+    _write_raw_csv(input_root / station_id, station_id)
+
+    config = _config(
+        tmp_path,
+        mode="test_csv_dir",
+        input_format="csv",
+        run_id="run_gate_final_snapshot",
+        input_root=input_root,
+        write_flags=_flags(cleaned=True, domain=True, quality=True, reports=False, global_summary=False),
+    )
+    run_cleaning_run(config)
+
+    run_status = pd.read_csv(config.manifest_root / "run_status.csv", dtype=str)
+    release_manifest = pd.read_csv(config.manifest_root / "release_manifest.csv", dtype=str)
+    file_manifest = pd.read_csv(config.manifest_root / "file_manifest.csv", dtype=str)
+    build_metadata_path = config.manifest_root / "build_metadata.json"
+    gate_path = config.manifest_root / "publication_readiness_gate.json"
+    stored_gate = json.loads(gate_path.read_text(encoding="utf-8"))
+
+    quality_frames = cleaning_runner._build_mandatory_quality_artifact_frames(config, run_status)
+    rebuilt_gate = cleaning_runner._build_publication_readiness_gate(
+        config=config,
+        status_df=run_status,
+        quality_frames=quality_frames,
+        run_manifest_path=config.manifest_root / "run_manifest.csv",
+        run_status_path=config.manifest_root / "run_status.csv",
+        run_config_path=config.manifest_root / "run_config.json",
+        build_metadata_path=build_metadata_path,
+        release_manifest=release_manifest,
+        file_manifest=file_manifest,
+        quality_assessment_path=config.reports_root / "quality_assessment.json",
+    )
+
+    assert stored_gate == rebuilt_gate
+
+
+def test_single_station_finalization_produces_passing_checksum_gate(tmp_path: Path) -> None:
+    input_root = tmp_path / "inputs"
+    station_id = "01234567890"
+    _write_raw_csv(input_root / station_id, station_id)
+
+    config = _config(
+        tmp_path,
+        mode="test_csv_dir",
+        input_format="csv",
+        run_id="run_single_station_integrity",
+        input_root=input_root,
+        write_flags=_flags(cleaned=True, domain=True, quality=True, reports=False, global_summary=False),
+    )
+    run_cleaning_run(config)
+
+    gate = json.loads((config.manifest_root / "publication_readiness_gate.json").read_text(encoding="utf-8"))
+    assert gate["passed"] is True
+    assert gate["checks"]["checksum_policy_conformance"]["passed"] is True
+
+
+def test_completed_run_writes_post_run_audit_report(tmp_path: Path) -> None:
+    input_root = tmp_path / "inputs"
+    station_id = "01234567890"
+    _write_raw_csv(input_root / station_id, station_id)
+
+    config = _config(
+        tmp_path,
+        mode="test_csv_dir",
+        input_format="csv",
+        run_id="run_post_run_audit",
+        input_root=input_root,
+        write_flags=_flags(cleaned=True, domain=True, quality=True, reports=False, global_summary=False),
+    )
+    result = run_cleaning_run(config)
+
+    audit_path = config.manifest_root / "post_run_audit.md"
+    assert result["post_run_audit"] == audit_path
+    assert audit_path.exists()
+    content = audit_path.read_text(encoding="utf-8")
+    assert "# Post-Run Audit Report" in content
+    assert "| Embedded publication gate checksum check | pass |" in content
+
+
+def test_parquet_raw_source_and_build_file_checksums_match(tmp_path: Path) -> None:
+    input_root = tmp_path / "inputs"
+    station_id = "01234567890"
+    raw_path = _write_raw_parquet(input_root / station_id, station_id)
+
+    config = _config(
+        tmp_path,
+        mode="test_parquet_dir",
+        input_format="parquet",
+        run_id="run_parquet_checksum_regression",
+        input_root=input_root,
+        write_flags=_flags(cleaned=True, domain=True, quality=True, reports=False, global_summary=False),
+    )
+    run_cleaning_run(config)
+
+    release_manifest = pd.read_csv(config.manifest_root / "release_manifest.csv", dtype=str)
+    file_manifest = pd.read_csv(config.manifest_root / "file_manifest.csv", dtype=str)
+
+    raw_release = release_manifest[release_manifest["artifact_type"] == "raw_source"].iloc[0].to_dict()
+    raw_build_file = file_manifest[file_manifest["artifact_path"] == str(raw_path.resolve())].iloc[0].to_dict()
+    assert raw_release["checksum"] == raw_build_file["checksum"] == _bundle_checksum(raw_path)
+
+    canonical_path = config.output_root / station_id / "LocationData_Cleaned.parquet"
+    canonical_release = release_manifest[release_manifest["artifact_type"] == "canonical_dataset"].iloc[0].to_dict()
+    canonical_build_file = file_manifest[file_manifest["artifact_path"] == str(canonical_path.resolve())].iloc[0].to_dict()
+    assert canonical_release["checksum"] == canonical_build_file["checksum"] == _bundle_checksum(canonical_path)
 
 
 def test_domain_usability_marks_text_first_remarks_domain_rows_as_usable(

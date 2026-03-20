@@ -24,6 +24,17 @@ The build emits two manifest surfaces under `release/build_<build_id>/manifests/
 
 This dual-manifest model keeps publication lineage contracts stable while still providing complete run-file observability.
 
+Finalization ordering is strict:
+
+1. finalized artifacts are written first
+2. checksums are registered from finalized paths exactly once
+3. `release_manifest.csv` and `file_manifest.csv` consume that same checksum registry
+4. `publication_readiness_gate.json` is generated from the final manifest snapshot and written last
+
+Once a finalized path has been checksum-registered, the pipeline must not write that path again in the same run.
+
+`manifests/post_run_audit.md` may be written after finalization as a companion report for the finished build. It is intentionally outside the integrity inputs used by the manifests and publication gate, so it can summarize the final state without introducing recursion.
+
 ## Checksum Policy
 
 Artifact checksums use a deterministic SHA-256 bundle hash with this exact policy:

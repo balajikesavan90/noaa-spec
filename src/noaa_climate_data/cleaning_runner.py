@@ -195,6 +195,84 @@ STATION_CHUNK_ROW_COUNT_ENV = "NOAA_STATION_CHUNK_ROW_COUNT"
 
 
 @dataclass(frozen=True)
+class RegisteredArtifactChecksum:
+    path: Path
+    checksum: str
+    source: str
+
+
+class ArtifactChecksumRegistry:
+    def __init__(self) -> None:
+        self._by_path: dict[Path, RegisteredArtifactChecksum] = {}
+
+    def assert_writable(self, path: Path) -> None:
+        resolved = path.resolve()
+        if resolved in self._by_path:
+            registered = self._by_path[resolved]
+            raise RuntimeError(
+                "Attempted to rewrite finalized artifact after checksum registration: "
+                f"path={resolved} checksum={registered.checksum} source={registered.source}"
+            )
+
+    def register_existing_file(self, path: Path, *, source: str) -> str:
+        resolved = path.resolve()
+        checksum = _checksum_for_output_bundle([resolved])
+        self.register_checksum(resolved, checksum=checksum, source=source)
+        return checksum
+
+    def register_serialized_bytes(self, path: Path, payload: bytes, *, source: str) -> str:
+        resolved = path.resolve()
+        checksum = _checksum_for_serialized_artifact(resolved, payload)
+        self.register_checksum(resolved, checksum=checksum, source=source)
+        return checksum
+
+    def register_checksum(self, path: Path, *, checksum: str, source: str) -> None:
+        resolved = path.resolve()
+        existing = self._by_path.get(resolved)
+        if existing is not None and existing.checksum != checksum:
+            raise RuntimeError(
+                "Conflicting checksum registration for artifact path: "
+                f"path={resolved} existing_checksum={existing.checksum} "
+                f"new_checksum={checksum} existing_source={existing.source} new_source={source}"
+            )
+        if existing is None:
+            self._by_path[resolved] = RegisteredArtifactChecksum(
+                path=resolved,
+                checksum=checksum,
+                source=source,
+            )
+
+    def checksum_for_path(self, path: Path) -> str:
+        resolved = path.resolve()
+        if resolved not in self._by_path:
+            raise KeyError(f"No registered checksum for artifact path: {resolved}")
+        return self._by_path[resolved].checksum
+
+    def ensure_registered_unchanged(self) -> None:
+        mismatches: list[str] = []
+        for registered in self._by_path.values():
+            if not registered.path.exists():
+                mismatches.append(str(registered.path))
+                continue
+            actual = _checksum_for_output_bundle([registered.path])
+            if actual != registered.checksum:
+                mismatches.append(str(registered.path))
+        if mismatches:
+            raise RuntimeError(
+                "Finalized artifact mutated after checksum registration: "
+                + ", ".join(sorted(mismatches))
+            )
+
+
+_ARTIFACT_CHECKSUM_REGISTRY = ArtifactChecksumRegistry()
+
+
+def _reset_artifact_checksum_registry() -> None:
+    global _ARTIFACT_CHECKSUM_REGISTRY
+    _ARTIFACT_CHECKSUM_REGISTRY = ArtifactChecksumRegistry()
+
+
+@dataclass(frozen=True)
 class RunWriteFlags:
     write_cleaned_station: bool
     write_domain_splits: bool
@@ -474,6 +552,7 @@ def default_roots_for_mode(mode: str, run_id: str) -> dict[str, Path]:
 
 
 def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
+    _reset_artifact_checksum_registry()
     _validate_config(config)
 
     run_started_at = datetime.now(timezone.utc)
@@ -833,7 +912,7 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
         quality_frames = _build_mandatory_quality_artifact_frames(config, status_df)
         for artifact_name, frame in quality_frames.items():
             output_path = config.reports_root / f"{artifact_name}.csv"
-            write_deterministic_csv(
+            _write_deterministic_csv_guarded(
                 frame,
                 output_path,
                 sort_by=QUALITY_ARTIFACT_SORT_KEYS.get(artifact_name, ("station_id",)),
@@ -843,13 +922,37 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
         _write_quality_reports_summary(summary_path, quality_frames, config.run_id, status_df)
         print(f"Quality artifact: wrote {summary_path}")
 
+        finalized_output_paths = _collect_file_manifest_paths(
+            config=config,
+            status_df=status_df,
+            run_manifest_path=run_manifest_path,
+            run_status_path=run_status_path,
+            run_config_path=run_config_path,
+            build_metadata_path=build_metadata_path,
+            release_manifest_path=release_manifest_path,
+            quality_assessment_path=None,
+            publication_readiness_path=None,
+            include_release_manifest=False,
+        )
+        _register_existing_artifact_paths(
+            finalized_output_paths,
+            artifact_checksums=_ARTIFACT_CHECKSUM_REGISTRY,
+            source="pre_manifest_finalization",
+        )
+        _ARTIFACT_CHECKSUM_REGISTRY.ensure_registered_unchanged()
+
         release_manifest_rows = _build_release_manifest_rows(
             config=config,
             status_df=status_df,
             quality_frames=quality_frames,
             creation_timestamp=build_timestamp,
+            artifact_checksums=_ARTIFACT_CHECKSUM_REGISTRY,
         )
-        _write_release_manifest(release_manifest_path, release_manifest_rows)
+        release_manifest_frame = _write_release_manifest(release_manifest_path, release_manifest_rows)
+        _ARTIFACT_CHECKSUM_REGISTRY.register_existing_file(
+            release_manifest_path,
+            source="release_manifest",
+        )
         print(f"Release manifest: wrote {release_manifest_path}")
 
         quality_assessment = _build_quality_assessment(
@@ -859,9 +962,13 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
             build_metadata_path=build_metadata_path,
         )
         _write_json(quality_assessment_path, quality_assessment)
+        _ARTIFACT_CHECKSUM_REGISTRY.register_existing_file(
+            quality_assessment_path,
+            source="quality_assessment",
+        )
         print(f"Quality assessment: wrote {quality_assessment_path}")
 
-        file_manifest_rows = _build_full_file_manifest_rows(
+        provisional_file_manifest_rows = _build_full_file_manifest_rows(
             config=config,
             status_df=status_df,
             creation_timestamp=build_timestamp,
@@ -872,10 +979,9 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
             release_manifest_path=release_manifest_path,
             quality_assessment_path=quality_assessment_path,
             publication_readiness_path=None,
+            artifact_checksums=_ARTIFACT_CHECKSUM_REGISTRY,
         )
-        _write_full_file_manifest(file_manifest_path, file_manifest_rows)
-        print(f"File manifest: wrote {file_manifest_path}")
-
+        provisional_file_manifest_frame = _release_manifest_frame(provisional_file_manifest_rows)
         publication_readiness = _build_publication_readiness_gate(
             config=config,
             status_df=status_df,
@@ -884,12 +990,15 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
             run_status_path=run_status_path,
             run_config_path=run_config_path,
             build_metadata_path=build_metadata_path,
-            release_manifest_path=release_manifest_path,
-            file_manifest_path=file_manifest_path,
+            release_manifest=release_manifest_frame,
+            file_manifest=provisional_file_manifest_frame,
             quality_assessment_path=quality_assessment_path,
         )
-        _write_json(publication_readiness_path, publication_readiness)
-        print(f"Publication readiness: wrote {publication_readiness_path}")
+        publication_readiness_bytes = _json_bytes(publication_readiness)
+        publication_readiness_checksum = _checksum_for_serialized_artifact(
+            publication_readiness_path,
+            publication_readiness_bytes,
+        )
 
         file_manifest_rows = _build_full_file_manifest_rows(
             config=config,
@@ -902,9 +1011,46 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
             release_manifest_path=release_manifest_path,
             quality_assessment_path=quality_assessment_path,
             publication_readiness_path=publication_readiness_path,
+            artifact_checksums=_ARTIFACT_CHECKSUM_REGISTRY,
+            precomputed_checksums={publication_readiness_path.resolve(): publication_readiness_checksum},
         )
-        _write_full_file_manifest(file_manifest_path, file_manifest_rows)
-        print(f"File manifest: refreshed {file_manifest_path} with publication gate coverage")
+        file_manifest_frame = _write_full_file_manifest(file_manifest_path, file_manifest_rows)
+        _ARTIFACT_CHECKSUM_REGISTRY.register_existing_file(
+            file_manifest_path,
+            source="file_manifest",
+        )
+        _validate_cross_manifest_checksum_alignment(release_manifest_frame, file_manifest_frame)
+        print(f"File manifest: wrote {file_manifest_path}")
+
+        _ARTIFACT_CHECKSUM_REGISTRY.ensure_registered_unchanged()
+        final_publication_readiness = _build_publication_readiness_gate(
+            config=config,
+            status_df=status_df,
+            quality_frames=quality_frames,
+            run_manifest_path=run_manifest_path,
+            run_status_path=run_status_path,
+            run_config_path=run_config_path,
+            build_metadata_path=build_metadata_path,
+            release_manifest=release_manifest_frame,
+            file_manifest=file_manifest_frame,
+            quality_assessment_path=quality_assessment_path,
+        )
+        final_publication_readiness_bytes = _json_bytes(final_publication_readiness)
+        final_publication_readiness_checksum = _checksum_for_serialized_artifact(
+            publication_readiness_path,
+            final_publication_readiness_bytes,
+        )
+        if final_publication_readiness_checksum != publication_readiness_checksum:
+            raise RuntimeError(
+                "Publication gate payload changed after final file_manifest creation; "
+                "finalization ordering is not stable"
+            )
+        _write_json(publication_readiness_path, final_publication_readiness)
+        _ARTIFACT_CHECKSUM_REGISTRY.register_existing_file(
+            publication_readiness_path,
+            source="publication_readiness_gate",
+        )
+        print(f"Publication readiness: wrote {publication_readiness_path}")
         finalized = True
     else:
         stale_finalization_artifacts_removed = _clear_nonterminal_finalization_artifacts(config)
@@ -920,6 +1066,12 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
         finalized=finalized,
         stale_finalization_artifacts_removed=stale_finalization_artifacts_removed,
     )
+
+    audit_report_path = config.manifest_root / "post_run_audit.md"
+    if finalized:
+        from .build_audit import write_build_audit_report
+
+        write_build_audit_report(config.output_root.parent, audit_report_path)
 
     total_elapsed_seconds = (datetime.now(timezone.utc) - run_started_at).total_seconds()
     total_elapsed_minutes = total_elapsed_seconds / 60.0
@@ -944,6 +1096,7 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
         "release_manifest": release_manifest_path,
         "file_manifest": file_manifest_path,
         "publication_readiness_gate": publication_readiness_path,
+        "post_run_audit": audit_report_path,
         "build_metadata": build_metadata_path,
     }
 
@@ -1386,6 +1539,40 @@ def _checksum_for_output_bundle(paths: list[Path]) -> str:
     return digest.hexdigest()
 
 
+def _checksum_for_serialized_artifact(path: Path, payload: bytes) -> str:
+    digest = hashlib.sha256()
+    resolved = path.resolve()
+    digest.update(str(resolved).encode("utf-8"))
+    digest.update(b"\0")
+    digest.update(payload)
+    digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def _json_bytes(payload: dict[str, Any]) -> bytes:
+    return json.dumps(payload, indent=2, sort_keys=True).encode("utf-8")
+
+
+def _write_deterministic_csv_guarded(
+    frame: pd.DataFrame,
+    output_path: Path,
+    *,
+    sort_by: tuple[str, ...] = (),
+) -> None:
+    _ARTIFACT_CHECKSUM_REGISTRY.assert_writable(output_path)
+    write_deterministic_csv(frame, output_path, sort_by=sort_by)
+
+
+def _write_deterministic_parquet_guarded(
+    frame: pd.DataFrame,
+    output_path: Path,
+    *,
+    sort_by: tuple[str, ...] = (),
+) -> None:
+    _ARTIFACT_CHECKSUM_REGISTRY.assert_writable(output_path)
+    write_deterministic_parquet(frame, output_path, sort_by=sort_by)
+
+
 def _station_worker_result_path(config: CleaningRunConfig, station_id: str) -> Path:
     return (
         config.manifest_root
@@ -1566,7 +1753,7 @@ def _run_station_processing_whole_file(
             output_dir=paths.domain_dir,
             output_format=config.input_format,
         )
-        write_deterministic_csv(
+        _write_deterministic_csv_guarded(
             pd.DataFrame(domain_rows),
             paths.domain_manifest_path,
             sort_by=("domain",),
@@ -2366,9 +2553,9 @@ def _write_chunked_domain_outputs(
             )
             _ensure_dir(chunk_output_path.parent)
             if output_format == "csv":
-                write_deterministic_csv(domain_df, chunk_output_path)
+                _write_deterministic_csv_guarded(domain_df, chunk_output_path)
             else:
-                write_deterministic_parquet(
+                _write_deterministic_parquet_guarded(
                     _normalize_object_columns_for_parquet(domain_df),
                     chunk_output_path,
                 )
@@ -2399,7 +2586,7 @@ def _write_chunked_domain_outputs(
             }
         )
 
-    write_deterministic_csv(
+    _write_deterministic_csv_guarded(
         pd.DataFrame(manifest_rows),
         manifest_path,
         sort_by=("domain",),
@@ -2464,10 +2651,10 @@ def _normalize_canonical_contract_columns(cleaned: pd.DataFrame) -> pd.DataFrame
 
 def _write_cleaned_station(cleaned: pd.DataFrame, output_path: Path, input_format: str) -> None:
     if input_format == "csv":
-        write_deterministic_csv(cleaned, output_path)
+        _write_deterministic_csv_guarded(cleaned, output_path)
         return
     if input_format == "parquet":
-        write_deterministic_parquet(_normalize_object_columns_for_parquet(cleaned), output_path)
+        _write_deterministic_parquet_guarded(_normalize_object_columns_for_parquet(cleaned), output_path)
         return
     raise ValueError(f"Unsupported input format: {input_format}")
 
@@ -2934,6 +3121,7 @@ def _build_release_manifest_rows(
     status_df: pd.DataFrame,
     quality_frames: dict[str, pd.DataFrame],
     creation_timestamp: str,
+    artifact_checksums: ArtifactChecksumRegistry,
 ) -> list[dict[str, Any]]:
     raw_source_lineage_by_station = _raw_source_lineage_by_station(config)
     source_rows, source_artifact_ids_by_station = _source_release_manifest_rows(
@@ -2941,6 +3129,7 @@ def _build_release_manifest_rows(
         status_df,
         creation_timestamp=creation_timestamp,
         raw_source_lineage_by_station=raw_source_lineage_by_station,
+        artifact_checksums=artifact_checksums,
     )
 
     canonical_rows = _canonical_release_manifest_rows(
@@ -2948,6 +3137,7 @@ def _build_release_manifest_rows(
         status_df,
         creation_timestamp=creation_timestamp,
         source_artifact_ids_by_station=source_artifact_ids_by_station,
+        artifact_checksums=artifact_checksums,
     )
     canonical_artifact_ids = {str(row["artifact_id"]) for row in canonical_rows}
 
@@ -2957,6 +3147,7 @@ def _build_release_manifest_rows(
         creation_timestamp=creation_timestamp,
         canonical_artifact_ids=canonical_artifact_ids,
         source_artifact_ids_by_station=source_artifact_ids_by_station,
+        artifact_checksums=artifact_checksums,
     )
     domain_artifact_ids = {str(row["artifact_id"]) for row in domain_rows}
 
@@ -2966,6 +3157,7 @@ def _build_release_manifest_rows(
         creation_timestamp=creation_timestamp,
         canonical_artifact_ids=canonical_artifact_ids,
         domain_artifact_ids=domain_artifact_ids,
+        artifact_checksums=artifact_checksums,
     )
 
     rows = source_rows + canonical_rows + domain_rows + quality_rows
@@ -2979,6 +3171,7 @@ def _source_release_manifest_rows(
     *,
     creation_timestamp: str,
     raw_source_lineage_by_station: dict[str, list[str]],
+    artifact_checksums: ArtifactChecksumRegistry,
 ) -> tuple[list[dict[str, Any]], dict[str, str]]:
     completed = status_df[status_df["status"].astype(str) == "completed"].copy()
     rows: list[dict[str, Any]] = []
@@ -3004,7 +3197,7 @@ def _source_release_manifest_rows(
                     raw_source_lineage_by_station.get(station_id, [str(raw_path.resolve())])
                 ),
                 "row_count": int(_coerce_int(record.get("row_count_raw", 0))),
-                "checksum": _checksum_for_output_bundle([raw_path]),
+                "checksum": artifact_checksums.checksum_for_path(raw_path),
                 "creation_timestamp": created_at,
             }
         )
@@ -3046,6 +3239,7 @@ def _canonical_release_manifest_rows(
     *,
     creation_timestamp: str,
     source_artifact_ids_by_station: dict[str, str],
+    artifact_checksums: ArtifactChecksumRegistry,
 ) -> list[dict[str, Any]]:
     completed = status_df[status_df["status"].astype(str) == "completed"].copy()
     rows: list[dict[str, Any]] = []
@@ -3073,7 +3267,7 @@ def _canonical_release_manifest_rows(
                 "build_id": config.run_id,
                 "input_lineage": _json_compact(lineage),
                 "row_count": row_count,
-                "checksum": _checksum_for_output_bundle([cleaned_path]),
+                "checksum": artifact_checksums.checksum_for_path(cleaned_path),
                 "creation_timestamp": created_at,
             }
         )
@@ -3088,6 +3282,7 @@ def _domain_release_manifest_rows(
     creation_timestamp: str,
     canonical_artifact_ids: set[str],
     source_artifact_ids_by_station: dict[str, str],
+    artifact_checksums: ArtifactChecksumRegistry,
 ) -> list[dict[str, Any]]:
     completed = status_df[status_df["status"].astype(str) == "completed"].copy()
     rows: list[dict[str, Any]] = []
@@ -3131,7 +3326,7 @@ def _domain_release_manifest_rows(
                     "build_id": config.run_id,
                     "input_lineage": _json_compact(lineage),
                     "row_count": int(_coerce_int(record.get("rows", 0))),
-                    "checksum": _checksum_for_output_bundle([file_path]),
+                    "checksum": artifact_checksums.checksum_for_path(file_path),
                     "creation_timestamp": created_at,
                 }
             )
@@ -3146,6 +3341,7 @@ def _quality_release_manifest_rows(
     creation_timestamp: str,
     canonical_artifact_ids: set[str],
     domain_artifact_ids: set[str],
+    artifact_checksums: ArtifactChecksumRegistry,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     lineage = sorted(canonical_artifact_ids | domain_artifact_ids)
@@ -3164,7 +3360,7 @@ def _quality_release_manifest_rows(
                 "build_id": config.run_id,
                 "input_lineage": _json_compact(lineage),
                 "row_count": int(len(frame)),
-                "checksum": _checksum_for_output_bundle([artifact_path]),
+                "checksum": artifact_checksums.checksum_for_path(artifact_path),
                 "creation_timestamp": created_at,
             }
         )
@@ -3184,7 +3380,57 @@ def _build_full_file_manifest_rows(
     release_manifest_path: Path,
     quality_assessment_path: Path | None,
     publication_readiness_path: Path | None,
+    artifact_checksums: ArtifactChecksumRegistry,
+    precomputed_checksums: dict[Path, str] | None = None,
 ) -> list[dict[str, Any]]:
+    paths = _collect_file_manifest_paths(
+        config=config,
+        status_df=status_df,
+        run_manifest_path=run_manifest_path,
+        run_status_path=run_status_path,
+        run_config_path=run_config_path,
+        build_metadata_path=build_metadata_path,
+        release_manifest_path=release_manifest_path,
+        quality_assessment_path=quality_assessment_path,
+        publication_readiness_path=publication_readiness_path,
+    )
+
+    rows: list[dict[str, Any]] = []
+    for path in sorted(paths, key=lambda item: str(item)):
+        checksum = None
+        if precomputed_checksums is not None:
+            checksum = precomputed_checksums.get(path.resolve())
+        if checksum is None:
+            checksum = artifact_checksums.checksum_for_path(path)
+        rows.append(
+            {
+                "artifact_id": _full_file_manifest_artifact_id(config, path),
+                "artifact_type": _full_file_manifest_artifact_type(config, path),
+                "artifact_path": str(path),
+                "schema_version": RELEASE_MANIFEST_CONTRACT.schema_version,
+                "build_id": config.run_id,
+                "input_lineage": _json_compact([]),
+                "row_count": _file_row_count(path),
+                "checksum": checksum,
+                "creation_timestamp": creation_timestamp,
+            }
+        )
+    return rows
+
+
+def _collect_file_manifest_paths(
+    *,
+    config: CleaningRunConfig,
+    status_df: pd.DataFrame,
+    run_manifest_path: Path,
+    run_status_path: Path,
+    run_config_path: Path,
+    build_metadata_path: Path,
+    release_manifest_path: Path,
+    quality_assessment_path: Path | None,
+    publication_readiness_path: Path | None,
+    include_release_manifest: bool = True,
+) -> set[Path]:
     paths: set[Path] = set()
     completed = status_df[status_df["status"].astype(str) == "completed"].copy()
 
@@ -3220,14 +3466,15 @@ def _build_full_file_manifest_rows(
         run_status_path,
         run_config_path,
         build_metadata_path,
-        release_manifest_path,
         config.reports_root / "quality_reports_summary.md",
     ]
+    if include_release_manifest:
+        global_paths.append(release_manifest_path)
     if quality_assessment_path is not None and quality_assessment_path.exists():
         global_paths.append(quality_assessment_path)
     # Intentionally exclude file_manifest.csv itself to avoid a recursive
     # self-checksum fixed point. publication_readiness_gate.json is included.
-    if publication_readiness_path is not None and publication_readiness_path.exists():
+    if publication_readiness_path is not None:
         global_paths.append(publication_readiness_path)
     global_paths.extend(config.reports_root / f"{name}.csv" for name in MANDATORY_QUALITY_ARTIFACT_NAMES)
     if config.write_flags.write_global_summary:
@@ -3236,23 +3483,19 @@ def _build_full_file_manifest_rows(
     for path in global_paths:
         if path.exists():
             paths.add(path.resolve())
+    if publication_readiness_path is not None:
+        paths.add(publication_readiness_path.resolve())
+    return paths
 
-    rows: list[dict[str, Any]] = []
+
+def _register_existing_artifact_paths(
+    paths: set[Path],
+    *,
+    artifact_checksums: ArtifactChecksumRegistry,
+    source: str,
+) -> None:
     for path in sorted(paths, key=lambda item: str(item)):
-        rows.append(
-            {
-                "artifact_id": _full_file_manifest_artifact_id(config, path),
-                "artifact_type": _full_file_manifest_artifact_type(config, path),
-                "artifact_path": str(path),
-                "schema_version": RELEASE_MANIFEST_CONTRACT.schema_version,
-                "build_id": config.run_id,
-                "input_lineage": _json_compact([]),
-                "row_count": _file_row_count(path),
-                "checksum": _checksum_for_output_bundle([path]),
-                "creation_timestamp": creation_timestamp,
-            }
-        )
-    return rows
+        artifact_checksums.register_existing_file(path, source=source)
 
 
 def _full_file_manifest_artifact_id(config: CleaningRunConfig, path: Path) -> str:
@@ -3349,15 +3592,12 @@ def _build_publication_readiness_gate(
     run_status_path: Path,
     run_config_path: Path,
     build_metadata_path: Path,
-    release_manifest_path: Path,
-    file_manifest_path: Path,
+    release_manifest: pd.DataFrame,
+    file_manifest: pd.DataFrame,
     quality_assessment_path: Path,
 ) -> dict[str, Any]:
     completion_check = _publication_completion_check(status_df)
     generated_at = _build_artifact_timestamp(build_metadata_path, fallback=_pst_now_iso())
-
-    release_manifest = pd.read_csv(release_manifest_path, dtype=str) if release_manifest_path.exists() else pd.DataFrame()
-    file_manifest = pd.read_csv(file_manifest_path, dtype=str) if file_manifest_path.exists() else pd.DataFrame()
 
     coverage_check = _publication_manifest_coverage_check(
         config=config,
@@ -3368,7 +3608,7 @@ def _build_publication_readiness_gate(
         run_status_path=run_status_path,
         run_config_path=run_config_path,
         build_metadata_path=build_metadata_path,
-        release_manifest_path=release_manifest_path,
+        release_manifest_path=config.manifest_root / "release_manifest.csv",
     )
     timestamp_check = _publication_timestamp_check(
         build_metadata_path=build_metadata_path,
@@ -3557,6 +3797,41 @@ def _filtered_file_manifest_for_gate(file_manifest: pd.DataFrame) -> pd.DataFram
     return file_manifest[
         file_manifest["artifact_type"].astype(str) != "publication_readiness_gate"
     ].copy()
+
+
+def _validate_cross_manifest_checksum_alignment(
+    release_manifest: pd.DataFrame,
+    file_manifest: pd.DataFrame,
+) -> None:
+    if release_manifest.empty or file_manifest.empty:
+        return
+
+    comparable_types = {"canonical_dataset", "domain_dataset", "quality_report", "raw_source"}
+    release_subset = release_manifest[
+        release_manifest["artifact_type"].astype(str).isin(comparable_types)
+    ][["artifact_path", "checksum"]].copy()
+    file_subset = file_manifest[
+        file_manifest["artifact_type"].astype(str).isin(comparable_types | {"build_file"})
+    ][["artifact_path", "checksum"]].copy()
+
+    release_lookup = {
+        str(record["artifact_path"]): str(record["checksum"])
+        for record in release_subset.to_dict(orient="records")
+    }
+    conflicts: list[str] = []
+    for record in file_subset.to_dict(orient="records"):
+        artifact_path = str(record["artifact_path"])
+        release_checksum = release_lookup.get(artifact_path)
+        if release_checksum is None:
+            continue
+        if release_checksum != str(record["checksum"]):
+            conflicts.append(artifact_path)
+
+    if conflicts:
+        raise RuntimeError(
+            "Release and file manifests disagree on checksum for artifact paths: "
+            + ", ".join(sorted(set(conflicts)))
+        )
 
 
 def _publication_structural_sanity_check(
@@ -4243,7 +4518,7 @@ def _write_quality_reports_summary(
     output_path.write_text("\n".join(lines), encoding="utf-8")
 
 
-def _write_release_manifest(path: Path, rows: list[dict[str, Any]]) -> None:
+def _release_manifest_frame(rows: list[dict[str, Any]]) -> pd.DataFrame:
     frame = pd.DataFrame(rows)
     for column in RELEASE_MANIFEST_COLUMNS:
         if column not in frame.columns:
@@ -4252,22 +4527,22 @@ def _write_release_manifest(path: Path, rows: list[dict[str, Any]]) -> None:
         frame = pd.DataFrame(columns=RELEASE_MANIFEST_COLUMNS)
     else:
         frame = frame[RELEASE_MANIFEST_COLUMNS]
+    return frame
+
+
+def _write_release_manifest(path: Path, rows: list[dict[str, Any]]) -> pd.DataFrame:
+    frame = _release_manifest_frame(rows)
     _validate_release_manifest_frame(frame)
     _validate_release_manifest_lineage(frame)
-    write_deterministic_csv(frame, path, sort_by=("artifact_id",))
+    _write_deterministic_csv_guarded(frame, path, sort_by=("artifact_id",))
+    return frame
 
 
-def _write_full_file_manifest(path: Path, rows: list[dict[str, Any]]) -> None:
-    frame = pd.DataFrame(rows)
-    for column in RELEASE_MANIFEST_COLUMNS:
-        if column not in frame.columns:
-            frame[column] = pd.NA
-    if frame.empty:
-        frame = pd.DataFrame(columns=RELEASE_MANIFEST_COLUMNS)
-    else:
-        frame = frame[RELEASE_MANIFEST_COLUMNS]
+def _write_full_file_manifest(path: Path, rows: list[dict[str, Any]]) -> pd.DataFrame:
+    frame = _release_manifest_frame(rows)
     _validate_release_manifest_frame(frame)
-    write_deterministic_csv(frame, path, sort_by=("artifact_id",))
+    _write_deterministic_csv_guarded(frame, path, sort_by=("artifact_id",))
+    return frame
 
 
 def _validate_release_manifest_frame(frame: pd.DataFrame) -> None:
@@ -4503,7 +4778,7 @@ def _write_manifest(path: Path, rows: list[dict[str, Any]]) -> None:
         frame = pd.DataFrame(columns=RUN_MANIFEST_COLUMNS)
     else:
         frame = frame[RUN_MANIFEST_COLUMNS]
-    write_deterministic_csv(frame, path, sort_by=("station_id",))
+    _write_deterministic_csv_guarded(frame, path, sort_by=("station_id",))
 
 
 def _read_manifest(path: Path) -> list[dict[str, Any]]:
@@ -4534,7 +4809,7 @@ def _write_status(path: Path, status_df: pd.DataFrame) -> None:
         frame = pd.DataFrame(columns=RUN_STATUS_COLUMNS)
     else:
         frame = frame[RUN_STATUS_COLUMNS]
-    write_deterministic_csv(frame, path, sort_by=("station_id",))
+    _write_deterministic_csv_guarded(frame, path, sort_by=("station_id",))
 
 
 def _run_config_payload(config: CleaningRunConfig) -> dict[str, Any]:
@@ -4791,10 +5066,11 @@ def _ensure_dir(path: Path) -> None:
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    _ARTIFACT_CHECKSUM_REGISTRY.assert_writable(path)
     _ensure_dir(path.parent)
     tmp_path = path.parent / f".{path.name}.tmp-{os.getpid()}-{uuid.uuid4().hex}"
     try:
-        tmp_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+        tmp_path.write_bytes(_json_bytes(payload))
         os.replace(tmp_path, path)
     finally:
         if tmp_path.exists():

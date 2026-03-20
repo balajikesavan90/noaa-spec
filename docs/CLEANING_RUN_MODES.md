@@ -166,6 +166,29 @@ Run-level publication artifacts are emitted only for a truthful completed run.
 - completed run: writes release/file manifests, advisory quality assessment, and publication readiness gate
 - failed/interrupted/partial run: does not leave those finalization artifacts behind
 - `manifests/run_state.json` always records whether the run is `completed`, `failed`, or `interrupted`
+- completed run also writes `manifests/post_run_audit.md` after finalization as a companion audit snapshot of the finished build
+
+## Finalization Order and Artifact Immutability
+
+For a completed run, finalization now follows a strict order:
+
+1. station-level and aggregate artifacts are fully written to their final paths
+2. finalized artifact paths are checksum-registered from on-disk bytes
+3. `release_manifest.csv` is built from that checksum registry
+4. `quality_assessment.json` is written and checksum-registered
+5. `file_manifest.csv` is built from the same checksum registry, with the planned gate checksum injected before the gate file is written
+6. `publication_readiness_gate.json` is built from the final manifest snapshot and written last
+7. `post_run_audit.md` is generated after finalization from the finished manifests, gate, and run state
+
+After an artifact path is checksum-registered, any later write to that same finalized path is treated as a runtime error.
+
+This prevents:
+
+- manifest rows for the same path from disagreeing on checksum
+- gate snapshots from being generated from stale intermediate manifests
+- silent post-checksum rewrites of finalized artifacts
+
+`post_run_audit.md` is intentionally a post-finalization companion artifact. It is not included in the integrity surfaces that `publication_readiness_gate.json` validates, so the audit can describe the final build without creating checksum recursion.
 
 ## Resumability and Completion Rules
 
