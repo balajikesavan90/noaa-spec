@@ -282,6 +282,7 @@ def test_quality_assessment_keeps_threshold_findings_advisory() -> None:
                 "rows_with_sentinel_impacts": [3],
                 "rows_with_quality_code_impacts": [4],
                 "rows_with_other_substantive_impacts": [0],
+                "usable_row_rate": [0.30],
             }
         ),
     }
@@ -299,16 +300,38 @@ def test_quality_assessment_keeps_threshold_findings_advisory() -> None:
         quality_frames=quality_frames,
         build_metadata_path=Path("/tmp/build_metadata.json"),
     )
-    assert summary["advisory_only"] is True
-    assert summary["threshold_policy"] == "advisory"
-    assert summary["threshold_evaluations"]["quality_code_exclusion_rate_threshold_ok"] is False
-    assert summary["threshold_evaluations"]["domain_usability_thresholds_ok"] is False
-    assert 0.0 <= float(summary["summary_scores"]["quality_score"]) <= 1.0
-    assert (
-        float(summary["summary_scores"]["quality_score_components"]["quality_code_exclusion"]) < 1.0
-    )
-    assert float(summary["summary_scores"]["quality_score_components"]["domain_usability"]) < 1.0
-    assert summary["sentinel_heavy_summaries"]["top_sentinel_stations"][0]["station_id"] == "01234567890"
+    assert "descriptive_notes" in summary
+    assert "observed_metric_distributions" in summary
+    assert summary["exclusion_rate_summaries"]["max_observed_exclusion_rate"] == pytest.approx(0.80)
+    assert summary["domain_usability_summaries"]["lowest_domain_usable_row_rates"][0]["domain"] == "core_meteorology"
+    assert summary["sentinel_impact_summaries"]["top_sentinel_stations"][0]["station_id"] == "01234567890"
+    assert summary["impact_summaries"]["station_year_low_usable_rows"][0]["year"] == 2020
+
+    forbidden_keys = {
+        "advisory_only",
+        "threshold_policy",
+        "threshold_evaluations",
+        "summary_scores",
+        "quality_score",
+        "quality_score_components",
+        "quality_score_weights",
+        "quality_code_exclusion_rate_threshold_ok",
+        "domain_usability_thresholds_ok",
+        "domain_usability_thresholds",
+        "domain_usability_threshold_violations",
+        "max_quality_code_exclusion_rate_allowed",
+    }
+
+    def _assert_forbidden_keys_absent(value: object) -> None:
+        if isinstance(value, dict):
+            assert forbidden_keys.isdisjoint(set(value.keys()))
+            for nested in value.values():
+                _assert_forbidden_keys_absent(nested)
+        elif isinstance(value, list):
+            for nested in value:
+                _assert_forbidden_keys_absent(nested)
+
+    _assert_forbidden_keys_absent(summary)
 
 
 def test_publication_structural_sanity_check_uses_bounds_not_quality_thresholds() -> None:
@@ -874,10 +897,8 @@ def test_mandatory_quality_artifacts_are_written_with_station_quality_profiles(
         "usable_rows",
         "usable_row_rate",
         "artifact_mode",
-        "advisory_only",
     }.issubset(domain_usability.columns)
     assert set(domain_usability["artifact_mode"].astype(str)) == {"fallback_no_domain_splits"}
-    assert set(domain_usability["advisory_only"].astype(str).str.lower()) == {"true"}
 
     station_year_quality = pd.read_csv(config.reports_root / "station_year_quality.csv")
     assert {"qc_attrition_rows", "usable_row_rate"}.issubset(station_year_quality.columns)
@@ -888,6 +909,7 @@ def test_mandatory_quality_artifacts_are_written_with_station_quality_profiles(
     assert "Quality Reports Summary" in summary_text
     assert "Highest Quality-Code Exclusion Rates" in summary_text
     assert "Highest Sentinel Event Rates" in summary_text
+    assert "advisory_only" not in summary_text
 
 
 def test_run_status_records_phase_timings_and_station_metrics(tmp_path: Path) -> None:

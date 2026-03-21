@@ -135,7 +135,7 @@ Relevant CLI controls:
 - `--max-station-retries`
 - `--station-timeout-seconds`
 
-## Publication Readiness vs Advisory Quality
+## Publication Readiness vs Descriptive Quality Diagnostics
 
 `manifests/publication_readiness_gate.json` is integrity-only. It covers build/package checks such as:
 
@@ -144,31 +144,21 @@ Relevant CLI controls:
 - structural sanity of required quality artifacts
 - build metadata completeness
 
-Threshold-based quality findings now live in `quality_reports/quality_assessment.json`.
+Descriptive quality diagnostics live in `quality_reports/quality_assessment.json`.
 
-Reference values are still emitted for advisory interpretation in that artifact:
-
-- quality-code exclusion reference rate: `0.25`
-- domain usability reference minima by domain:
-  - `core_meteorology`: `0.50`
-  - `wind`: `0.00`
-  - `precipitation`: `0.00`
-  - `clouds_visibility`: `0.00`
-  - `pressure_temperature`: `0.00`
-  - `remarks`: `0.00`
-
-These reference checks are emitted in `quality_reports/quality_assessment.json` for
-advisory interpretation. Threshold failures are reported there, but they do not
-control the top-level `passed` result in `manifests/publication_readiness_gate.json`.
+That artifact reports observed exclusion, completeness, sparsity, and usability
+metrics produced by NOAA-derived parsing, normalization, and QC semantics.
+It does not compare those observations to repository-defined quality thresholds
+and it does not prescribe acceptability.
 
 Run-level publication artifacts are emitted only for a truthful completed run.
 
-- completed run: writes release/file manifests, advisory quality assessment, and publication readiness gate
+- completed run: writes release/file manifests, descriptive quality diagnostics, and publication readiness gate
 - failed/interrupted/partial run: does not leave those finalization artifacts behind
 - `manifests/run_state.json` always records whether the run is `completed`, `failed`, or `interrupted`
 - completed run also writes `manifests/post_run_audit.md` after finalization as a companion audit snapshot of the finished build
 
-`quality_reports/quality_assessment.json` is required to exist for a completed build and is included in the publication gate's manifest-coverage check. Its threshold findings remain advisory-only.
+`quality_reports/quality_assessment.json` is required to exist for a completed build and is included in the publication gate's manifest-coverage check. Its contents remain descriptive and do not drive the top-level integrity result.
 
 ## Finalization Order and Artifact Immutability
 
@@ -311,8 +301,8 @@ poetry run python -m noaa_climate_data.cli cleaning-run \
 - `input_size_bytes`
 - `cleaned_size_bytes`
 
-When domain splits are disabled, `domain_usability_summary.csv` stays present but marks rows as
-fallback/advisory output using `artifact_mode=fallback_no_domain_splits` and `advisory_only=true`.
+When domain splits are disabled, `domain_usability_summary.csv` stays present and marks rows with
+`artifact_mode=fallback_no_domain_splits` so `__all__` summarizes canonical usability only.
 
 When `--write-station-reports` is enabled, cleaning-run writes:
 

@@ -15,8 +15,8 @@ Date: 2026-03-15
 
 ## Stale References Found
 
-- `docs/CLEANING_RUN_MODES.md`: one sentence still said threshold failures were emitted as gate criteria that changed the top-level publication gate result.
-- `docs/CURRENT_PROJECT_STATE.md`: multiple passages still described threshold evaluations as part of the publication gate outcome or described the current model as a quality-gated publication gate instead of a split-artifact model.
+- `docs/CLEANING_RUN_MODES.md`: one sentence still described quality diagnostics using older evaluative framing rather than the current descriptive-only model.
+- `docs/CURRENT_PROJECT_STATE.md`: multiple passages still described quality diagnostics as part of gate outcomes rather than as separate descriptive artifacts.
 
 ## Files Updated
 
@@ -29,5 +29,5 @@ Date: 2026-03-15
 
 No runtime semantic mismatch was found in the checked implementation or tests.
 
-- `src/noaa_climate_data/cleaning_runner.py` already implements an integrity-only `publication_readiness_gate.json` plus advisory `quality_assessment.json`.
-- `tests/test_cleaning_runner.py` and `tests/test_publication_schema_ci.py` already assert advisory threshold behavior and integrity-only gate semantics.
+- `src/noaa_climate_data/cleaning_runner.py` already implements an integrity-only `publication_readiness_gate.json` plus descriptive `quality_assessment.json`.
+- `tests/test_cleaning_runner.py` and `tests/test_publication_schema_ci.py` already assert descriptive quality-diagnostic behavior and integrity-only gate semantics.

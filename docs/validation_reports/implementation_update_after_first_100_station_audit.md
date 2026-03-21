@@ -112,10 +112,8 @@ Changed in `src/noaa_climate_data/cleaning_runner.py`.
 
 - when domain splits are enabled, rows now carry:
   - `artifact_mode=domain_splits`
-  - `advisory_only=false`
 - when domain splits are disabled, fallback rows are still written but are explicitly marked:
   - `artifact_mode=fallback_no_domain_splits`
-  - `advisory_only=true`
 - fallback usability is now derived from canonical cleaned output rather than a synthetic all-zero placeholder
 
 ### 6. Publication and quality semantics were split
@@ -123,13 +121,13 @@ Changed in `src/noaa_climate_data/cleaning_runner.py`.
 Changed in `src/noaa_climate_data/cleaning_runner.py`.
 
 - `publication_readiness_gate.json` now focuses on build/package integrity only
-- threshold-based quality findings now emit separately in `quality_reports/quality_assessment.json`
+- descriptive quality diagnostics now emit separately in `quality_reports/quality_assessment.json`
 - the gate now includes:
   - `quality_assessment_generated`
   - `quality_assessment_path`
-- `publication_readiness_gate.json` may point to the advisory quality artifact, but its top-level `passed` value is driven only by integrity/build-readiness checks
-- `quality_assessment.json` is the advisory artifact for threshold evaluations, impact summaries, and quality scoring
-- threshold evaluations remain visible, but they are reported rather than used to control top-level gate pass/fail
+- `publication_readiness_gate.json` may point to the descriptive quality artifact, but its top-level `passed` value is driven only by integrity/build-readiness checks
+- `quality_assessment.json` is the descriptive artifact for observed exclusion, completeness, usability, and impact summaries
+- observed quality-related metrics remain visible, but they do not control top-level gate integrity semantics
 - gate timestamps now derive from build metadata for stable artifact generation
 
 ### 7. Manifests were strengthened
@@ -154,7 +152,7 @@ Changed in `src/noaa_climate_data/cleaning_runner.py`.
 - highest quality-code exclusion rates
 - highest sentinel event rates
 - lowest field completeness
-- fallback/advisory domain-usability mode when domain splits are disabled
+- fallback domain-usability mode when domain splits are disabled
 
 `global_quality_summary.json` now also includes:
 
@@ -167,7 +165,7 @@ Changed in `src/noaa_climate_data/cleaning_runner.py`.
 
 Updated in `tests/test_cleaning_runner.py`:
 
-- quality assessment now verifies advisory threshold behavior
+- quality assessment now verifies descriptive metric output without threshold fields
 - publication structural sanity now verifies integrity-only bounds behavior
 - quality profile now verifies structural vs substantive separation
 - `run_status.csv` now verifies phase timing and workload columns

@@ -139,22 +139,6 @@ MANDATORY_QUALITY_ARTIFACT_NAMES: tuple[str, ...] = (
     "station_year_quality",
 )
 
-MAX_QUALITY_CODE_EXCLUSION_RATE = 0.25
-MIN_DOMAIN_USABLE_ROW_RATE_BY_DOMAIN: dict[str, float] = {
-    "core_meteorology": 0.50,
-    "wind": 0.00,
-    "precipitation": 0.00,
-    "clouds_visibility": 0.00,
-    "pressure_temperature": 0.00,
-    "remarks": 0.00,
-}
-
-QUALITY_SCORE_COMPONENT_WEIGHTS: dict[str, float] = {
-    "bounds_validity": 0.20,
-    "quality_code_exclusion": 0.50,
-    "domain_usability": 0.30,
-}
-
 QC_REASON_TO_FAMILY = {
     "SENTINEL_MISSING": "sentinel_handling",
     "BAD_QUALITY_CODE": "quality_code_handling",
@@ -2956,7 +2940,6 @@ def _build_mandatory_quality_artifact_frames(
             "usable_rows",
             "usable_row_rate",
             "artifact_mode",
-            "advisory_only",
         ],
     )
     station_year_quality = _build_station_year_quality_frame(config, status_df)
@@ -3073,7 +3056,6 @@ def _build_domain_usability_rows(
                     "usable_rows": usable_rows,
                     "usable_row_rate": (float(usable_rows) / float(rows_total) if rows_total > 0 else 0.0),
                     "artifact_mode": "domain_splits",
-                    "advisory_only": False,
                 }
             )
     rows.sort(key=lambda item: (str(item.get("station_id", "")), str(item.get("domain", ""))))
@@ -3108,7 +3090,6 @@ def _fallback_domain_usability_rows(
                 "usable_rows": usable_rows,
                 "usable_row_rate": (float(usable_rows) / float(rows_total) if rows_total > 0 else 0.0),
                 "artifact_mode": "fallback_no_domain_splits",
-                "advisory_only": True,
             }
         )
 
@@ -3947,44 +3928,15 @@ def _build_quality_assessment(
     quality_code_frame = quality_frames.get("quality_code_exclusions", pd.DataFrame())
     station_year_frame = quality_frames.get("station_year_quality", pd.DataFrame())
 
-    field_ok = _frame_ratio_bounds_ok(field_frame, "field_completeness_ratio")
-    domain_bounds_ok = _frame_ratio_bounds_ok(domain_frame, "usable_row_rate")
-
-    quality_code_threshold_ok = True
-    max_quality_code_exclusion_rate = 0.0
-    if not quality_code_frame.empty and "quality_code_exclusion_rate" in quality_code_frame.columns:
-        quality_rates = pd.to_numeric(quality_code_frame["quality_code_exclusion_rate"], errors="coerce").fillna(0.0)
-        if not quality_rates.empty:
-            max_quality_code_exclusion_rate = float(quality_rates.max())
-            quality_code_threshold_ok = max_quality_code_exclusion_rate <= MAX_QUALITY_CODE_EXCLUSION_RATE
-
-    domain_threshold_violations: list[dict[str, Any]] = []
-    if not domain_frame.empty and {"domain", "usable_row_rate"}.issubset(domain_frame.columns):
-        for row in domain_frame.to_dict(orient="records"):
-            domain_name = str(row.get("domain", ""))
-            observed = float(pd.to_numeric(pd.Series([row.get("usable_row_rate", 0.0)]), errors="coerce").fillna(0.0).iloc[0])
-            minimum = float(MIN_DOMAIN_USABLE_ROW_RATE_BY_DOMAIN.get(domain_name, 0.0))
-            if observed < minimum:
-                domain_threshold_violations.append(
-                    {
-                        "domain": domain_name,
-                        "minimum_usable_row_rate": minimum,
-                        "observed_usable_row_rate": observed,
-                    }
-                )
-    domain_thresholds_ok = not domain_threshold_violations
-
-    bounds_validity_score = (float(field_ok) + float(domain_bounds_ok)) / 2.0
-    quality_code_exclusion_score = _quality_code_exclusion_score(max_quality_code_exclusion_rate)
-    domain_usability_score = _domain_usability_score(domain_threshold_violations)
-    quality_score = _weighted_score(
-        {
-            "bounds_validity": bounds_validity_score,
-            "quality_code_exclusion": quality_code_exclusion_score,
-            "domain_usability": domain_usability_score,
-        },
-        QUALITY_SCORE_COMPONENT_WEIGHTS,
+    field_completeness_distribution = _numeric_distribution(field_frame, "field_completeness_ratio")
+    domain_usable_row_distribution = _numeric_distribution(domain_frame, "usable_row_rate")
+    sentinel_row_distribution = _numeric_distribution(sentinel_frame, "sentinel_row_rate")
+    sentinel_events_distribution = _numeric_distribution(sentinel_frame, "sentinel_events_per_row")
+    quality_code_exclusion_distribution = _numeric_distribution(
+        quality_code_frame,
+        "quality_code_exclusion_rate",
     )
+    station_year_usable_row_distribution = _numeric_distribution(station_year_frame, "usable_row_rate")
 
     sentinel_heavy_stations = _top_records(
         sentinel_frame,
@@ -4020,49 +3972,67 @@ def _build_quality_assessment(
         ],
         ascending=True,
     )
+    domain_low_usable_rows = _top_records(
+        domain_frame,
+        sort_column="usable_row_rate",
+        columns=[
+            "station_id",
+            "domain",
+            "usable_row_rate",
+            "usable_rows",
+            "rows_total",
+            "artifact_mode",
+        ],
+        ascending=True,
+    )
     structural_impact_summary, substantive_impact_summary = _station_quality_impact_summaries(config)
+    station_year_low_usable_rows = _station_year_impact_summary(station_year_frame, "usable_row_rate")
 
     completed = status_df[status_df["status"].astype(str) == "completed"].copy()
     total_completed = int(len(completed))
     return {
         "run_id": config.run_id,
         "generated_at": _build_artifact_timestamp(build_metadata_path, fallback=_pst_now_iso()),
-        "advisory_only": True,
-        "threshold_policy": "advisory",
         "completed_station_count": total_completed,
-        "threshold_evaluations": {
-            "field_completeness_ratio_bounds_ok": field_ok,
-            "domain_usable_row_rate_bounds_ok": domain_bounds_ok,
-            "quality_code_exclusion_rate_threshold_ok": quality_code_threshold_ok,
-            "max_quality_code_exclusion_rate": max_quality_code_exclusion_rate,
-            "max_quality_code_exclusion_rate_allowed": MAX_QUALITY_CODE_EXCLUSION_RATE,
-            "domain_usability_thresholds_ok": domain_thresholds_ok,
-            "domain_usability_thresholds": MIN_DOMAIN_USABLE_ROW_RATE_BY_DOMAIN,
-            "domain_usability_threshold_violations": domain_threshold_violations,
-        },
-        "summary_scores": {
-            "quality_score": quality_score,
-            "quality_score_components": {
-                "bounds_validity": bounds_validity_score,
-                "quality_code_exclusion": quality_code_exclusion_score,
-                "domain_usability": domain_usability_score,
-            },
-            "quality_score_weights": QUALITY_SCORE_COMPONENT_WEIGHTS,
+        "descriptive_notes": [
+            "Quality-related outputs are descriptive diagnostics derived from NOAA-defined parsing, normalization, and QC semantics.",
+            "Observed exclusion, sparsity, and usability metrics describe the properties of cleaned artifacts and do not prescribe acceptability.",
+        ],
+        "observed_metric_distributions": {
+            "field_completeness_ratio": field_completeness_distribution,
+            "domain_usable_row_rate": domain_usable_row_distribution,
+            "quality_code_exclusion_rate": quality_code_exclusion_distribution,
+            "sentinel_row_rate": sentinel_row_distribution,
+            "sentinel_events_per_row": sentinel_events_distribution,
+            "station_year_usable_row_rate": station_year_usable_row_distribution,
         },
         "exclusion_rate_summaries": {
+            "max_observed_exclusion_rate": quality_code_exclusion_distribution.get("max"),
+            "mean_exclusion_rate": quality_code_exclusion_distribution.get("mean"),
+            "median_exclusion_rate": quality_code_exclusion_distribution.get("median"),
+            "exclusion_rate_percentiles": quality_code_exclusion_distribution.get("percentiles", {}),
             "top_quality_code_exclusion_stations": exclusion_heavy_stations,
         },
-        "sentinel_heavy_summaries": {
+        "sentinel_impact_summaries": {
+            "max_observed_sentinel_row_rate": sentinel_row_distribution.get("max"),
+            "mean_sentinel_row_rate": sentinel_row_distribution.get("mean"),
+            "median_sentinel_row_rate": sentinel_row_distribution.get("median"),
             "top_sentinel_stations": sentinel_heavy_stations,
         },
-        "completeness_concerns": {
+        "completeness_summaries": {
+            "field_completeness_ratio_distribution": field_completeness_distribution,
             "lowest_field_completeness": completeness_concerns,
+        },
+        "domain_usability_summaries": {
+            "usable_row_rate_distribution": domain_usable_row_distribution,
+            "lowest_domain_usable_row_rates": domain_low_usable_rows,
         },
         "impact_summaries": {
             "structural_vs_substantive": {
                 "highest_structural_impact_stations": structural_impact_summary,
                 "highest_substantive_impact_stations": substantive_impact_summary,
-            }
+            },
+            "station_year_low_usable_rows": station_year_low_usable_rows,
         },
     }
 
@@ -4171,32 +4141,6 @@ def _build_publication_scores(checks: dict[str, dict[str, Any]]) -> dict[str, An
         "integrity_components": integrity_components,
         "scale": "0_to_1",
     }
-
-
-def _quality_code_exclusion_score(max_quality_code_exclusion_rate: float) -> float:
-    reference = float(MAX_QUALITY_CODE_EXCLUSION_RATE)
-    if reference <= 0.0:
-        return 1.0
-    ratio = max(0.0, max_quality_code_exclusion_rate) / reference
-    return _clamp01(1.0 / (1.0 + ratio))
-
-
-def _domain_usability_score(domain_threshold_violations: list[dict[str, Any]]) -> float:
-    if not domain_threshold_violations:
-        return 1.0
-
-    deficit_ratios: list[float] = []
-    for violation in domain_threshold_violations:
-        minimum = float(violation.get("minimum_usable_row_rate", 0.0))
-        observed = float(violation.get("observed_usable_row_rate", 0.0))
-        if minimum <= 0.0:
-            continue
-        deficit = max(0.0, minimum - observed)
-        deficit_ratios.append(_clamp01(deficit / minimum))
-
-    if not deficit_ratios:
-        return 1.0
-    return _clamp01(1.0 - (sum(deficit_ratios) / len(deficit_ratios)))
 
 
 def _frame_ratio_bounds_ok(frame: pd.DataFrame, column: str) -> bool:
@@ -4341,18 +4285,6 @@ def _records_for_json(frame: pd.DataFrame) -> list[dict[str, Any]]:
     return records
 
 
-def _weighted_score(values: dict[str, float], weights: dict[str, float]) -> float:
-    numerator = 0.0
-    denominator = 0.0
-    for key, weight in weights.items():
-        weight_value = max(0.0, float(weight))
-        denominator += weight_value
-        numerator += _clamp01(float(values.get(key, 0.0))) * weight_value
-    if denominator <= 0.0:
-        return 0.0
-    return _clamp01(numerator / denominator)
-
-
 def _mean_score(values: Any) -> float:
     numeric_values = [_clamp01(float(value)) for value in values]
     if not numeric_values:
@@ -4362,6 +4294,45 @@ def _mean_score(values: Any) -> float:
 
 def _clamp01(value: float) -> float:
     return max(0.0, min(1.0, float(value)))
+
+
+def _numeric_distribution(frame: pd.DataFrame, column: str) -> dict[str, Any]:
+    if frame.empty or column not in frame.columns:
+        return {
+            "count": 0,
+            "min": None,
+            "max": None,
+            "mean": None,
+            "median": None,
+            "percentiles": {},
+        }
+
+    values = pd.to_numeric(frame[column], errors="coerce").dropna()
+    if values.empty:
+        return {
+            "count": 0,
+            "min": None,
+            "max": None,
+            "mean": None,
+            "median": None,
+            "percentiles": {},
+        }
+
+    percentiles = {
+        "p05": float(values.quantile(0.05)),
+        "p25": float(values.quantile(0.25)),
+        "p50": float(values.quantile(0.50)),
+        "p75": float(values.quantile(0.75)),
+        "p95": float(values.quantile(0.95)),
+    }
+    return {
+        "count": int(values.shape[0]),
+        "min": float(values.min()),
+        "max": float(values.max()),
+        "mean": float(values.mean()),
+        "median": float(values.median()),
+        "percentiles": percentiles,
+    }
 
 
 def _year_series(cleaned: pd.DataFrame) -> pd.Series:
@@ -4508,13 +4479,13 @@ def _write_quality_reports_summary(
                     )
                 )
     domain_frame = quality_frames.get("domain_usability_summary", pd.DataFrame())
-    if not domain_frame.empty and {"artifact_mode", "advisory_only"}.issubset(domain_frame.columns):
+    if not domain_frame.empty and {"artifact_mode"}.issubset(domain_frame.columns):
         fallback_rows = domain_frame[domain_frame["artifact_mode"].astype(str) == "fallback_no_domain_splits"]
         if not fallback_rows.empty:
             lines.append("")
             lines.append(
                 "### Domain Usability Mode\n"
-                "- advisory_only=true because domain splits were disabled; `__all__` rows summarize canonical usability only."
+                "- artifact_mode=fallback_no_domain_splits because domain splits were disabled; `__all__` rows summarize canonical usability only."
             )
     lines.append("")
     _ensure_dir(output_path.parent)

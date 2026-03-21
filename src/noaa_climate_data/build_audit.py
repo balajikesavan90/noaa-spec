@@ -311,8 +311,11 @@ def render_build_audit_report(build_root: Path) -> str:
             + " cases."
         )
 
-    if quality_assessment.get("advisory_only", False):
-        findings.append("Quality assessment is advisory-only and does not block publication integrity checks.")
+    descriptive_notes = quality_assessment.get("descriptive_notes", [])
+    if isinstance(descriptive_notes, list) and descriptive_notes:
+        findings.append(
+            "Quality assessment is emitted as a descriptive diagnostic artifact separate from publication integrity checks."
+        )
 
     assessment_lines.extend(f"- {line}" for line in findings)
     assessment_lines.extend(

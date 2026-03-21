@@ -463,10 +463,11 @@ def test_ci_publication_readiness_gate_report(tmp_path: Path) -> None:
     quality_assessment_path = config.reports_root / "quality_assessment.json"
     assert quality_assessment_path.exists()
     quality_assessment = json.loads(quality_assessment_path.read_text(encoding="utf-8"))
-    assert quality_assessment["advisory_only"] is True
-    assert quality_assessment["threshold_policy"] == "advisory"
-    assert "threshold_evaluations" in quality_assessment
+    assert "descriptive_notes" in quality_assessment
+    assert "observed_metric_distributions" in quality_assessment
     assert "impact_summaries" in quality_assessment
+    assert "threshold_evaluations" not in quality_assessment
+    assert "summary_scores" not in quality_assessment
 
 
 def test_ci_run_manifest_snapshot_vs_run_status_execution_truth(tmp_path: Path) -> None:

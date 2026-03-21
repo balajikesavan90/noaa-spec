@@ -20,7 +20,7 @@ The strongest current signals are:
 - spec coverage is currently reported as 3536/3536 implemented and strictly tested,
 - suspicious coverage is currently 0,
 - recent contract-check cleaning runs completed successfully on 11 local station datasets,
-- `publication_readiness_gate.json` now serves as an integrity/build-readiness artifact, while threshold-driven quality findings are emitted separately as advisory output in `quality_reports/quality_assessment.json`.
+- `publication_readiness_gate.json` now serves as an integrity/build-readiness artifact, while descriptive quality diagnostics are emitted separately in `quality_reports/quality_assessment.json`.
 
 ## Where the project stands today
 
@@ -56,15 +56,13 @@ Key facts from the run:
 - timestamp validity: passed
 - checksum policy conformance: passed
 - publication gate: passed
-- quality score: 0.6416
 - integrity score: 1.0000
-- overall score: 0.8925
 - max observed quality-code exclusion rate: 0.6330
 
 Important interpretation:
 
 - The run is **operationally healthy**: all stations completed, manifests matched expectations, timestamps and checksums validated.
-- The run is **scientifically transparent rather than aggressively filtered**: quality exclusion rates are still high for some data slices, and those threshold evaluations are surfaced explicitly in `quality_reports/quality_assessment.json` instead of being collapsed into the top-level gate result.
+- The run is **scientifically transparent rather than aggressively filtered**: observed exclusion and sparsity metrics are surfaced explicitly in `quality_reports/quality_assessment.json` as descriptive diagnostics rather than as repository-defined acceptability decisions.
 
 Supporting artifacts:
 
@@ -89,7 +87,7 @@ The publication gate expected 361 artifacts and found all 361.
 
 Run artifacts live under [artifacts/test_runs/contract_check_20260308T183600-0700](../artifacts/test_runs/contract_check_20260308T183600-0700).
 
-This run processed the same 11 stations and the same 1,310,114 rows, but its top-level publication gate still returned `passed: false` under the older semantics because a quality threshold evaluation was still being used as gating logic rather than reported as advisory output.
+This run processed the same 11 stations and the same 1,310,114 rows, but its top-level publication gate still returned `passed: false` under the older semantics because a quality-evaluation rule was still influencing gating logic rather than being separated into descriptive diagnostics.
 
 Supporting artifact:
 
@@ -99,15 +97,15 @@ Supporting artifact:
 
 The important project-state change is not the raw data volume. It is the publication policy.
 
-By March 11, the artifact split was updated to use:
+By March 11, the artifact split was updated so that:
 
-- continuous quality scoring,
-- an overall integrity/quality composite score,
-- advisory threshold reporting for elevated quality-code exclusion rates.
+- integrity checks remained in the publication gate,
+- observed quality-related metrics were emitted separately as descriptive diagnostics,
+- quality-related outputs no longer determined whether a completed build was publication-ready.
 
 That behavior is documented in [docs/CLEANING_RUN_MODES.md](CLEANING_RUN_MODES.md).
 
-This is a meaningful maturity step: the pipeline now preserves transparency about quality attrition without automatically declaring the whole publication invalid.
+This is a meaningful maturity step: the pipeline now preserves transparency about quality attrition without imposing repository-defined quality judgments on the data.
 
 ## How the data cleaning works
 
