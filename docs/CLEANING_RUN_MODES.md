@@ -168,6 +168,8 @@ Run-level publication artifacts are emitted only for a truthful completed run.
 - `manifests/run_state.json` always records whether the run is `completed`, `failed`, or `interrupted`
 - completed run also writes `manifests/post_run_audit.md` after finalization as a companion audit snapshot of the finished build
 
+`quality_reports/quality_assessment.json` is required to exist for a completed build and is included in the publication gate's manifest-coverage check. Its threshold findings remain advisory-only.
+
 ## Finalization Order and Artifact Immutability
 
 For a completed run, finalization now follows a strict order:

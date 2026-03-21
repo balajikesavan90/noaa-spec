@@ -3609,6 +3609,7 @@ def _build_publication_readiness_gate(
         run_config_path=run_config_path,
         build_metadata_path=build_metadata_path,
         release_manifest_path=config.manifest_root / "release_manifest.csv",
+        quality_assessment_path=quality_assessment_path,
     )
     timestamp_check = _publication_timestamp_check(
         build_metadata_path=build_metadata_path,
@@ -3665,6 +3666,7 @@ def _publication_manifest_coverage_check(
     run_config_path: Path,
     build_metadata_path: Path,
     release_manifest_path: Path,
+    quality_assessment_path: Path,
 ) -> dict[str, Any]:
     filtered_file_manifest = _filtered_file_manifest_for_gate(file_manifest)
     expected_paths: set[str] = set()
@@ -3704,6 +3706,7 @@ def _publication_manifest_coverage_check(
         run_config_path,
         build_metadata_path,
         release_manifest_path,
+        quality_assessment_path,
         config.reports_root / "quality_reports_summary.md",
     ]
     global_paths.extend(config.reports_root / f"{name}.csv" for name in MANDATORY_QUALITY_ARTIFACT_NAMES)
