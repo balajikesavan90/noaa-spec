@@ -1198,6 +1198,67 @@ def test_publication_gate_matches_final_manifest_snapshot(tmp_path: Path) -> Non
     assert stored_gate == rebuilt_gate
 
 
+def test_publication_gate_is_fixed_point_across_provisional_and_final_file_manifest(
+    tmp_path: Path,
+) -> None:
+    input_root = tmp_path / "inputs"
+    station_id = "01234567890"
+    _write_raw_csv(input_root / station_id, station_id)
+
+    config = _config(
+        tmp_path,
+        mode="test_csv_dir",
+        input_format="csv",
+        run_id="run_gate_fixed_point",
+        input_root=input_root,
+        write_flags=_flags(cleaned=True, domain=True, quality=True, reports=False, global_summary=True),
+    )
+    run_cleaning_run(config)
+
+    run_status = pd.read_csv(config.manifest_root / "run_status.csv", dtype=str)
+    release_manifest = pd.read_csv(config.manifest_root / "release_manifest.csv", dtype=str)
+    file_manifest = pd.read_csv(config.manifest_root / "file_manifest.csv", dtype=str)
+    build_metadata_path = config.manifest_root / "build_metadata.json"
+    gate_path = config.manifest_root / "publication_readiness_gate.json"
+    stored_gate = json.loads(gate_path.read_text(encoding="utf-8"))
+    gate_row = file_manifest[file_manifest["artifact_type"].astype(str) == "publication_readiness_gate"]
+
+    assert len(gate_row) == 1
+
+    quality_frames = cleaning_runner._build_mandatory_quality_artifact_frames(config, run_status)
+    provisional_gate = cleaning_runner._build_publication_readiness_gate(
+        config=config,
+        status_df=run_status,
+        quality_frames=quality_frames,
+        run_manifest_path=config.manifest_root / "run_manifest.csv",
+        run_status_path=config.manifest_root / "run_status.csv",
+        run_config_path=config.manifest_root / "run_config.json",
+        build_metadata_path=build_metadata_path,
+        release_manifest=release_manifest,
+        file_manifest=file_manifest[file_manifest["artifact_type"].astype(str) != "publication_readiness_gate"].copy(),
+        quality_assessment_path=config.reports_root / "quality_assessment.json",
+    )
+    final_gate = cleaning_runner._build_publication_readiness_gate(
+        config=config,
+        status_df=run_status,
+        quality_frames=quality_frames,
+        run_manifest_path=config.manifest_root / "run_manifest.csv",
+        run_status_path=config.manifest_root / "run_status.csv",
+        run_config_path=config.manifest_root / "run_config.json",
+        build_metadata_path=build_metadata_path,
+        release_manifest=release_manifest,
+        file_manifest=file_manifest,
+        quality_assessment_path=config.reports_root / "quality_assessment.json",
+    )
+
+    assert provisional_gate == final_gate
+    assert stored_gate == final_gate
+    assert cleaning_runner._checksum_for_serialized_artifact(
+        gate_path,
+        cleaning_runner._json_bytes(final_gate),
+    ) == str(gate_row.iloc[0]["checksum"])
+
+
 def test_single_station_finalization_produces_passing_checksum_gate(tmp_path: Path) -> None:
     input_root = tmp_path / "inputs"
     station_id = "01234567890"
@@ -1239,6 +1300,54 @@ def test_completed_run_writes_post_run_audit_report(tmp_path: Path) -> None:
     content = audit_path.read_text(encoding="utf-8")
     assert "# Post-Run Audit Report" in content
     assert "| Embedded publication gate checksum check | pass |" in content
+
+
+def test_recover_completed_build_finalization_recreates_missing_terminal_artifacts(
+    tmp_path: Path,
+) -> None:
+    input_root = tmp_path / "inputs"
+    station_id = "01234567890"
+    _write_raw_csv(input_root / station_id, station_id)
+
+    config = _config(
+        tmp_path,
+        mode="test_csv_dir",
+        input_format="csv",
+        run_id="run_recover_finalization",
+        input_root=input_root,
+        write_flags=_flags(cleaned=True, domain=True, quality=True, reports=False, global_summary=False),
+    )
+    run_cleaning_run(config)
+
+    gate_path = config.manifest_root / "publication_readiness_gate.json"
+    run_state_path = config.manifest_root / "run_state.json"
+    audit_path = config.manifest_root / "post_run_audit.md"
+
+    gate_payload = json.loads(gate_path.read_text(encoding="utf-8"))
+    run_state_payload = json.loads(run_state_path.read_text(encoding="utf-8"))
+    audit_content = audit_path.read_text(encoding="utf-8")
+
+    gate_path.unlink()
+    run_state_path.unlink()
+    audit_path.unlink()
+
+    result = cleaning_runner.recover_completed_build_finalization(config.output_root.parent)
+
+    assert result["publication_readiness_gate"] == gate_path
+    assert result["run_state"] == run_state_path
+    assert result["post_run_audit"] == audit_path
+    assert json.loads(gate_path.read_text(encoding="utf-8")) == gate_payload
+    recovered_run_state = json.loads(run_state_path.read_text(encoding="utf-8"))
+    assert recovered_run_state["run_id"] == run_state_payload["run_id"]
+    assert recovered_run_state["state"] == "completed"
+    assert recovered_run_state["finalized"] is True
+    assert recovered_run_state["counts"] == run_state_payload["counts"]
+    assert recovered_run_state["elapsed_total_seconds"] >= 0.0
+    assert "# Post-Run Audit Report" in audit_path.read_text(encoding="utf-8")
+    assert "| Embedded publication gate checksum check | pass |" in audit_path.read_text(
+        encoding="utf-8"
+    )
+    assert audit_content == audit_path.read_text(encoding="utf-8")
 
 
 def test_parquet_raw_source_and_build_file_checksums_match(tmp_path: Path) -> None:

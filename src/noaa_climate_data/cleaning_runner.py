@@ -4890,6 +4890,181 @@ def cleaning_run_config_from_payload(payload: dict[str, Any]) -> CleaningRunConf
     )
 
 
+def _latest_valid_status_timestamp(
+    status_df: pd.DataFrame,
+    columns: tuple[str, ...],
+) -> str | None:
+    latest: datetime | None = None
+    for column in columns:
+        if column not in status_df.columns:
+            continue
+        for value in status_df[column].astype(str).tolist():
+            normalized = _normalize_iso_timestamp(value)
+            if normalized is None:
+                continue
+            parsed = datetime.fromisoformat(normalized)
+            if latest is None or parsed > latest:
+                latest = parsed
+    return latest.isoformat() if latest is not None else None
+
+
+def _run_elapsed_seconds_from_status(status_df: pd.DataFrame) -> float:
+    started_at: datetime | None = None
+    ended_at: datetime | None = None
+
+    if "started_at" in status_df.columns:
+        for value in status_df["started_at"].astype(str).tolist():
+            normalized = _normalize_iso_timestamp(value)
+            if normalized is None:
+                continue
+            parsed = datetime.fromisoformat(normalized)
+            if started_at is None or parsed < started_at:
+                started_at = parsed
+
+    if "ended_at" in status_df.columns:
+        for value in status_df["ended_at"].astype(str).tolist():
+            normalized = _normalize_iso_timestamp(value)
+            if normalized is None:
+                continue
+            parsed = datetime.fromisoformat(normalized)
+            if ended_at is None or parsed > ended_at:
+                ended_at = parsed
+
+    if started_at is not None and ended_at is not None and ended_at >= started_at:
+        return round(float((ended_at - started_at).total_seconds()), 6)
+
+    if "elapsed_total_seconds" in status_df.columns:
+        elapsed = pd.to_numeric(status_df["elapsed_total_seconds"], errors="coerce").dropna()
+        if not elapsed.empty:
+            return round(float(elapsed.sum()), 6)
+
+    return 0.0
+
+
+def recover_completed_build_finalization(
+    build_root: Path,
+    *,
+    overwrite_existing: bool = False,
+) -> dict[str, Path | dict[str, Any]]:
+    _reset_artifact_checksum_registry()
+    build_root = build_root.resolve()
+    manifest_root = build_root / "manifests"
+    run_config_path = manifest_root / "run_config.json"
+    run_manifest_path = manifest_root / "run_manifest.csv"
+    run_status_path = manifest_root / "run_status.csv"
+    build_metadata_path = manifest_root / "build_metadata.json"
+    release_manifest_path = manifest_root / "release_manifest.csv"
+    file_manifest_path = manifest_root / "file_manifest.csv"
+    publication_gate_path = manifest_root / "publication_readiness_gate.json"
+    run_state_path = manifest_root / "run_state.json"
+    audit_report_path = manifest_root / "post_run_audit.md"
+    quality_assessment_path = build_root / "quality_reports" / "quality_assessment.json"
+
+    required_paths = [
+        run_config_path,
+        run_manifest_path,
+        run_status_path,
+        build_metadata_path,
+        release_manifest_path,
+        file_manifest_path,
+        quality_assessment_path,
+    ]
+    missing_required = [str(path) for path in required_paths if not path.exists()]
+    if missing_required:
+        raise FileNotFoundError(
+            "Cannot recover finalization artifacts; required build files are missing: "
+            + ", ".join(missing_required)
+        )
+
+    existing_outputs = [
+        path for path in (publication_gate_path, run_state_path, audit_report_path) if path.exists()
+    ]
+    if existing_outputs and not overwrite_existing:
+        raise FileExistsError(
+            "Recovery refused because terminal artifacts already exist: "
+            + ", ".join(str(path) for path in existing_outputs)
+        )
+
+    config_payload = json.loads(run_config_path.read_text(encoding="utf-8"))
+    config = cleaning_run_config_from_payload(config_payload)
+
+    if config.output_root.resolve().parent != build_root:
+        raise ValueError(
+            "run_config roots do not match the provided build_root: "
+            f"build_root={build_root} output_root={config.output_root.resolve()}"
+        )
+
+    run_status = pd.read_csv(run_status_path, dtype=str)
+    run_state = _terminal_run_state(run_status)
+    if not run_state["finalizable"]:
+        raise ValueError(
+            "Recovery only supports completed builds: "
+            f"state={run_state['state']} counts={run_state['counts']}"
+        )
+
+    release_manifest = pd.read_csv(release_manifest_path, dtype=str)
+    file_manifest = pd.read_csv(file_manifest_path, dtype=str)
+
+    quality_frames = _build_mandatory_quality_artifact_frames(config, run_status)
+    publication_gate = _build_publication_readiness_gate(
+        config=config,
+        status_df=run_status,
+        quality_frames=quality_frames,
+        run_manifest_path=run_manifest_path,
+        run_status_path=run_status_path,
+        run_config_path=run_config_path,
+        build_metadata_path=build_metadata_path,
+        release_manifest=release_manifest,
+        file_manifest=file_manifest,
+        quality_assessment_path=quality_assessment_path,
+    )
+
+    gate_rows = file_manifest[file_manifest["artifact_type"].astype(str) == "publication_readiness_gate"]
+    if gate_rows.empty:
+        raise ValueError("file_manifest.csv does not contain a publication_readiness_gate row")
+    if len(gate_rows) != 1:
+        raise ValueError("file_manifest.csv must contain exactly one publication_readiness_gate row")
+
+    expected_gate_checksum = str(gate_rows.iloc[0]["checksum"])
+    recovered_gate_checksum = _checksum_for_serialized_artifact(
+        publication_gate_path,
+        _json_bytes(publication_gate),
+    )
+    if recovered_gate_checksum != expected_gate_checksum:
+        raise RuntimeError(
+            "Recovered publication gate checksum does not match file_manifest snapshot: "
+            f"expected={expected_gate_checksum} recovered={recovered_gate_checksum}"
+        )
+
+    _write_json(publication_gate_path, publication_gate)
+
+    run_state_payload = {
+        "run_id": config.run_id,
+        "state": run_state["state"],
+        "finalizable": run_state["finalizable"],
+        "finalized": True,
+        "generated_at": (
+            _latest_valid_status_timestamp(run_status, ("ended_at", "started_at"))
+            or _build_artifact_timestamp(build_metadata_path, fallback=_pst_now_iso())
+        ),
+        "elapsed_total_seconds": _run_elapsed_seconds_from_status(run_status),
+        "counts": run_state["counts"],
+        "stale_finalization_artifacts_removed": [],
+    }
+    _write_json(run_state_path, run_state_payload)
+
+    from .build_audit import write_build_audit_report
+
+    write_build_audit_report(build_root, audit_report_path)
+    return {
+        "publication_readiness_gate": publication_gate_path,
+        "run_state": run_state_path,
+        "post_run_audit": audit_report_path,
+        "run_state_payload": run_state_payload,
+        "publication_gate_payload": publication_gate,
+    }
+
+
 def _config_diff(existing: dict[str, Any], incoming: dict[str, Any]) -> str:
     diffs: list[str] = []
     for key in sorted(set(existing.keys()) | set(incoming.keys())):

@@ -195,6 +195,17 @@ poetry run python -m noaa_climate_data.cli pick-location \
   --output-dir output
 ```
 
+For cron, prefer the repo wrapper instead of calling the module entrypoint
+directly:
+
+```bash
+scripts/run_pick_location_cron.sh
+```
+
+The wrapper sets the repository root and exports `PYTHONPATH=<repo>/src` before
+executing `poetry run`, which prevents cron from failing if the Poetry
+environment no longer has the package installed in editable mode.
+
 This writes `LocationData_Raw.parquet` under `output/<station>/` and records the
 successful pull in `noaa_file_index/state/raw_pull_state.csv`. It does not
 rewrite `noaa_file_index/YYYYMMDD/Stations.csv`.

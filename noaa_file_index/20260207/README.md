@@ -53,8 +53,12 @@ This folder contains the NOAA Global Hourly file index and year-counts used by t
 
 #### Command:
 
-- `poetry run python -m noaa_climate_data.cli pick-location --start-year 1975 --end-year 2025 --sleep-seconds 0.5 --output-dir /media/balaji-kesavan/LaCie/NOAA_Data`
+- `scripts/run_pick_location_cron.sh`
 - `poetry run python -m noaa_climate_data.cli materialize-raw-pull-state`
+
+The cron wrapper exports `PYTHONPATH=<repo>/src` before invoking `poetry run`
+so the scheduled job still resolves `noaa_climate_data.cli` even if the Poetry
+environment no longer has the package installed in editable mode.
 
 #### Behavior:
 - Reads the immutable `Stations.csv` registry snapshot.

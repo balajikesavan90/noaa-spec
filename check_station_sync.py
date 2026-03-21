@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 import sys
+from datetime import datetime, timezone
 
 import pandas as pd
 
@@ -74,6 +75,12 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         help="Optional path to write a CSV report of mismatches",
     )
+    parser.add_argument(
+        "--stale-threshold-minutes",
+        type=float,
+        default=5.0,
+        help="Minutes since last successful pull before reporting stale progress (default 5)",
+    )
     return parser.parse_args()
 
 
@@ -111,6 +118,7 @@ def _load_raw_pull_state(raw_pull_state_csv: Path) -> pd.DataFrame:
     work = frame.copy()
     work["FileName"] = work["FileName"].fillna("").astype(str).map(normalize_station_file_name)
     work["raw_data_pulled"] = _coerce_boolean_series(work["raw_data_pulled"])
+    work["pulled_at"] = pd.to_datetime(work["pulled_at"], utc=True, errors="coerce")
     return work
 
 
@@ -131,6 +139,7 @@ def main() -> None:
     pulled_files = set(
         raw_pull_state[raw_pull_state["raw_data_pulled"]]["FileName"].astype(str).tolist()
     )
+    pulled_rows = raw_pull_state[raw_pull_state["raw_data_pulled"]].copy()
     expected_true = frame[frame["FileName"].isin(pulled_files)].copy()
     expected_false = frame[~frame["FileName"].isin(pulled_files)].copy()
 
@@ -171,6 +180,28 @@ def main() -> None:
     print(f"Total stations: {total}")
     print(f"raw_data_pulled=True: {len(expected_true)}")
     print(f"raw_data_pulled=False: {len(expected_false)}")
+    if not pulled_rows.empty:
+        latest_pulled_at = pulled_rows["pulled_at"].max()
+        if pd.notna(latest_pulled_at):
+            minutes_since_progress = (
+                datetime.now(timezone.utc) - latest_pulled_at.to_pydatetime()
+            ).total_seconds() / 60.0
+            progress_status = (
+                "stale"
+                if minutes_since_progress > args.stale_threshold_minutes
+                else "ok"
+            )
+            print(f"Latest successful pull: {latest_pulled_at.isoformat()}")
+            print(f"Minutes since latest pull: {minutes_since_progress:.2f}")
+            print(f"Progress freshness status: {progress_status}")
+        else:
+            print("Latest successful pull: n/a")
+            print("Minutes since latest pull: n/a")
+            print("Progress freshness status: unknown")
+    else:
+        print("Latest successful pull: n/a")
+        print("Minutes since latest pull: n/a")
+        print("Progress freshness status: no_pulls")
     print(f"Missing parquet (should exist): {len(missing_files)}")
     print(f"Unexpected parquet (should not exist): {len(unexpected_files)}")
     if present_sizes:
