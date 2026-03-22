@@ -17,7 +17,7 @@ def test_compare_payload_range_equal():
         field_identifier="TMP",
         rule_type="range",
         rule_description="tmp bounds",
-        enforcement_location="src/noaa_climate_data/cleaning.py",
+        enforcement_location="src/noaa_spec/cleaning.py",
         enforcement_function="_expand_parsed",
         code_reference="ref",
         behavior_on_violation="null",
@@ -49,7 +49,7 @@ def test_compare_payload_domain_subset_is_stricter():
         field_identifier="SOURCE",
         rule_type="domain",
         rule_description="source subset",
-        enforcement_location="src/noaa_climate_data/cleaning.py",
+        enforcement_location="src/noaa_spec/cleaning.py",
         enforcement_function="_validate_control_header",
         code_reference="ref",
         behavior_on_violation="null",
@@ -76,7 +76,7 @@ def test_compare_payload_domain_subset_is_stricter():
 
 
 def test_custom_rules_include_expected_implementation_rules():
-    cleaning_path = Path("src/noaa_climate_data/cleaning.py")
+    cleaning_path = Path("src/noaa_spec/cleaning.py")
     rules = build_custom_cleaning_rules(cleaning_path)
     ids = {f"{rule.field_identifier}:{rule.rule_description}" for rule in rules}
     assert any("CIG ceiling height is clipped to 22000.0" in item for item in ids)

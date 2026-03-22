@@ -1613,7 +1613,7 @@ def _station_subprocess_command(
     return [
         sys.executable,
         "-m",
-        "noaa_climate_data.cli",
+        "noaa_spec.cli",
         "cleaning-run-station-worker",
         "--run-config-path",
         str(run_config_path),

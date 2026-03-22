@@ -167,7 +167,7 @@ Summary:
 │   ├── split_cleaned_by_domain.py
 │   └── split_domains_by_station.py
 ├── src/
-│   └── noaa_climate_data/
+│   └── noaa_spec/
 │       ├── contract_schemas/
 │       │   └── v1/
 │       │       ├── canonical_dataset.json

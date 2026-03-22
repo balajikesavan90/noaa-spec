@@ -9,16 +9,16 @@ import sys
 import pandas as pd
 import pytest
 
-import noaa_climate_data.cleaning_runner as cleaning_runner
-from noaa_climate_data.cleaning_runner import (
+import noaa_spec.cleaning_runner as cleaning_runner
+from noaa_spec.cleaning_runner import (
     CleaningRunConfig,
     RunWriteFlags,
     _discover_stations,
     default_roots_for_mode,
     run_cleaning_run,
 )
-from noaa_climate_data.domains.registry import domain_names
-from noaa_climate_data.research_reports import domain_quality_report_names
+from noaa_spec.domains.registry import domain_names
+from noaa_spec.research_reports import domain_quality_report_names
 
 
 def _sample_raw_df(station_id: str) -> pd.DataFrame:
@@ -1873,7 +1873,7 @@ def test_station_not_marked_completed_without_all_expected_outputs_and_success_m
 import json
 from pathlib import Path
 import pandas as pd
-from noaa_climate_data.cleaning_runner import (
+from noaa_spec.cleaning_runner import (
     StationProcessingResult,
     _station_paths,
     _write_cleaned_station,

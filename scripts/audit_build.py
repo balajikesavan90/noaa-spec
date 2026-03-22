@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from noaa_climate_data.build_audit import write_build_audit_report
+from noaa_spec.build_audit import write_build_audit_report
 
 
 def _parse_args() -> argparse.Namespace:

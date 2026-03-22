@@ -3,7 +3,7 @@
 This document defines the production-safe cleaning runner:
 
 ```bash
-poetry run python -m noaa_climate_data.cli cleaning-run ...
+poetry run python -m noaa_spec.cli cleaning-run ...
 ```
 
 ## Why This Exists
@@ -209,7 +209,7 @@ Optional global summary (`quality_reports/global_quality_summary.json`) is built
 ### Local CSV test mode
 
 ```bash
-poetry run python -m noaa_climate_data.cli cleaning-run \
+poetry run python -m noaa_spec.cli cleaning-run \
   --mode test_csv_dir \
   --input-root outputs \
   --input-format csv
@@ -218,7 +218,7 @@ poetry run python -m noaa_climate_data.cli cleaning-run \
 ### Production parquet batch mode
 
 ```bash
-poetry run python -m noaa_climate_data.cli cleaning-run \
+poetry run python -m noaa_spec.cli cleaning-run \
   --mode batch_parquet_dir \
   --input-root /media/<user>/LaCie/NOAA_Data \
   --input-format parquet \
@@ -228,7 +228,7 @@ poetry run python -m noaa_climate_data.cli cleaning-run \
 ### Frozen pulled-station batch helper
 
 ```bash
-poetry run python -m noaa_climate_data.cli run-cleaning-batch \
+poetry run python -m noaa_spec.cli run-cleaning-batch \
   --raw-root /media/<user>/LaCie/NOAA_Data \
   --count 100
 ```
@@ -250,7 +250,7 @@ Selection strategies:
 ### Resume a prior run id
 
 ```bash
-poetry run python -m noaa_climate_data.cli cleaning-run \
+poetry run python -m noaa_spec.cli cleaning-run \
   --mode batch_parquet_dir \
   --input-root /media/<user>/LaCie/NOAA_Data \
   --input-format parquet \
@@ -260,7 +260,7 @@ poetry run python -m noaa_climate_data.cli cleaning-run \
 ### Refresh manifest/config for same run id (explicit)
 
 ```bash
-poetry run python -m noaa_climate_data.cli cleaning-run \
+poetry run python -m noaa_spec.cli cleaning-run \
   --mode batch_parquet_dir \
   --input-root /media/<user>/LaCie/NOAA_Data \
   --input-format parquet \
@@ -272,14 +272,14 @@ poetry run python -m noaa_climate_data.cli cleaning-run \
 
 ```bash
 # Turn on station reports explicitly
-poetry run python -m noaa_climate_data.cli cleaning-run \
+poetry run python -m noaa_spec.cli cleaning-run \
   --mode test_csv_dir \
   --input-root outputs \
   --input-format csv \
   --write-station-reports
 
 # Turn off domain splits
-poetry run python -m noaa_climate_data.cli cleaning-run \
+poetry run python -m noaa_spec.cli cleaning-run \
   --mode test_csv_dir \
   --input-root outputs \
   --input-format csv \

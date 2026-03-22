@@ -6,7 +6,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 export PATH="/usr/local/bin:/usr/bin:/bin:${HOME}/.local/bin:${PATH:-}"
-export PYTHONPATH="${REPO_ROOT}/src${PYTHONPATH:+:${PYTHONPATH}}"
 export POETRY_VIRTUALENVS_IN_PROJECT=false
 
 POETRY_BIN="${POETRY_BIN:-}"
@@ -23,7 +22,7 @@ fi
 
 cd "${REPO_ROOT}"
 
-exec "${POETRY_BIN}" run python -m noaa_climate_data.cli pick-location \
+exec "${POETRY_BIN}" run python -m noaa_spec.cli pick-location \
     --start-year "${NOAA_PICK_START_YEAR:-1975}" \
     --end-year "${NOAA_PICK_END_YEAR:-2025}" \
     --sleep-seconds "${NOAA_PICK_SLEEP_SECONDS:-0.5}" \

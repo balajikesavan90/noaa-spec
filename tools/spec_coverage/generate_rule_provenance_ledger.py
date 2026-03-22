@@ -260,7 +260,7 @@ def load_constants_module(repo_root: Path):
     src = str(repo_root / "src")
     if src not in sys.path:
         sys.path.insert(0, src)
-    return importlib.import_module("noaa_climate_data.constants")
+    return importlib.import_module("noaa_spec.constants")
 
 
 def first_line_containing(path: Path, pattern: str) -> int | None:
@@ -514,7 +514,7 @@ def build_constants_rules(constants_module, constants_index: ConstantsAstIndex) 
         enforcement_function = "clean_value_quality" if part_value_quality_mode(rule) else "_expand_parsed"
 
         arity_reference = build_code_reference(
-            "src/noaa_climate_data/cleaning.py",
+            "src/noaa_spec/cleaning.py",
             744,
             f"get_expected_part_count({identifier})",
         )
@@ -523,7 +523,7 @@ def build_constants_rules(constants_module, constants_index: ConstantsAstIndex) 
                 field_identifier=identifier,
                 rule_type="arity",
                 rule_description=f"{identifier} requires {len(rule.parts)} parsed part(s) in strict mode.",
-                enforcement_location="src/noaa_climate_data/cleaning.py",
+                enforcement_location="src/noaa_spec/cleaning.py",
                 enforcement_function="clean_value_quality",
                 code_reference=arity_reference,
                 behavior_on_violation="exclude",
@@ -549,10 +549,10 @@ def build_constants_rules(constants_module, constants_index: ConstantsAstIndex) 
                             f"{identifier} part {part_idx} numeric bounds: "
                             f"min={part_rule.min_value}, max={part_rule.max_value}."
                         ),
-                        enforcement_location="src/noaa_climate_data/cleaning.py",
+                        enforcement_location="src/noaa_spec/cleaning.py",
                         enforcement_function=enforcement_function,
                         code_reference=build_code_reference(
-                            "src/noaa_climate_data/constants.py",
+                            "src/noaa_spec/constants.py",
                             keyword_line,
                             f"{part_symbol}.min_value/max_value",
                         ),
@@ -574,10 +574,10 @@ def build_constants_rules(constants_module, constants_index: ConstantsAstIndex) 
                         field_identifier=identifier,
                         rule_type="sentinel",
                         rule_description=f"{identifier} part {part_idx} sentinel tokens treated as missing.",
-                        enforcement_location="src/noaa_climate_data/cleaning.py",
+                        enforcement_location="src/noaa_spec/cleaning.py",
                         enforcement_function=enforcement_function,
                         code_reference=build_code_reference(
-                            "src/noaa_climate_data/constants.py",
+                            "src/noaa_spec/constants.py",
                             keyword_line,
                             f"{part_symbol}.missing_values",
                         ),
@@ -597,10 +597,10 @@ def build_constants_rules(constants_module, constants_index: ConstantsAstIndex) 
                         field_identifier=identifier,
                         rule_type="domain",
                         rule_description=f"{identifier} part {part_idx} allowed domain values are enumerated.",
-                        enforcement_location="src/noaa_climate_data/cleaning.py",
+                        enforcement_location="src/noaa_spec/cleaning.py",
                         enforcement_function=enforcement_function,
                         code_reference=build_code_reference(
-                            "src/noaa_climate_data/constants.py",
+                            "src/noaa_spec/constants.py",
                             keyword_line,
                             f"{part_symbol}.allowed_values",
                         ),
@@ -620,10 +620,10 @@ def build_constants_rules(constants_module, constants_index: ConstantsAstIndex) 
                         field_identifier=identifier,
                         rule_type="domain",
                         rule_description=f"{identifier} part {part_idx} must satisfy regex domain pattern.",
-                        enforcement_location="src/noaa_climate_data/cleaning.py",
+                        enforcement_location="src/noaa_spec/cleaning.py",
                         enforcement_function=enforcement_function,
                         code_reference=build_code_reference(
-                            "src/noaa_climate_data/constants.py",
+                            "src/noaa_spec/constants.py",
                             keyword_line,
                             f"{part_symbol}.allowed_pattern",
                         ),
@@ -643,10 +643,10 @@ def build_constants_rules(constants_module, constants_index: ConstantsAstIndex) 
                         field_identifier=identifier,
                         rule_type="allowed_quality",
                         rule_description=f"{identifier} part {part_idx} quality codes constrained to allowed set.",
-                        enforcement_location="src/noaa_climate_data/cleaning.py",
+                        enforcement_location="src/noaa_spec/cleaning.py",
                         enforcement_function=enforcement_function,
                         code_reference=build_code_reference(
-                            "src/noaa_climate_data/constants.py",
+                            "src/noaa_spec/constants.py",
                             keyword_line,
                             f"{part_symbol}.allowed_quality",
                         ),
@@ -674,10 +674,10 @@ def build_constants_rules(constants_module, constants_index: ConstantsAstIndex) 
                         field_identifier=identifier,
                         rule_type="width",
                         rule_description=desc,
-                        enforcement_location="src/noaa_climate_data/cleaning.py",
+                        enforcement_location="src/noaa_spec/cleaning.py",
                         enforcement_function=enforcement_function,
                         code_reference=build_code_reference(
-                            "src/noaa_climate_data/constants.py",
+                            "src/noaa_spec/constants.py",
                             keyword_line,
                             f"{part_symbol}.token_width/token_pattern",
                         ),
@@ -697,10 +697,10 @@ def build_constants_rules(constants_module, constants_index: ConstantsAstIndex) 
                         field_identifier=identifier,
                         rule_type="normalization",
                         rule_description=f"{identifier} part {part_idx} numeric value is scaled by factor {part_rule.scale}.",
-                        enforcement_location="src/noaa_climate_data/cleaning.py",
+                        enforcement_location="src/noaa_spec/cleaning.py",
                         enforcement_function=enforcement_function,
                         code_reference=build_code_reference(
-                            "src/noaa_climate_data/constants.py",
+                            "src/noaa_spec/constants.py",
                             keyword_line,
                             f"{part_symbol}.scale",
                         ),
@@ -715,7 +715,7 @@ def build_constants_rules(constants_module, constants_index: ConstantsAstIndex) 
                 )
 
     # Legacy identifier aliases are enforced via normalization before lookup.
-    alias_line = first_line_containing(Path("src/noaa_climate_data/constants.py"), "_IDENTIFIER_ALIASES")
+    alias_line = first_line_containing(Path("src/noaa_spec/constants.py"), "_IDENTIFIER_ALIASES")
     if alias_line:
         alias_map = getattr(constants_module, "_IDENTIFIER_ALIASES", {})
         for alias, canonical in sorted(alias_map.items()):
@@ -724,10 +724,10 @@ def build_constants_rules(constants_module, constants_index: ConstantsAstIndex) 
                     field_identifier=alias,
                     rule_type="normalization",
                     rule_description=f"Identifier alias {alias} normalizes to canonical identifier {canonical}.",
-                    enforcement_location="src/noaa_climate_data/constants.py",
+                    enforcement_location="src/noaa_spec/constants.py",
                     enforcement_function="get_field_rule",
                     code_reference=build_code_reference(
-                        "src/noaa_climate_data/constants.py",
+                        "src/noaa_spec/constants.py",
                         alias_line,
                         "_IDENTIFIER_ALIASES",
                     ),
@@ -746,7 +746,7 @@ def build_constants_rules(constants_module, constants_index: ConstantsAstIndex) 
 
 def build_custom_cleaning_rules(cleaning_path: Path) -> list[CodeRule]:
     rules: list[CodeRule] = []
-    cpath = "src/noaa_climate_data/cleaning.py"
+    cpath = "src/noaa_spec/cleaning.py"
 
     def line(token: str) -> int | None:
         return first_line_containing(cleaning_path, token)
@@ -1399,8 +1399,8 @@ def validate_row_schema(row: dict[str, str]) -> None:
 
 def generate_rows(repo_root: Path, spec_coverage_csv: Path) -> list[dict[str, str]]:
     constants_module = load_constants_module(repo_root)
-    constants_path = repo_root / "src/noaa_climate_data/constants.py"
-    cleaning_path = repo_root / "src/noaa_climate_data/cleaning.py"
+    constants_path = repo_root / "src/noaa_spec/constants.py"
+    cleaning_path = repo_root / "src/noaa_spec/cleaning.py"
 
     constants_index = parse_constants_ast(constants_path)
     code_rules = build_constants_rules(constants_module, constants_index)

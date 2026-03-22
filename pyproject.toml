@@ -1,5 +1,5 @@
 [project]
-name = "noaa-climate-data"
+name = "noaa-spec"
 version = "0.1.0"
 description = ""
 authors = [
@@ -16,13 +16,16 @@ dependencies = [
     "pypdf (>=5.9.0,<6.0.0)"
 ]
 
+[project.scripts]
+noaa-spec = "noaa_spec.cli:main"
+
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
-packages = [{ include = "noaa_climate_data", from = "src" }]
+packages = [{ include = "noaa_spec", from = "src" }]
 
 [dependency-groups]
 dev = [

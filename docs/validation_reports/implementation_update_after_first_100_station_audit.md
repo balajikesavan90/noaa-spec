@@ -20,8 +20,8 @@ Core scientific cleaning rules were not changed.
 - `README.md`
 - `docs/CLEANING_RUN_MODES.md`
 - `docs/CURRENT_PROJECT_STATE.md`
-- `src/noaa_climate_data/cli.py`
-- `src/noaa_climate_data/cleaning_runner.py`
+- `src/noaa_spec/cli.py`
+- `src/noaa_spec/cleaning_runner.py`
 - `tests/test_cleaning_runner.py`
 - `tests/test_noaa_client_cli.py`
 
@@ -29,7 +29,7 @@ Core scientific cleaning rules were not changed.
 
 ### 1. `size_quartiles` now spans each quartile instead of taking the smallest edge
 
-Changed in `src/noaa_climate_data/cli.py`.
+Changed in `src/noaa_spec/cli.py`.
 
 - inventory rows now carry:
   - `global_size_rank`
@@ -46,7 +46,7 @@ Changed in `src/noaa_climate_data/cli.py`.
 
 ### 2. Domain splits are now enabled by default for batch-style cleaning
 
-Changed in `src/noaa_climate_data/cli.py`.
+Changed in `src/noaa_spec/cli.py`.
 
 - `cleaning-run --mode batch_parquet_dir` now defaults to domain splits on
 - `run-cleaning-batch` now defaults to domain splits on
@@ -56,7 +56,7 @@ Changed in `src/noaa_climate_data/cli.py`.
 
 ### 3. `run_status.csv` now captures per-station phase timings and workload metrics
 
-Changed in `src/noaa_climate_data/cleaning_runner.py`.
+Changed in `src/noaa_spec/cleaning_runner.py`.
 
 Added columns:
 
@@ -75,7 +75,7 @@ The existing `elapsed_seconds` field is preserved as an alias of total station e
 
 ### 4. Quality-profile impact semantics were separated
 
-Changed in `src/noaa_climate_data/cleaning_runner.py`.
+Changed in `src/noaa_spec/cleaning_runner.py`.
 
 - structural/control validation impacts are now tracked separately from substantive data impacts
 - `qc_control_invalid_*` flags now map to `structural_validation` rather than blending into ordinary domain validation
@@ -89,7 +89,7 @@ Changed in `src/noaa_climate_data/cleaning_runner.py`.
 
 ### 5. Quality artifact semantics were clarified
 
-Changed in `src/noaa_climate_data/cleaning_runner.py`.
+Changed in `src/noaa_spec/cleaning_runner.py`.
 
 `sentinel_frequency.csv`:
 
@@ -118,7 +118,7 @@ Changed in `src/noaa_climate_data/cleaning_runner.py`.
 
 ### 6. Publication and quality semantics were split
 
-Changed in `src/noaa_climate_data/cleaning_runner.py`.
+Changed in `src/noaa_spec/cleaning_runner.py`.
 
 - `publication_readiness_gate.json` now focuses on build/package integrity only
 - descriptive quality diagnostics now emit separately in `quality_reports/quality_assessment.json`
@@ -132,7 +132,7 @@ Changed in `src/noaa_climate_data/cleaning_runner.py`.
 
 ### 7. Manifests were strengthened
 
-Changed in `src/noaa_climate_data/cleaning_runner.py`.
+Changed in `src/noaa_spec/cleaning_runner.py`.
 
 - `publication_readiness_gate.json` is now included in `file_manifest.csv`
 - `quality_assessment.json` is now included in `file_manifest.csv`
@@ -143,7 +143,7 @@ Changed in `src/noaa_climate_data/cleaning_runner.py`.
 
 ### 8. Report summaries were enriched without changing cleaning behavior
 
-Changed in `src/noaa_climate_data/cleaning_runner.py`.
+Changed in `src/noaa_spec/cleaning_runner.py`.
 
 `quality_reports_summary.md` now includes concise anomaly-oriented sections for:
 

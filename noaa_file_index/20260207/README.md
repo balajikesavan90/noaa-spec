@@ -11,7 +11,7 @@ This folder contains the NOAA Global Hourly file index and year-counts used by t
 
 #### Command:
 
-- `poetry run python -m noaa_climate_data.cli file-list --start-year 1975 --end-year 2025 --sleep-seconds 0.5 --retries 3 --backoff-base 0.5 --backoff-max 8`
+- `poetry run python -m noaa_spec.cli file-list --start-year 1975 --end-year 2025 --sleep-seconds 0.5 --retries 3 --backoff-base 0.5 --backoff-max 8`
 
 #### Behavior:
 - Scrapes the NOAA Global Hourly directory listing for available year folders.
@@ -30,7 +30,7 @@ This folder contains the NOAA Global Hourly file index and year-counts used by t
 
 #### Command:
 
-- `poetry run python -m noaa_climate_data.cli location-ids --start-year 1975 --end-year 2025 --sleep-seconds 0.5 --retries 3 --backoff-base 0.5 --backoff-max 8`
+- `poetry run python -m noaa_spec.cli location-ids --start-year 1975 --end-year 2025 --sleep-seconds 0.5 --retries 3 --backoff-base 0.5 --backoff-max 8`
 
 #### Behavior:
 - Reads `DataFileList_YEARCOUNT.csv` to identify stations with coverage in the selected year range.
@@ -54,10 +54,10 @@ This folder contains the NOAA Global Hourly file index and year-counts used by t
 #### Command:
 
 - `scripts/run_pick_location_cron.sh`
-- `poetry run python -m noaa_climate_data.cli materialize-raw-pull-state`
+- `poetry run python -m noaa_spec.cli materialize-raw-pull-state`
 
 The cron wrapper exports `PYTHONPATH=<repo>/src` before invoking `poetry run`
-so the scheduled job still resolves `noaa_climate_data.cli` even if the Poetry
+so the scheduled job still resolves `noaa_spec.cli` even if the Poetry
 environment no longer has the package installed in editable mode.
 
 #### Behavior:
@@ -84,9 +84,9 @@ environment no longer has the package installed in editable mode.
 #### Commands:
 
 - Single-file cleaning:
-  `poetry run python -m noaa_climate_data.cli clean-parquet output/<station_id>/LocationData_Raw.parquet`
+  `poetry run python -m noaa_spec.cli clean-parquet output/<station_id>/LocationData_Raw.parquet`
 - Batch cleaning orchestration:
-  `poetry run python -m noaa_climate_data.cli cleaning-run --mode <mode> --input-root <root> --input-format parquet`
+  `poetry run python -m noaa_spec.cli cleaning-run --mode <mode> --input-root <root> --input-format parquet`
 
 #### Notes
 

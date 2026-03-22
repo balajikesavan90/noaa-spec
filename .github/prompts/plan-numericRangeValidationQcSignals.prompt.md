@@ -7,14 +7,14 @@ Extend the existing `FieldPartRule` range infrastructure (which already has `min
 
 ### Phase 1: Data Model & Constants
 
-1. **Add QC column naming constants to `src/noaa_climate_data/constants.py`**
+1. **Add QC column naming constants to `src/noaa_spec/constants.py`**
    - Add a new dict `QC_STATUS_VALUES` with enum values: `{"PASS", "INVALID", "MISSING"}` (INVALID covers both bad quality and out-of-range; sentinel/missing tracked separately for clarity)
    - Add a companion dict `QC_REASON_ENUM` with detailed reason strings: `"OUT_OF_RANGE"`, `"BAD_QUALITY_CODE"`, `"SENTINEL_MISSING"`, `"MALFORMED_TOKEN"`, `None` (for PASS)
 
 2. **Define the metrics config constant**
    - Add `USABILITY_METRIC_INDICATORS = ["qc_pass"]` — will auto-find all fields ending in `__qc_pass` and treat those as metrics
 
-3. **Add/verify MIN/MAX bounds for initial scope fields in `src/noaa_climate_data/constants.py`**
+3. **Add/verify MIN/MAX bounds for initial scope fields in `src/noaa_spec/constants.py`**
    - **OC1** (wind gust): part 3, range 0050–1100 (already defined, verify)
    - **MA1** (station pressure): part 1 numeric, range 08635–10904 (already defined, verify)
    - **GE1/GF1** (cloud base/peak heights): parts 2–4 numeric, ranges -400 to 15000/-400 to 15000
@@ -24,7 +24,7 @@ Extend the existing `FieldPartRule` range infrastructure (which already has `min
 
 ### Phase 2: QC Signal Generation in Cleaning
 
-4. **Modify `src/noaa_climate_data/cleaning.py` `clean_value_quality()` to emit QC columns**
+4. **Modify `src/noaa_spec/cleaning.py` `clean_value_quality()` to emit QC columns**
    - After the existing range validation (line ~514) and scaling, before emitting `__value` and `__quality` columns:
      - Compute `has_valid_quality` = (quality is None OR quality in `allowed_quality`)
      - Compute `has_valid_range` = (numeric part is not None after range check)
@@ -45,7 +45,7 @@ Extend the existing `FieldPartRule` range infrastructure (which already has `min
 
 ### Phase 3: Row-Level Usability Metrics
 
-6. **Add row-level summary columns in `src/noaa_climate_data/cleaning.py` after `clean_noaa_dataframe()` completes**
+6. **Add row-level summary columns in `src/noaa_spec/cleaning.py` after `clean_noaa_dataframe()` completes**
    - After the main cleaning loop, compute derived metrics once per row:
      - Find all columns matching pattern `*__qc_pass`
      - `row_has_any_usable_metric` = (at least one `*__qc_pass` is True) (bool)

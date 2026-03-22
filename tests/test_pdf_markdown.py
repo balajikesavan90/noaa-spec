@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from noaa_climate_data.pdf_markdown import normalize_extracted_text, render_markdown_document
+from noaa_spec.pdf_markdown import normalize_extracted_text, render_markdown_document
 
 
 def test_normalize_extracted_text_is_stable() -> None:

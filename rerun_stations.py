@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from noaa_climate_data.pipeline import process_location_from_raw
+from noaa_spec.pipeline import process_location_from_raw
 
 STATIONS = [
     "57067099999",

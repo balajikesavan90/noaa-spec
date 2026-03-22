@@ -1,7 +1,7 @@
 # Domain Dataset Registry
 
 This document publishes researcher-facing domain dataset definitions from
-`src/noaa_climate_data/domains/`.
+`src/noaa_spec/domains/`.
 
 All domain datasets are observation-level slices derived from canonical cleaned
 observations and are joinable using shared identity keys:

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from noaa_climate_data.research_reports import (
+from noaa_spec.research_reports import (
     ResearchReportContext,
     build_reports_for_station_dir,
     domain_quality_report_names,

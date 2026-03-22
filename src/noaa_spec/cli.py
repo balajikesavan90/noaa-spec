@@ -67,7 +67,7 @@ def _load_pulled_station_state(raw_pull_state_csv: Path) -> pd.DataFrame:
         raise FileNotFoundError(
             "raw_pull_state.csv not found: "
             f"{raw_pull_state_csv}. Run "
-            "`poetry run python -m noaa_climate_data.cli materialize-raw-pull-state` first."
+            "`poetry run python -m noaa_spec.cli materialize-raw-pull-state` first."
         )
 
     frame = pd.read_csv(raw_pull_state_csv, keep_default_na=False)
@@ -1342,7 +1342,7 @@ def main() -> None:
             else:
                 domain_output_dir = output_root / "domains"
 
-        cleaning_logger = logging.getLogger("noaa_climate_data.cleaning")
+        cleaning_logger = logging.getLogger("noaa_spec.cleaning")
         previous_cleaning_level = cleaning_logger.level
         if not args.show_parse_strict_logs:
             cleaning_logger.setLevel(logging.ERROR)

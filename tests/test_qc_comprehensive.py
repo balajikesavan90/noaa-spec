@@ -3,7 +3,7 @@
 import pandas as pd
 import pytest
 
-from noaa_climate_data.cleaning import (
+from noaa_spec.cleaning import (
     clean_noaa_dataframe,
     clean_value_quality,
     _expand_parsed,

@@ -25,10 +25,10 @@ This now maps the 29 rows to concrete identifiers (e.g., `AA1`, `AT1`, `CB1`, ..
 
 Added strict section-token enforcement in parser/cleaning path:
 
-- `src/noaa_climate_data/constants.py`
+- `src/noaa_spec/constants.py`
   - Added `SECTION_IDENTIFIER_WIDTH_RULE_IDENTIFIERS`.
   - Added `is_valid_section_identifier_token(...)`.
-- `src/noaa_climate_data/cleaning.py`
+- `src/noaa_spec/cleaning.py`
   - `clean_value_quality(...)`: rejects malformed section identifier tokens in strict mode.
   - `clean_noaa_dataframe(...)`: skips malformed section identifier columns in strict mode.
 

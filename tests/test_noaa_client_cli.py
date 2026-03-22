@@ -11,11 +11,11 @@ import sys
 import pandas as pd
 import pytest
 
-from noaa_climate_data import noaa_client
-from noaa_climate_data.cleaning_runner import CleaningRunConfig
-import noaa_climate_data.pipeline as pipeline
-from noaa_climate_data.pipeline import LocationDataOutputs
-import noaa_climate_data.cli as cli
+from noaa_spec import noaa_client
+from noaa_spec.cleaning_runner import CleaningRunConfig
+import noaa_spec.pipeline as pipeline
+from noaa_spec.pipeline import LocationDataOutputs
+import noaa_spec.cli as cli
 
 
 @dataclass(frozen=True)

@@ -363,7 +363,7 @@ class CleaningIndex:
     ) -> None:
         confidence_norm = confidence if confidence in IMPLEMENTATION_CONFIDENCE_VALUES else "low"
         rule_type_norm = rule_type if rule_type in RULE_TYPE_SET else "other"
-        location = f"src/noaa_climate_data/cleaning.py:{line}" if line else ""
+        location = f"src/noaa_spec/cleaning.py:{line}" if line else ""
         family_norm = family or (identifier_family(identifier) if identifier else "")
         key = (identifier, family_norm, rule_type_norm, evidence_kind, location, confidence_norm)
         if key in self._evidence_seen:
@@ -1218,7 +1218,7 @@ def load_constants_module(repo_root: Path):
     src = str(repo_root / "src")
     if src not in sys.path:
         sys.path.insert(0, src)
-    import noaa_climate_data.constants as constants  # type: ignore
+    import noaa_spec.constants as constants  # type: ignore
 
     return constants
 
@@ -2196,28 +2196,28 @@ def coverage_in_constants_for_row(
                 line = constants_ast.part_lines.get((lookup_prefix, int(part_idx)))
                 if line is not None:
                     break
-        return f"src/noaa_climate_data/constants.py:{line}" if line else ""
+        return f"src/noaa_spec/constants.py:{line}" if line else ""
 
     if row.rule_type == "cardinality":
         if row.identifier_family in repeated_ranges:
             line = constants_ast.repeated_range_lines.get(row.identifier_family)
-            return True, (f"src/noaa_climate_data/constants.py:{line}" if line else ""), "repeated_identifier_range"
+            return True, (f"src/noaa_spec/constants.py:{line}" if line else ""), "repeated_identifier_range"
         if row.identifier.startswith(tuple("QPRCDN")) or row.identifier_family.startswith(tuple("QPRCDN")):
             line = constants_ast.function_lines.get("is_valid_eqd_identifier")
             return (
                 line is not None,
-                (f"src/noaa_climate_data/constants.py:{line}" if line else ""),
+                (f"src/noaa_spec/constants.py:{line}" if line else ""),
                 "repeated_identifier_range" if line is not None else "none",
             )
         line = constants_ast.function_lines.get("is_valid_repeated_identifier")
         if line is not None and row.identifier_family in constants_ast.repeated_range_lines:
-            return True, f"src/noaa_climate_data/constants.py:{line}", "repeated_identifier_range"
+            return True, f"src/noaa_spec/constants.py:{line}", "repeated_identifier_range"
         return False, "", "none"
 
     if row.rule_type == "arity":
         line = constants_ast.function_lines.get("get_expected_part_count")
         if line is not None and rules:
-            return True, f"src/noaa_climate_data/constants.py:{line}", "strict_gate_arity"
+            return True, f"src/noaa_spec/constants.py:{line}", "strict_gate_arity"
         return False, "", "none"
 
     if row.rule_type == "width":
@@ -2234,7 +2234,7 @@ def coverage_in_constants_for_row(
                         line = constants_ast.part_lines.get((cand, int(part_idx)))
                     if line is None:
                         line = constants_ast.part_lines.get((identifier_family(cand), int(part_idx)))
-                    return True, (f"src/noaa_climate_data/constants.py:{line}" if line else ""), "strict_gate_width"
+                    return True, (f"src/noaa_spec/constants.py:{line}" if line else ""), "strict_gate_width"
         return False, "", "none"
 
     if not rules:
@@ -2376,14 +2376,14 @@ def coverage_in_constants_for_row(
                     line = constants_ast.function_lines.get("get_field_rule")
                     return (
                         line is not None,
-                        (f"src/noaa_climate_data/constants.py:{line}" if line else ""),
+                        (f"src/noaa_spec/constants.py:{line}" if line else ""),
                         "eqd_parameter_domain",
                     )
                 if row.identifier_family == "N" and allowed_set.intersection(eqd_unit_codes):
                     line = constants_ast.function_lines.get("get_field_rule")
                     return (
                         line is not None,
-                        (f"src/noaa_climate_data/constants.py:{line}" if line else ""),
+                        (f"src/noaa_spec/constants.py:{line}" if line else ""),
                         "eqd_unit_domain",
                     )
 
@@ -2475,7 +2475,7 @@ def coverage_in_cleaning_for_row(
     ):
         return (
             True,
-            f"src/noaa_climate_data/cleaning.py:{cleaning_index.generic_domain_line}",
+            f"src/noaa_spec/cleaning.py:{cleaning_index.generic_domain_line}",
             "medium",
             "global_domain_gate",
         )
@@ -2633,10 +2633,10 @@ def pointer_for_gap(row: SpecRuleRow, cleaning_index: CleaningIndex) -> str:
     if row.constants_location:
         return row.constants_location
     if row.rule_type == "arity" and cleaning_index.strict_arity_line:
-        return f"src/noaa_climate_data/cleaning.py:{cleaning_index.strict_arity_line}"
+        return f"src/noaa_spec/cleaning.py:{cleaning_index.strict_arity_line}"
     if row.rule_type == "width" and cleaning_index.strict_width_line:
-        return f"src/noaa_climate_data/cleaning.py:{cleaning_index.strict_width_line}"
-    return f"src/noaa_climate_data/constants.py (FIELD_RULES for {row.identifier_family})"
+        return f"src/noaa_spec/cleaning.py:{cleaning_index.strict_width_line}"
+    return f"src/noaa_spec/constants.py (FIELD_RULES for {row.identifier_family})"
 
 
 def format_table(headers: list[str], rows: list[list[str]]) -> str:
@@ -3168,8 +3168,8 @@ def main() -> None:
     repo_root = Path(__file__).resolve().parents[2]
 
     spec_path = repo_root / "isd-format-document-parts" / SPEC_DOC_NAME
-    constants_path = repo_root / "src" / "noaa_climate_data" / "constants.py"
-    cleaning_path = repo_root / "src" / "noaa_climate_data" / "cleaning.py"
+    constants_path = repo_root / "src" / "noaa_spec" / "constants.py"
+    cleaning_path = repo_root / "src" / "noaa_spec" / "cleaning.py"
     tests_path = repo_root / "tests" / "test_cleaning.py"
 
     csv_output = repo_root / "spec_coverage.csv"

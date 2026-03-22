@@ -14,14 +14,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from noaa_climate_data.constants import (
+from noaa_spec.constants import (
     FieldPartRule,
     FieldRule,
     get_agg_func,
     is_categorical_column,
     is_quality_column,
 )
-from noaa_climate_data.pipeline import (
+from noaa_spec.pipeline import (
     _aggregate_numeric,
     _classify_columns,
     _coerce_numeric,
@@ -260,7 +260,7 @@ class TestAggregateNumeric:
         assert result.iloc[0]["AA1__part2"] == pytest.approx(2.0)
 
     def test_mode_applied_for_custom_rule(self, monkeypatch: pytest.MonkeyPatch):
-        import noaa_climate_data.constants as constants
+        import noaa_spec.constants as constants
 
         monkeypatch.setitem(
             constants.FIELD_RULES,

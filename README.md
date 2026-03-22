@@ -76,7 +76,7 @@ See [Enhanced Test Suite](#enhanced-test-suite) below for detailed test coverage
 ### Build the file list and coverage counts
 
 ```bash
-poetry run python -m noaa_climate_data.cli file-list \
+poetry run python -m noaa_spec.cli file-list \
   --start-year <START_YEAR> \
   --end-year <END_YEAR> \
   --sleep-seconds 0.5 \
@@ -91,7 +91,7 @@ Writes `noaa_file_index/YYYYMMDD/DataFileList.csv` and
 ### Build station metadata (location IDs)
 
 ```bash
-poetry run python -m noaa_climate_data.cli location-ids \
+poetry run python -m noaa_spec.cli location-ids \
   --start-year <START_YEAR> \
   --end-year <END_YEAR> \
   --sleep-seconds 0.5 \
@@ -103,7 +103,7 @@ poetry run python -m noaa_climate_data.cli location-ids \
 Batching/resume options:
 
 ```bash
-poetry run python -m noaa_climate_data.cli location-ids \
+poetry run python -m noaa_spec.cli location-ids \
   --start-year <START_YEAR> \
   --end-year <END_YEAR> \
   --max-locations 100 \
@@ -125,7 +125,7 @@ Reads from the latest `noaa_file_index/YYYYMMDD/` folder and writes
 ### Download, clean, and aggregate a station
 
 ```bash
-poetry run python -m noaa_climate_data.cli process-location 01001099999.csv \
+poetry run python -m noaa_spec.cli process-location 01001099999.csv \
   --start-year <START_YEAR> \
   --end-year <END_YEAR> \
   --sleep-seconds 0.5 \
@@ -135,7 +135,7 @@ poetry run python -m noaa_climate_data.cli process-location 01001099999.csv \
 Optional: add imperial/derived unit columns alongside metric outputs:
 
 ```bash
-poetry run python -m noaa_climate_data.cli process-location 01001099999.csv \
+poetry run python -m noaa_spec.cli process-location 01001099999.csv \
   --add-unit-conversions \
   --output-dir output
 ```
@@ -143,7 +143,7 @@ poetry run python -m noaa_climate_data.cli process-location 01001099999.csv \
 Pick an aggregation strategy:
 
 ```bash
-poetry run python -m noaa_climate_data.cli process-location 01001099999.csv \
+poetry run python -m noaa_spec.cli process-location 01001099999.csv \
   --aggregation-strategy hour_day_month_year \
   --min-hours-per-day 18 \
   --min-days-per-month 20 \
@@ -154,7 +154,7 @@ poetry run python -m noaa_climate_data.cli process-location 01001099999.csv \
 Fixed-hour example:
 
 ```bash
-poetry run python -m noaa_climate_data.cli process-location 01001099999.csv \
+poetry run python -m noaa_spec.cli process-location 01001099999.csv \
   --aggregation-strategy fixed_hour \
   --fixed-hour 12 \
   --output-dir output
@@ -182,13 +182,13 @@ If you want the operational state file on disk before cron resumes, materialize
 it explicitly:
 
 ```bash
-poetry run python -m noaa_climate_data.cli materialize-raw-pull-state
+poetry run python -m noaa_spec.cli materialize-raw-pull-state
 ```
 
 Pull a random station that has not yet downloaded raw data:
 
 ```bash
-poetry run python -m noaa_climate_data.cli pick-location \
+poetry run python -m noaa_spec.cli pick-location \
   --start-year <START_YEAR> \
   --end-year <END_YEAR> \
   --sleep-seconds 0.5 \
@@ -213,7 +213,7 @@ rewrite `noaa_file_index/YYYYMMDD/Stations.csv`.
 ### Clean a raw parquet
 
 ```bash
-poetry run python -m noaa_climate_data.cli clean-parquet \
+poetry run python -m noaa_spec.cli clean-parquet \
   output/01001099999/LocationData_Raw.parquet
 ```
 
@@ -232,7 +232,7 @@ If write roots are omitted, outputs are written to the canonical release layout:
 CSV test mode (existing behavior):
 
 ```bash
-poetry run python -m noaa_climate_data.cli cleaning-run \
+poetry run python -m noaa_spec.cli cleaning-run \
   --mode test_csv_dir \
   --input-root output \
   --input-format csv
@@ -241,7 +241,7 @@ poetry run python -m noaa_climate_data.cli cleaning-run \
 Parquet-aligned test mode:
 
 ```bash
-poetry run python -m noaa_climate_data.cli cleaning-run \
+poetry run python -m noaa_spec.cli cleaning-run \
   --mode test_parquet_dir \
   --input-root output \
   --input-format parquet
@@ -250,7 +250,7 @@ poetry run python -m noaa_climate_data.cli cleaning-run \
 Parquet batch mode:
 
 ```bash
-poetry run python -m noaa_climate_data.cli cleaning-run \
+poetry run python -m noaa_spec.cli cleaning-run \
   --mode batch_parquet_dir \
   --input-root output \
   --input-format parquet
@@ -267,7 +267,7 @@ Mode expectations:
 For a safer manual batch off the pulled-station registry, use the staging helper:
 
 ```bash
-poetry run python -m noaa_climate_data.cli run-cleaning-batch \
+poetry run python -m noaa_spec.cli run-cleaning-batch \
   --raw-root /media/<user>/LaCie/NOAA_Data \
   --count 100
 ```
@@ -288,7 +288,7 @@ batch directory cleanly removes its exclusion footprint. For publication-oriente
 deterministic scope rule such as:
 
 ```bash
-poetry run python -m noaa_climate_data.cli run-cleaning-batch \
+poetry run python -m noaa_spec.cli run-cleaning-batch \
   --raw-root /media/<user>/LaCie/NOAA_Data \
   --count 1000 \
   --selection-strategy station_id
@@ -309,13 +309,13 @@ poetry run python scripts/convert_output_raw_csv_to_parquet.py --output-root out
 ### Convert a PDF to deterministic markdown
 
 ```bash
-poetry run python -m noaa_climate_data.cli pdf-to-markdown path/to/input.pdf
+poetry run python -m noaa_spec.cli pdf-to-markdown path/to/input.pdf
 ```
 
 Optional output path and formatting:
 
 ```bash
-poetry run python -m noaa_climate_data.cli pdf-to-markdown path/to/input.pdf \
+poetry run python -m noaa_spec.cli pdf-to-markdown path/to/input.pdf \
   --output-md path/to/output.md \
   --no-page-headers
 ```
@@ -329,7 +329,7 @@ to keep output deterministic across repeated runs in the same environment.
 ## Project structure
 
 ```
-src/noaa_climate_data/
+src/noaa_spec/
 ├── cli.py          # CLI entry point (file-list, location-ids, process-location)
 ├── constants.py    # FIELD_RULES registry, quality flags, column helpers
 ├── cleaning.py     # Comma-encoded field parsing, sentinel/scale/quality/domain logic
@@ -376,7 +376,7 @@ Plus row-level summaries:
 
 **Example usage**:
 ```python
-from noaa_climate_data.cleaning import clean_noaa_dataframe
+from noaa_spec.cleaning import clean_noaa_dataframe
 df = clean_noaa_dataframe(df_raw)
 df_quality = df[df["OC1__qc_pass"] == True]  # Keep valid wind gust only
 high_quality = df[df["usable_metric_fraction"] >= 0.75]  # ≥75% metrics passed
@@ -391,7 +391,7 @@ For detailed documentation, see [QC_SIGNALS_ARCHITECTURE.md](QC_SIGNALS_ARCHITEC
 ### 1. Data acquisition
 
 The pipeline targets NOAA's Global Hourly CSV archive at the base URL defined in
-[src/noaa_climate_data/constants.py](src/noaa_climate_data/constants.py).
+[src/noaa_spec/constants.py](src/noaa_spec/constants.py).
 
 **File list discovery**
 
@@ -416,9 +416,9 @@ The pipeline targets NOAA's Global Hourly CSV archive at the base URL defined in
 ### 2. Cleaning
 
 Cleaning is performed by `clean_noaa_dataframe(...)` in
-[src/noaa_climate_data/cleaning.py](src/noaa_climate_data/cleaning.py), driven by
+[src/noaa_spec/cleaning.py](src/noaa_spec/cleaning.py), driven by
 the declarative `FIELD_RULES` registry in
-[src/noaa_climate_data/constants.py](src/noaa_climate_data/constants.py).
+[src/noaa_spec/constants.py](src/noaa_spec/constants.py).
 
 #### 2a. Field parsing
 
@@ -442,7 +442,7 @@ the declarative `FIELD_RULES` registry in
 #### 2b.1 Human-readable column names
 
 Expanded columns are renamed using the friendly map in
-[src/noaa_climate_data/constants.py](src/noaa_climate_data/constants.py). Key examples:
+[src/noaa_spec/constants.py](src/noaa_spec/constants.py). Key examples:
 
 | Raw column | Friendly name |
 |------------|---------------|
@@ -549,7 +549,7 @@ Domain enforcement ensures that only spec-valid categorical codes appear in clea
 ### 3. Aggregation
 
 Aggregation happens in `process_location(...)` in
-[src/noaa_climate_data/pipeline.py](src/noaa_climate_data/pipeline.py).
+[src/noaa_spec/pipeline.py](src/noaa_spec/pipeline.py).
 
 This monthly/yearly aggregation is a project-specific analysis layer. NOAA ISD
 does not define these summary products, so treat them as derived outputs rather

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from noaa_climate_data.domains.registry import domain_definitions, domain_names
+from noaa_spec.domains.registry import domain_definitions, domain_names
 
 
 def test_domain_registry_includes_six_initial_publication_domains() -> None:

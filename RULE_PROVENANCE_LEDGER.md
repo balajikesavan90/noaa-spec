@@ -22,8 +22,8 @@
 - `needs_manual_review` rows: 3886
 
 ## Top Contributing Files
-- `src/noaa_climate_data/cleaning.py`: 4924
-- `src/noaa_climate_data/constants.py`: 2
+- `src/noaa_spec/cleaning.py`: 4924
+- `src/noaa_spec/constants.py`: 2
 
 ## Top Contributing Functions
 - `_expand_parsed`: 4060

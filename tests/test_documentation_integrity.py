@@ -234,7 +234,7 @@ def test_operational_snapshots_are_not_tracked_in_publication_facing_paths():
 
 def test_legacy_split_scripts_do_not_duplicate_domain_contract_rules():
     split_cleaned_text = SPLIT_CLEANED_SCRIPT_PATH.read_text(encoding="utf-8")
-    assert "from noaa_climate_data.domain_split import COMMON_COLUMNS, classify_columns" in split_cleaned_text
+    assert "from noaa_spec.domain_split import COMMON_COLUMNS, classify_columns" in split_cleaned_text
     assert "DOMAIN_RULES" not in split_cleaned_text
     assert "class DomainRule" not in split_cleaned_text
 

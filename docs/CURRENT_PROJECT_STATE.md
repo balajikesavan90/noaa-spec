@@ -109,7 +109,7 @@ This is a meaningful maturity step: the pipeline now preserves transparency abou
 
 ## How the data cleaning works
 
-The cleaning engine lives in [src/noaa_climate_data/cleaning.py](../src/noaa_climate_data/cleaning.py) and is driven by declarative rules in [src/noaa_climate_data/constants.py](../src/noaa_climate_data/constants.py).
+The cleaning engine lives in [src/noaa_spec/cleaning.py](../src/noaa_spec/cleaning.py) and is driven by declarative rules in [src/noaa_spec/constants.py](../src/noaa_spec/constants.py).
 
 The main entry point is `clean_noaa_dataframe()`.
 
@@ -183,7 +183,7 @@ This design is intentionally conservative. The system prefers to null or flag ba
 
 ## What gets published from a cleaning run
 
-The cleaning runner in [src/noaa_climate_data/cleaning_runner.py](../src/noaa_climate_data/cleaning_runner.py) turns station inputs into deterministic publication artifacts.
+The cleaning runner in [src/noaa_spec/cleaning_runner.py](../src/noaa_spec/cleaning_runner.py) turns station inputs into deterministic publication artifacts.
 
 The current publication contract is:
 
@@ -229,7 +229,7 @@ The latest recorded full-suite run in the workspace context completed successful
 
 The runner validates publication requirements during execution, including:
 
-- sentinel leakage checks via [src/noaa_climate_data/contract_validation.py](../src/noaa_climate_data/contract_validation.py)
+- sentinel leakage checks via [src/noaa_spec/contract_validation.py](../src/noaa_spec/contract_validation.py)
 - canonical schema checks,
 - deterministic output writing,
 - expected artifact existence,

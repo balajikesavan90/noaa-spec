@@ -2,7 +2,7 @@
 """Split a cleaned NOAA CSV into domain-specific CSV files.
 
 This script intentionally delegates domain classification to
-``noaa_climate_data.domain_split`` so classification rules remain centralized
+``noaa_spec.domain_split`` so classification rules remain centralized
 in package-governed code.
 """
 
@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from noaa_climate_data.domain_split import COMMON_COLUMNS, classify_columns
+from noaa_spec.domain_split import COMMON_COLUMNS, classify_columns
 
 
 def _coerce_qc_pass(series: pd.Series) -> pd.Series:

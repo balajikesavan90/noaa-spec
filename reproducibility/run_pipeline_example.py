@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from noaa_climate_data.cleaning import clean_noaa_dataframe
+from noaa_spec.cleaning import clean_noaa_dataframe
 
 
 def _parse_args() -> argparse.Namespace:

@@ -8,7 +8,7 @@ Date: 2026-03-15
 - `docs/CLEANING_RUN_MODES.md`
 - `docs/CURRENT_PROJECT_STATE.md`
 - `docs/validation_reports/implementation_update_after_first_100_station_audit.md`
-- `src/noaa_climate_data/cleaning_runner.py`
+- `src/noaa_spec/cleaning_runner.py`
 - `tests/test_cleaning_runner.py`
 - `tests/test_publication_schema_ci.py`
 - `tests/test_documentation_integrity.py`
@@ -29,5 +29,5 @@ Date: 2026-03-15
 
 No runtime semantic mismatch was found in the checked implementation or tests.
 
-- `src/noaa_climate_data/cleaning_runner.py` already implements an integrity-only `publication_readiness_gate.json` plus descriptive `quality_assessment.json`.
+- `src/noaa_spec/cleaning_runner.py` already implements an integrity-only `publication_readiness_gate.json` plus descriptive `quality_assessment.json`.
 - `tests/test_cleaning_runner.py` and `tests/test_publication_schema_ci.py` already assert descriptive quality-diagnostic behavior and integrity-only gate semantics.

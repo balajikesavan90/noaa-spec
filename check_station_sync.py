@@ -14,8 +14,8 @@ SRC_ROOT = PROJECT_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from noaa_climate_data.noaa_client import normalize_station_file_name
-from noaa_climate_data.pipeline import default_raw_pull_state_path
+from noaa_spec.noaa_client import normalize_station_file_name
+from noaa_spec.pipeline import default_raw_pull_state_path
 
 DEFAULT_OUTPUT_DIR = Path("/media/balaji-kesavan/LaCie/NOAA_Data")
 RAW_PULL_STATE_COLUMNS = {
@@ -103,7 +103,7 @@ def _load_raw_pull_state(raw_pull_state_csv: Path) -> pd.DataFrame:
         raise FileNotFoundError(
             "raw_pull_state.csv not found: "
             f"{raw_pull_state_csv}. Run "
-            "`poetry run python -m noaa_climate_data.cli materialize-raw-pull-state` "
+            "`poetry run python -m noaa_spec.cli materialize-raw-pull-state` "
             "if you need to bootstrap it from legacy state."
         )
 

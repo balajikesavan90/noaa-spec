@@ -10,14 +10,14 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-import noaa_climate_data.cleaning_runner as cleaning_runner
-from noaa_climate_data.cleaning_runner import CleaningRunConfig, RunWriteFlags, run_cleaning_run
-from noaa_climate_data.contracts import DOMAIN_DATASET_CONTRACT
-from noaa_climate_data.domains.registry import domain_definitions
+import noaa_spec.cleaning_runner as cleaning_runner
+from noaa_spec.cleaning_runner import CleaningRunConfig, RunWriteFlags, run_cleaning_run
+from noaa_spec.contracts import DOMAIN_DATASET_CONTRACT
+from noaa_spec.domains.registry import domain_definitions
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-SCHEMAS_DIR = PROJECT_ROOT / "src" / "noaa_climate_data" / "contract_schemas" / "v1"
+SCHEMAS_DIR = PROJECT_ROOT / "src" / "noaa_spec" / "contract_schemas" / "v1"
 PREVIOUS_RELEASE_MANIFEST_FIXTURE = PROJECT_ROOT / "tests" / "fixtures" / "release_manifest_v1_snapshot.csv"
 
 

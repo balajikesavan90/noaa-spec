@@ -22,8 +22,8 @@ from typing import Iterable
 
 import pandas as pd
 
-from noaa_climate_data.cleaning import clean_noaa_dataframe
-from noaa_climate_data.constants import get_expected_part_count
+from noaa_spec.cleaning import clean_noaa_dataframe
+from noaa_spec.constants import get_expected_part_count
 
 QC_REASON_SUFFIX = "__qc_reason"
 FLAG_DOMAIN_PREFIX = "qc_domain_invalid_"
@@ -611,7 +611,7 @@ def generate(
     rule_family_csv_path: Path,
 ) -> None:
     # Keep reruns fast and deterministic without emitting per-token strict warnings.
-    logging.getLogger("noaa_climate_data.cleaning").setLevel(logging.ERROR)
+    logging.getLogger("noaa_spec.cleaning").setLevel(logging.ERROR)
 
     output_root = repo_root / "output"
     raw_sample, sample_meta = _build_sample(

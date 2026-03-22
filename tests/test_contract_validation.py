@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from noaa_climate_data.contract_validation import (
+from noaa_spec.contract_validation import (
     find_sentinel_leakage,
     sentinel_values_for_column,
     validate_canonical_schema_contract,

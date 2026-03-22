@@ -75,7 +75,7 @@ Additional evidence supporting OOM:
 
 ## Why The Current Worker Path Is Memory-Heavy
 
-The current station worker path in `src/noaa_climate_data/cleaning_runner.py` is structurally expensive for very large station files:
+The current station worker path in `src/noaa_spec/cleaning_runner.py` is structurally expensive for very large station files:
 
 1. read the entire raw parquet into a full pandas DataFrame
 2. copy the raw DataFrame before cleaning
@@ -241,7 +241,7 @@ Row count is the better trigger because the observed failures correlate much mor
 
 ### Suggested New Internal Helpers
 
-Potential additions in `src/noaa_climate_data/cleaning_runner.py`:
+Potential additions in `src/noaa_spec/cleaning_runner.py`:
 
 - `_should_use_chunked_station_processing(...)`
 - `_plan_station_chunks(...)`

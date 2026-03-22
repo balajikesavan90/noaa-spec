@@ -25,7 +25,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from noaa_climate_data.constants import (
+from noaa_spec.constants import (
     FIELD_RULES,
     get_agg_func,
     is_categorical_column,

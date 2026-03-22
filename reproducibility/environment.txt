@@ -5,7 +5,7 @@ coverage==7.13.3
 idna==3.11
 iniconfig==2.3.0
 lxml==5.4.0
--e git+https://github.com/balajikesavan90/noaa-climate-data.git@d460801d3a5c207a9dc0fd8f877bcfca32b5fff0#egg=noaa_climate_data
+-e git+https://github.com/balajikesavan90/noaa-climate-data.git@d460801d3a5c207a9dc0fd8f877bcfca32b5fff0#egg=noaa_spec
 numpy==2.4.2
 packaging==26.0
 pandas==3.0.0

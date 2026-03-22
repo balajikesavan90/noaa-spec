@@ -7,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from noaa_climate_data.domains.publisher import write_domain_datasets_from_registry
+from noaa_spec.domains.publisher import write_domain_datasets_from_registry
 
 
 def test_write_domain_datasets_from_registry_uses_registry_domain_names(tmp_path: Path) -> None:

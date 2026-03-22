@@ -8,8 +8,8 @@ Removed normative quality-evaluation language and threshold/scoring logic from r
 
 ## Files Changed
 
-- `src/noaa_climate_data/cleaning_runner.py`
-- `src/noaa_climate_data/build_audit.py`
+- `src/noaa_spec/cleaning_runner.py`
+- `src/noaa_spec/build_audit.py`
 - `tests/test_cleaning_runner.py`
 - `tests/test_publication_schema_ci.py`
 - `docs/CLEANING_RUN_MODES.md`

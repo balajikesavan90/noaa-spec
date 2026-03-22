@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from noaa_climate_data.domain_split import (
+from noaa_spec.domain_split import (
     split_station_cleaned_by_domain,
     station_metadata_mapping_row,
 )

@@ -2,16 +2,16 @@
 
 Enhance the existing QC signal system to distinguish intentional missing data (sentinels) from invalid/bad data by introducing a "MISSING" status. Add comprehensive test coverage for all specified fields (OC1, MA1, GE1/GF1/GG, GH1, KA/KB) to validate the enhanced QC logic.
 
-**Context:** The QC infrastructure is fully operational ([_compute_qc_signals](src/noaa_climate_data/cleaning.py#L462-L505), emission at [value/quality fields](src/noaa_climate_data/cleaning.py#L654-L665) and [multi-part fields](src/noaa_climate_data/cleaning.py#L435-L443), row metrics at [clean_noaa_dataframe](src/noaa_climate_data/cleaning.py#L853-L860)). Currently, sentinel values are marked as `qc_status="INVALID"` with `qc_reason="SENTINEL_MISSING"`. This change provides semantic clarity: **MISSING** = no data collected (sentinel), **INVALID** = data collected but problematic (range/quality/format violations).
+**Context:** The QC infrastructure is fully operational ([_compute_qc_signals](src/noaa_spec/cleaning.py#L462-L505), emission at [value/quality fields](src/noaa_spec/cleaning.py#L654-L665) and [multi-part fields](src/noaa_spec/cleaning.py#L435-L443), row metrics at [clean_noaa_dataframe](src/noaa_spec/cleaning.py#L853-L860)). Currently, sentinel values are marked as `qc_status="INVALID"` with `qc_reason="SENTINEL_MISSING"`. This change provides semantic clarity: **MISSING** = no data collected (sentinel), **INVALID** = data collected but problematic (range/quality/format violations).
 
 ## Steps
 
-### 1. Update [constants.py](src/noaa_climate_data/constants.py#L469-L476): Add "MISSING" to `QC_STATUS_VALUES`
+### 1. Update [constants.py](src/noaa_spec/constants.py#L469-L476): Add "MISSING" to `QC_STATUS_VALUES`
 
 - Change line 469: `QC_STATUS_VALUES = frozenset({"PASS", "INVALID", "MISSING"})`
 - Update documentation comments to clarify: MISSING for sentinels, INVALID for range/quality/format failures
 
-### 2. Modify [_compute_qc_signals](src/noaa_climate_data/cleaning.py#L462-L505) in cleaning.py: Return "MISSING" status when `is_sentinel=True`
+### 2. Modify [_compute_qc_signals](src/noaa_spec/cleaning.py#L462-L505) in cleaning.py: Return "MISSING" status when `is_sentinel=True`
 
 - Current logic: `if is_sentinel: return False, "INVALID", "SENTINEL_MISSING"`
 - Change to: `if is_sentinel: return False, "MISSING", "SENTINEL_MISSING"`
@@ -46,7 +46,7 @@ Enhance the existing QC signal system to distinguish intentional missing data (s
 - **Row-level metrics tests**:
   - Mixed `qc_pass` values (some True, some False) → `row_has_any_usable_metric=True`, correct `usable_metric_count` and `usable_metric_fraction`
   - All `qc_pass=False` → `row_has_any_usable_metric=False`, `usable_metric_count=0`, `fraction=0.0`
-  - No QC columns present → `fraction` is `NaN` (verify current behavior at [line 859](src/noaa_climate_data/cleaning.py#L859): `total_qc_columns or pd.NA`)
+  - No QC columns present → `fraction` is `NaN` (verify current behavior at [line 859](src/noaa_spec/cleaning.py#L859): `total_qc_columns or pd.NA`)
 
 ### 5. Validation sweep: Grep for hardcoded `"INVALID"` assertions tied to sentinels
 

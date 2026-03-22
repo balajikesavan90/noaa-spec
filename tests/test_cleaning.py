@@ -14,8 +14,8 @@ import re
 import pandas as pd
 import pytest
 
-import noaa_climate_data.cleaning as cleaning_module
-from noaa_climate_data.cleaning import (
+import noaa_spec.cleaning as cleaning_module
+from noaa_spec.cleaning import (
     _expand_parsed,
     _is_missing_value,
     _quality_for_part,
@@ -24,7 +24,7 @@ from noaa_climate_data.cleaning import (
     enforce_domain,
     parse_field,
 )
-from noaa_climate_data.constants import (
+from noaa_spec.constants import (
     AUTOMATED_PAST_WEATHER_CODE_DEFINITIONS,
     AUTOMATED_PRESENT_WEATHER_CODE_DEFINITIONS,
     DAILY_PRESENT_WEATHER_ABBREVIATION_DEFINITIONS,

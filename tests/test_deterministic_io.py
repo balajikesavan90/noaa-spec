@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-import noaa_climate_data.deterministic_io as deterministic_io
+import noaa_spec.deterministic_io as deterministic_io
 
 
 def test_write_deterministic_csv_is_atomic_when_writer_fails(

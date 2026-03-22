@@ -25,7 +25,7 @@ The parser/cleaner remains the foundation, but the architecture focus is publica
 
 ## 3. Guiding Principles
 
-- No big-bang rewrite: evolve incrementally inside `src/noaa_climate_data/`.
+- No big-bang rewrite: evolve incrementally inside `src/noaa_spec/`.
 - Preserve and protect the existing spec-driven parser/cleaner/coverage foundation.
 - Model architecture around published artifacts and their lineage graph.
 - Contracts first: schemas, naming, null semantics, and provenance must be explicit and versioned.
@@ -67,7 +67,7 @@ Required metadata for every artifact type:
 
 ## 5. Domain Dataset Registry
 
-Target structure: module-based registry under `src/noaa_climate_data/domains/`.
+Target structure: module-based registry under `src/noaa_spec/domains/`.
 
 Each domain module defines:
 
@@ -147,7 +147,7 @@ These gates block publishability. Complete these before Priority 1-5.
   - [x] Remove tracked operational snapshots under `artifacts/test_runs/**` from version control.
   - [x] Add tracked-surface regression test to assert `artifacts/test_runs/**` and root `reprocess_timing*.log` are not tracked.
 - [x] Eliminate domain-contract drift by centralizing domain-rule definitions and removing duplicated logic paths.
-  - [x] Delegate `scripts/split_cleaned_by_domain.py` column classification to `noaa_climate_data.domain_split` (`COMMON_COLUMNS` + `classify_columns`).
+  - [x] Delegate `scripts/split_cleaned_by_domain.py` column classification to `noaa_spec.domain_split` (`COMMON_COLUMNS` + `classify_columns`).
   - [x] Hard-deprecate `scripts/split_domains_by_station.py` to remove parallel contract maintenance outside package-governed modules.
   - [x] Add regression test to enforce absence of duplicate script-level domain rule registries.
 - [x] Establish explicit artifact tracking policy (including `.gitignore` alignment) for release-grade CSV/Parquet datasets and manifests.
@@ -158,7 +158,7 @@ These gates block publishability. Complete these before Priority 1-5.
 ### Priority 1 - Dataset Contracts and Schema Discipline
 
 - [x] Freeze explicit contracts for `canonical_dataset`, each `domain_dataset`, each `quality_report` type, and `release_manifest`.
-  - [x] Add versioned publication artifact contract declarations in `src/noaa_climate_data/contracts.py`.
+  - [x] Add versioned publication artifact contract declarations in `src/noaa_spec/contracts.py`.
   - [x] Publish externalized contract artifacts (for example schema files) alongside runtime declarations.
 - [x] Define and version canonical and domain schemas with stable column names, explicit null semantics, and provenance columns.
   - [x] Declare `1.0.0` schema versions and null-semantics statements for canonical/domain/quality/manifest artifact types.
@@ -172,7 +172,7 @@ These gates block publishability. Complete these before Priority 1-5.
 
 ### Priority 2 - Domain-Oriented Dataset Publishing
 
-- [x] Implement `src/noaa_climate_data/domains/` registry modules for the six initial domains.
+- [x] Implement `src/noaa_spec/domains/` registry modules for the six initial domains.
   - [x] Add package registry skeleton and module set for `core_meteorology`, `wind`, `precipitation`, `clouds_visibility`, `pressure_temperature`, and `remarks`.
   - [x] Wire registry definitions into domain publishing paths as the runtime source of truth.
 - [x] Require each domain module to declare `DOMAIN_NAME`, `INPUT_FIELDS`, `OUTPUT_SCHEMA`, `JOIN_KEYS`, and `QUALITY_RULES`.
@@ -236,7 +236,7 @@ Recommended execution waves:
 
 1. Establish artifact contracts and required metadata fields for canonical/domain/quality/manifest outputs.
 2. Add deterministic release layout and manifest generation with checksums and lineage.
-3. Implement domain registry modules under `src/noaa_climate_data/domains/` and wire stable domain publishing.
+3. Implement domain registry modules under `src/noaa_spec/domains/` and wire stable domain publishing.
 4. Promote quality evidence generation to required release artifacts and bind them into manifests.
 5. Harden CI with schema, lineage, stale-artifact, and reproducibility validation gates.
 
@@ -264,12 +264,12 @@ These are repository-specific publishability blockers discovered during full-rep
 
 ### 11.2 Publication Boundary and Artifact Path Gaps
 
-- Runtime defaults in `src/noaa_climate_data/cleaning_runner.py` currently target `artifacts/test_runs/<run_id>/...` and `artifacts/parquet_runs/<run_id>/...`, not the publication contract path `release/build_<build_id>/...`.
+- Runtime defaults in `src/noaa_spec/cleaning_runner.py` currently target `artifacts/test_runs/<run_id>/...` and `artifacts/parquet_runs/<run_id>/...`, not the publication contract path `release/build_<build_id>/...`.
 - Root-level generated governance artifacts (`spec_coverage.csv`, `rule_impact_summary.csv`, `RULE_PROVENANCE_LEDGER.csv`, etc.) are not yet organized as versioned release-scoped artifacts.
 - Tracked run-instance snapshots exist under `artifacts/test_runs/.../manifests/run_config.json`; these are operational run records, not release artifacts.
 - Tracked run-instance snapshots include machine-specific absolute paths in `run_config.json`, which is operational metadata leakage and not publication-grade lineage metadata.
 - `output/` is currently mixed-use (runtime data + committed sample reports), which weakens publication boundary clarity.
-- Deprecated `reprocess-output-dir` behavior in `src/noaa_climate_data/cli.py` still defaults domain split writes to `output/NOAA Demo Data`, reinforcing mixed runtime/publication boundaries.
+- Deprecated `reprocess-output-dir` behavior in `src/noaa_spec/cli.py` still defaults domain split writes to `output/NOAA Demo Data`, reinforcing mixed runtime/publication boundaries.
 - `tests/test_integration.py` depends on `output/` location semantics, coupling tests to runtime paths rather than explicit fixtures/contracts.
 - Dated index snapshot content (`noaa_file_index/20260207/*.csv`) is tracked directly in runtime path structure rather than in an explicit release/snapshot contract area.
 - Transient operational timing logs (`reprocess_timing*.log`) are tracked at repo root, creating publication-surface noise.
@@ -277,7 +277,7 @@ These are repository-specific publishability blockers discovered during full-rep
 ### 11.3 Contract Drift and Maintenance Risk
 
 - Domain classification logic is duplicated between:
-  - `src/noaa_climate_data/domain_split.py`
+  - `src/noaa_spec/domain_split.py`
   - `scripts/split_cleaned_by_domain.py`
   This creates drift risk for domain dataset contracts.
 - A second legacy/parallel split path exists in `scripts/split_domains_by_station.py`, creating additional domain contract drift surface outside package-governed modules.
@@ -307,7 +307,7 @@ These are repository-specific publishability blockers discovered during full-rep
 | Canonical release publication surface | Pipeline architect + release engineering | `release/build_<build_id>/` writer pathing and updated run docs | Release build writes only to `release/build_<build_id>/{canonical_cleaned,domains,quality_reports,manifests}`; no release contract paths point to `output/` or ad hoc roots. |
 | Runtime vs publication boundary separation | Data engineering + test engineering | Fixture policy doc + relocated fixtures/examples + runtime path cleanup | Tests use explicit fixtures/contracts (not ambient `output/` state); runtime outputs are excluded from publication-facing tracked areas. |
 | Operational snapshot relocation | Repo maintainer | Removal/relocation of tracked operational run snapshots and timing logs | No tracked run-instance machine snapshots remain under publication-facing locations; no root-level transient timing logs remain tracked. |
-| Domain contract centralization | Domain data owner | Single package-governed domain contract module set (registry + classifiers) | Domain split/classification rules are defined in one source of truth under `src/noaa_climate_data/`; legacy duplicate logic paths are removed or hard-deprecated. |
+| Domain contract centralization | Domain data owner | Single package-governed domain contract module set (registry + classifiers) | Domain split/classification rules are defined in one source of truth under `src/noaa_spec/`; legacy duplicate logic paths are removed or hard-deprecated. |
 | Artifact tracking and inclusion policy | Repo maintainer + release engineering | Updated `.gitignore` + explicit release include policy doc | Policy allows deterministic release CSV/Parquet/manifests to be versioned where required; non-release operational outputs remain excluded by default. |
 | Manifest metadata contract enforcement | Release engineering + pipeline architect | Manifest schema + manifest writer updates + validation tests | Produced manifests include `artifact_id`, `schema_version`, `build_id`, `input_lineage`, `row_count`, `checksum`, `creation_timestamp` for every published artifact. |
 | Versioned schema contract publication | Data contract owner | Versioned schema contract files for canonical/domain/quality/manifest artifacts | Canonical/domain/quality/manifest schema contracts exist, are versioned, and are validated in CI against produced artifacts. |

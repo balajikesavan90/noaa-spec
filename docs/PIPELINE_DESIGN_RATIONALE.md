@@ -33,11 +33,11 @@ Each extracted rule becomes a `SpecRuleRow` with:
 
 Regex extractors target patterns like `MIN: 999`, `Missing = +9999`, `Allowed: 0-9, 99`, `POS: 1-5`, and `up to 6 parts`. Since the spec is human-authored and irregular, extraction tolerates whitespace variance and numeric-token normalization (stripping leading zeros, normalizing sign placement). An **identifier frequency heuristic** distinguishes genuine field codes from incidental numbers.
 
-### 2. Rule Enforcement Layers (`src/noaa_climate_data/constants.py` and `src/noaa_climate_data/cleaning.py`)
+### 2. Rule Enforcement Layers (`src/noaa_spec/constants.py` and `src/noaa_spec/cleaning.py`)
 
 Rules are **operationalized across two separation-of-concerns layers**:
 
-#### **Constants Layer** (`src/noaa_climate_data/constants.py`)
+#### **Constants Layer** (`src/noaa_spec/constants.py`)
 Declarative specification of field metadata via `FieldRule` and `FieldPartRule` dataclasses. Each field rule encodes:
 - Cardinality (expected comma-part count for multi-part fields).
 - Per-part metadata: `allowed_values`, `allowed_pattern`, `missing_values`, `scale_factor`, `token_width`, `kind` (numeric vs. categorical).
@@ -45,7 +45,7 @@ Declarative specification of field metadata via `FieldRule` and `FieldPartRule` 
 
 The constants layer is **machine-readable provenance**: every entry maps to a spec location and can be traced back to a rule_id. Constants enforcement is deterministic and side-effect-free, making it ideal for testing and for building the rule index.
 
-#### **Cleaning Layer** (`src/noaa_climate_data/cleaning.py`)
+#### **Cleaning Layer** (`src/noaa_spec/cleaning.py`)
 Imperative logic that applies field rules **during data transformation**:
 1. **Parse field** — expand comma-delimited payloads into parts and detect/apply scale factors.
 2. **Validate domain** — reject non-enumerated codes.
@@ -243,7 +243,7 @@ spec_coverage.csv | SPEC_COVERAGE_REPORT.md
 ### Prerequisites
 - Python ≥ 3.12
 - Poetry
-- Repository structure: `tools/spec_coverage/`, `src/noaa_climate_data/`, `tests/`, `isd-format-document-parts/`
+- Repository structure: `tools/spec_coverage/`, `src/noaa_spec/`, `tests/`, `isd-format-document-parts/`
 
 ### Generate the Rule Inventory & Coverage Report
 
@@ -315,7 +315,7 @@ WND — Wind-observation
 
 To implement a rule (e.g., OA1 speed range):
 
-1. Edit `src/noaa_climate_data/constants.py`, add/update FieldRule for OA1:
+1. Edit `src/noaa_spec/constants.py`, add/update FieldRule for OA1:
    ```python
    "OA1": FieldRule(
        identifier="OA1",

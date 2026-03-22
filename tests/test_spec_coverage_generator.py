@@ -754,7 +754,7 @@ def test_constants_coverage_matches_control_pos_identifier_rules() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     module = _load_generator_module(repo_root)
     constants_module = module.load_constants_module(repo_root)
-    constants_ast = module.parse_constants_ast(repo_root / "src" / "noaa_climate_data" / "constants.py")
+    constants_ast = module.parse_constants_ast(repo_root / "src" / "noaa_spec" / "constants.py")
 
     width_row = _fixture_row(module, "CONTROL_POS_57_60", "width")
     width_row.spec_rule_text = "POS: 57-60"
@@ -766,7 +766,7 @@ def test_constants_coverage_matches_control_pos_identifier_rules() -> None:
     )
     assert width_impl is True
     assert width_reason == "strict_gate_width"
-    assert "src/noaa_climate_data/constants.py:" in width_location
+    assert "src/noaa_spec/constants.py:" in width_location
 
     sentinel_row = _fixture_row(module, "CONTROL_POS_28_28", "sentinel")
     sentinel_row.sentinel_values = "9"
@@ -777,7 +777,7 @@ def test_constants_coverage_matches_control_pos_identifier_rules() -> None:
     )
     assert sentinel_impl is True
     assert sentinel_reason == "field_rule_sentinel"
-    assert "src/noaa_climate_data/constants.py:" in sentinel_location
+    assert "src/noaa_spec/constants.py:" in sentinel_location
 
     domain_row = _fixture_row(module, "CONTROL_POS_47_51", "domain")
     domain_row.allowed_values_or_codes = "FM-15|SY-MT"
@@ -788,7 +788,7 @@ def test_constants_coverage_matches_control_pos_identifier_rules() -> None:
     )
     assert domain_impl is True
     assert domain_reason in {"field_rule_domain_values", "field_rule_domain_pattern"}
-    assert "src/noaa_climate_data/constants.py:" in domain_location
+    assert "src/noaa_spec/constants.py:" in domain_location
 
 
 def test_classify_extracted_row_kinds_marks_structural_and_documentation_rows() -> None:
@@ -1271,7 +1271,7 @@ def test_spec_coverage_generator_smoke() -> None:
         if row.get("row_kind") == "spec_rule"
         and row.get("rule_type") == "domain"
         and row.get("implementation_confidence") in {"high", "medium"}
-        and "src/noaa_climate_data/cleaning.py:" in (row.get("cleaning_location") or "")
+        and "src/noaa_spec/cleaning.py:" in (row.get("cleaning_location") or "")
     ]
     assert known_cleaning_only, "Expected at least one spec-derived domain rule to be cleaning-only with medium/high confidence"
 

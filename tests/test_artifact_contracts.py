@@ -5,18 +5,18 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from noaa_climate_data.contracts import (
+from noaa_spec.contracts import (
     CANONICAL_CORE_COLUMN_TYPES,
     REQUIRED_ARTIFACT_METADATA_FIELDS,
     SHARED_JOIN_KEYS,
     QUALITY_REPORT_TYPES,
     publication_artifact_contracts,
 )
-from noaa_climate_data.domains.registry import domain_definitions
+from noaa_spec.domains.registry import domain_definitions
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-SCHEMA_CONTRACTS_DIR = PROJECT_ROOT / "src" / "noaa_climate_data" / "contract_schemas" / "v1"
+SCHEMA_CONTRACTS_DIR = PROJECT_ROOT / "src" / "noaa_spec" / "contract_schemas" / "v1"
 
 
 def test_publication_contract_registry_covers_all_artifact_types() -> None:

@@ -1,4 +1,4 @@
-"""NOAA climate data pipeline."""
+"""NOAA-Spec package."""
 
 __all__ = [
     "constants",
