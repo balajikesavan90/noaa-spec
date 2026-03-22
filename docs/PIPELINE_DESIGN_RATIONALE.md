@@ -20,7 +20,7 @@ The cleaning pipeline is organized into **specification-driven rule extraction**
 
 ### 1. Specification Parsing & Rule Extraction (`tools/spec_coverage/generate_spec_coverage.py`)
 
-The spec coverage generator parses the deterministic NOAA markdown source at `isd-format-document-parts/isd-format-document.deterministic.md` and extracts a structured **rule inventory** with deterministic identifiers and provenance. A segmentation pass first derives the legacy Part 02-30 slices from exact anchor lines in document order, then the extractor applies rule heuristics within those slices. Extraction recognizes four rule types — **range** (min/max numeric bounds), **sentinel** (missing-value indicators), **domain** (allowed code sets), and **width** (fixed-field length) — plus two quality-specific types, **allowed_quality** and **arity** (expected comma-separated part count).
+The spec coverage generator parses the deterministic NOAA markdown source at `reproducibility/isd-format-document-parts/isd-format-document.deterministic.md` and extracts a structured **rule inventory** with deterministic identifiers and provenance. A segmentation pass first derives the legacy Part 02-30 slices from exact anchor lines in document order, then the extractor applies rule heuristics within those slices. Extraction recognizes four rule types — **range** (min/max numeric bounds), **sentinel** (missing-value indicators), **domain** (allowed code sets), and **width** (fixed-field length) — plus two quality-specific types, **allowed_quality** and **arity** (expected comma-separated part count).
 
 Each extracted rule becomes a `SpecRuleRow` with:
 - **rule_id**: Deterministic identifier formed from `spec_file::stable_id::identifier::rule_type::payload_hash`, where `stable_id` is content-based and does not depend on line positions.
@@ -59,7 +59,7 @@ Imperative logic that applies field rules **during data transformation**:
 - **both**: Rule is codified in constants AND checked in cleaning functions.
 - **neither**: Rule extracted from spec but not yet operationalized (gap).
 
-### 3. Coverage Measurement (`spec_coverage.csv` and `SPEC_COVERAGE_REPORT.md`)
+### 3. Coverage Measurement (`spec_coverage.csv` and `docs/reports/SPEC_COVERAGE_REPORT.md`)
 
 After extraction and implementation indexing, the generator runs **test evidence matching**: for each rule, it scans test files for evidence of validation. Three **match strengths** identify test coverage:
 
@@ -80,7 +80,7 @@ The **progress KPI** is **test_covered_strict** only; wildcard-only tests do not
 ## Data Flow & Boundaries
 
 ```
-Deterministic spec markdown (isd-format-document-parts/isd-format-document.deterministic.md)
+Deterministic spec markdown (reproducibility/isd-format-document-parts/isd-format-document.deterministic.md)
     ↓ [Fail-fast segmentation by exact section anchors]
 Derived Part 02-30 slices with global line provenance
     ↓ [Regex extraction + heuristic identifier detection]
@@ -94,7 +94,7 @@ Hybrid rows (spec + implementation + enforcement layer)
     ↓ [Test file scanning + signature matching]
 Final rows with test coverage metadata
     ↓ [CSV write + markdown report generation]
-spec_coverage.csv | SPEC_COVERAGE_REPORT.md
+spec_coverage.csv | docs/reports/SPEC_COVERAGE_REPORT.md
 ```
 
 **Process boundaries:**
@@ -186,7 +186,7 @@ spec_coverage.csv | SPEC_COVERAGE_REPORT.md
 
 **Problem**: Regex extractors may match incidental numbers or text fragments as rules.  
 **Example**: Part-title text like "Part 15: Cloud Data — Ranges: 0 to 99" might trigger a `range` rule extraction for an unrelated identifier.  
-**Impact**: Extracted rule inventory includes spurious rows. Deduplication (rule_id hashing) reduces impact, but human manual review of the top 50 gaps in SPEC_COVERAGE_REPORT.md is necessary before declaring a rule "truly unimplemented."  
+**Impact**: Extracted rule inventory includes spurious rows. Deduplication (rule_id hashing) reduces impact, but human manual review of the top 50 gaps in docs/reports/SPEC_COVERAGE_REPORT.md is necessary before declaring a rule "truly unimplemented."  
 **Mitigation**: Identifier frequency heuristic (IDENTIFIER_RE pattern, requiring 2–6 uppercase alphanumeric characters) filters junk. Extractors target specific context patterns (e.g., "MIN/MAX" adjacent to numeric tokens, not isolated numbers). High-confidence patterns (POS regex matching position ranges) are prioritized.
 
 ### 2. False Negatives in Extraction
@@ -243,7 +243,7 @@ spec_coverage.csv | SPEC_COVERAGE_REPORT.md
 ### Prerequisites
 - Python ≥ 3.12
 - Poetry
-- Repository structure: `tools/spec_coverage/`, `src/noaa_spec/`, `tests/`, `isd-format-document-parts/`
+- Repository structure: `tools/spec_coverage/`, `src/noaa_spec/`, `tests/`, `reproducibility/isd-format-document-parts/`
 
 ### Generate the Rule Inventory & Coverage Report
 
@@ -251,13 +251,13 @@ spec_coverage.csv | SPEC_COVERAGE_REPORT.md
 # From workspace root
 cd /path/to/noaa-climate-data
 
-# Generate spec_coverage.csv and SPEC_COVERAGE_REPORT.md
+# Generate spec_coverage.csv and docs/reports/SPEC_COVERAGE_REPORT.md
 python tools/spec_coverage/generate_spec_coverage.py
 ```
 
 Outputs:
 - `spec_coverage.csv` — Full rule inventory with 30 columns (rule_id, identifier, rule_type, enforcement_layer, implementation_confidence, test_coverage).
-- `SPEC_COVERAGE_REPORT.md` — Markdown summary with overall coverage %, top gaps, and distribution by rule_type.
+- `docs/reports/SPEC_COVERAGE_REPORT.md` — Markdown summary with overall coverage %, top gaps, and distribution by rule_type.
 
 ### Run Tests
 
@@ -280,7 +280,7 @@ poetry run pytest tests/test_spec_coverage_generator.py -v
 
 ### Inspect Coverage Gaps
 
-Open `SPEC_COVERAGE_REPORT.md` and review the top-50 `real_gaps` table. Each row shows:
+Open `docs/reports/SPEC_COVERAGE_REPORT.md` and review the top-50 `real_gaps` table. Each row shows:
 - `spec_part`: Which ISD specification part (01–30).
 - `identifier`: Field code (e.g., TMP, WND, OA1).
 - `rule_type`: One of range, sentinel, domain, width, arity.
@@ -295,7 +295,7 @@ Filter by `implemented=FALSE` to find unimplemented rules. Filter by `enforcemen
 
 Extract the `rule_id` from the CSV, e.g., `isd-format-document.deterministic.md::4c2d8e1f0a6b::WND::range::abc123def4`.
 
-1. Open `isd-format-document-parts/isd-format-document.deterministic.md`.
+1. Open `reproducibility/isd-format-document-parts/isd-format-document.deterministic.md`.
 2. Navigate to the row's `spec_line_start` and `spec_line_end` values.
 3. Confirm that the rule text matches the rule_id's assertion.
 

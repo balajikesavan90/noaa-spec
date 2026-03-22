@@ -258,7 +258,7 @@ These are repository-specific publishability blockers discovered during full-rep
 - `docs/PIPELINE_VALIDATION_PLAN.md` references many scripts/tests/artifacts that do not exist in the repository (for example `tools/spec_coverage/sample_audit_rules.py`, `tools/spec_coverage/export_suspicious_cases.py`, and multiple `tests/test_*` files).
 - `docs/PIPELINE_VALIDATION_PLAN.md` includes command/interface drift against existing scripts (for example `tools/spec_coverage/generate_audit_queue.py --sample-size 50`, while current script interface is `--k`, `--limit`, `--format`, and `--out`).
 - KPI text in `docs/PIPELINE_VALIDATION_PLAN.md` is stale versus current generated state in `SPEC_COVERAGE_REPORT.md`.
-- `docs/validation_artifacts/suspicious_coverage/suspicious_summary.md` is stale relative to current `spec_coverage.csv` and `tests/test_suspicious_coverage_integrity.py` behavior.
+- `docs/reports/validation_artifacts/suspicious_coverage/suspicious_summary.md` is stale relative to current `spec_coverage.csv` and `tests/test_suspicious_coverage_integrity.py` behavior.
 - `README.md` suspicious-coverage KPI text is stale versus current generated artifacts (`SPEC_COVERAGE_REPORT.md` and `spec_coverage.csv`).
 - `noaa_file_index/20260207/README.md` still documents cleaning/aggregation as placeholders, but those entrypoints now exist.
 
@@ -303,7 +303,7 @@ These are repository-specific publishability blockers discovered during full-rep
 
 | Gate | Primary Owner Role | Primary Deliverable Artifact(s) | Acceptance Check (Publishability Gate) |
 | --- | --- | --- | --- |
-| Documentation integrity repair | Documentation maintainer + module owners | Updated `README.md`, `docs/PIPELINE_VALIDATION_PLAN.md`, regenerated `docs/validation_artifacts/suspicious_coverage/suspicious_summary.md` | Every referenced script/test/doc exists; all commands execute with current interfaces; KPI numbers in docs match regenerated artifacts in the same commit. |
+| Documentation integrity repair | Documentation maintainer + module owners | Updated `README.md`, `docs/PIPELINE_VALIDATION_PLAN.md`, regenerated `docs/reports/validation_artifacts/suspicious_coverage/suspicious_summary.md` | Every referenced script/test/doc exists; all commands execute with current interfaces; KPI numbers in docs match regenerated artifacts in the same commit. |
 | Canonical release publication surface | Pipeline architect + release engineering | `release/build_<build_id>/` writer pathing and updated run docs | Release build writes only to `release/build_<build_id>/{canonical_cleaned,domains,quality_reports,manifests}`; no release contract paths point to `output/` or ad hoc roots. |
 | Runtime vs publication boundary separation | Data engineering + test engineering | Fixture policy doc + relocated fixtures/examples + runtime path cleanup | Tests use explicit fixtures/contracts (not ambient `output/` state); runtime outputs are excluded from publication-facing tracked areas. |
 | Operational snapshot relocation | Repo maintainer | Removal/relocation of tracked operational run snapshots and timing logs | No tracked run-instance machine snapshots remain under publication-facing locations; no root-level transient timing logs remain tracked. |

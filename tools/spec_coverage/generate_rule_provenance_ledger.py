@@ -3,7 +3,7 @@
 
 Outputs:
 - RULE_PROVENANCE_LEDGER.csv
-- RULE_PROVENANCE_LEDGER.md
+- docs/reports/RULE_PROVENANCE_LEDGER.md
 
 This script is deterministic and uses local repository files only.
 """
@@ -1441,7 +1441,7 @@ def main() -> int:
     parser.add_argument(
         "--output-md",
         type=Path,
-        default=Path("RULE_PROVENANCE_LEDGER.md"),
+        default=Path("docs/reports/RULE_PROVENANCE_LEDGER.md"),
         help="Output markdown summary path",
     )
     args = parser.parse_args()
@@ -1456,6 +1456,7 @@ def main() -> int:
 
     rows = generate_rows(repo_root, spec_csv)
     write_csv(output_csv, rows)
+    output_md.parent.mkdir(parents=True, exist_ok=True)
     output_md.write_text(make_markdown_summary(rows), encoding="utf-8")
     print(f"Wrote {len(rows)} rule rows to {output_csv}")
     print(f"Wrote summary to {output_md}")

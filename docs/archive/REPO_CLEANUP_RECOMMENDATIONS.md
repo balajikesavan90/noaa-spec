@@ -56,8 +56,8 @@ These are ignored and regenerable, but some tooling expects them to exist locall
 - `unspecified_29.csv`
 - `spec_coverage_unspecified_filtered.csv`
 - `spec_coverage_matching_unspecified_29.csv`
-- `docs/validation_artifacts/suspicious_coverage/suspicious_cases_full.csv`
-- `docs/validation_artifacts/suspicious_coverage/suspicious_cases_final.csv`
+- `docs/reports/validation_artifacts/suspicious_coverage/suspicious_cases_full.csv`
+- `docs/reports/validation_artifacts/suspicious_coverage/suspicious_cases_final.csv`
 
 Recommendation: delete only if you are fine regenerating before running relevant tests/tools.
 

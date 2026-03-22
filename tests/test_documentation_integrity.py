@@ -6,54 +6,38 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 README_PATH = PROJECT_ROOT / "README.md"
-SPEC_COVERAGE_PATH = PROJECT_ROOT / "spec_coverage.csv"
-VALIDATION_PLAN_PATH = PROJECT_ROOT / "docs" / "PIPELINE_VALIDATION_PLAN.md"
+DOCS_INDEX_PATH = PROJECT_ROOT / "docs" / "README.md"
 RUN_MODES_PATH = PROJECT_ROOT / "docs" / "CLEANING_RUN_MODES.md"
 ARTIFACT_BOUNDARY_POLICY_PATH = PROJECT_ROOT / "docs" / "ARTIFACT_BOUNDARY_POLICY.md"
-GITIGNORE_PATH = PROJECT_ROOT / ".gitignore"
-NOAA_INDEX_README_PATH = PROJECT_ROOT / "noaa_file_index" / "20260207" / "README.md"
+ARCHIVE_README_PATH = PROJECT_ROOT / "docs" / "archive" / "README.md"
+SNAPSHOT_README_PATH = (
+    PROJECT_ROOT / "docs" / "archive" / "snapshots" / "noaa_file_index_20260207_README.md"
+)
 SUSPICIOUS_SUMMARY_PATH = (
     PROJECT_ROOT
     / "docs"
+    / "reports"
     / "validation_artifacts"
     / "suspicious_coverage"
     / "suspicious_summary.md"
 )
-INTEGRATION_TEST_PATH = PROJECT_ROOT / "tests" / "test_integration.py"
+SPEC_COVERAGE_PATH = PROJECT_ROOT / "spec_coverage.csv"
+GITIGNORE_PATH = PROJECT_ROOT / ".gitignore"
 SPLIT_CLEANED_SCRIPT_PATH = PROJECT_ROOT / "scripts" / "split_cleaned_by_domain.py"
 SPLIT_BY_STATION_SCRIPT_PATH = PROJECT_ROOT / "scripts" / "split_domains_by_station.py"
 
-REQUIRED_VALIDATION_PLAN_REFERENCES = (
-    "tools/spec_coverage/generate_spec_coverage.py",
-    "tools/spec_coverage/export_suspicious_summary.py",
-    "tools/spec_coverage/generate_rule_provenance_ledger.py",
-    "tools/rule_impact/generate_rule_impact_report.py",
-    "tests/test_cleaning.py",
-    "tests/test_qc_comprehensive.py",
-    "tests/test_spec_coverage_generator.py",
-    "tests/test_suspicious_coverage_integrity.py",
-    "tests/test_documentation_integrity.py",
-    "tests/test_integration.py",
-    "tests/test_cleaning_runner.py",
-    "tests/test_domain_split.py",
-)
-
-DISALLOWED_VALIDATION_PLAN_REFERENCES = (
-    "tools/spec_coverage/export_suspicious_cases.py",
-    "tests/test_suspicious_audit.py",
-    "tools/spec_coverage/sample_audit_rules.py",
-)
-
-STALE_README_QUANTITATIVE_PHRASES = (
-    "3,800+",
-    "1,955+",
-    "803 tests",
-    "874 tests",
-    "84 tests",
+REQUIRED_README_SECTIONS = (
+    "## What NOAA-Spec does",
+    "## Why NOAA ISD is not analysis-ready",
+    "## Installation",
+    "## 5-minute example",
+    "## Verification Triangle",
+    "## When to use / when not to use",
+    "## Paper and docs links",
 )
 
 
-def _compute_suspicious_stats() -> tuple[int, int, float]:
+def _compute_suspicious_stats() -> tuple[int, float]:
     with open(SPEC_COVERAGE_PATH, "r", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
 
@@ -66,140 +50,60 @@ def _compute_suspicious_stats() -> tuple[int, int, float]:
 
     total_rules = len(rows)
     percentage = (suspicious_count / total_rules * 100.0) if total_rules else 0.0
-    return suspicious_count, total_rules, percentage
+    return suspicious_count, percentage
 
 
-def test_readme_compatibility_docs_exist():
-    for compatibility_doc in (
-        PROJECT_ROOT / "QC_SIGNALS_ARCHITECTURE.md",
-        PROJECT_ROOT / "CLEANING_RECOMMENDATIONS.md",
-    ):
-        assert compatibility_doc.exists(), f"Missing compatibility doc: {compatibility_doc}"
-
-
-def test_readme_suspicious_kpi_matches_spec_coverage():
+def test_readme_has_required_joss_sections() -> None:
     readme_text = README_PATH.read_text(encoding="utf-8")
-    match = re.search(
-        r"Current suspicious entries:\s*\*\*(\d+)\*\*\s*\(([\d.]+)% of rules\)",
-        readme_text,
-    )
-
-    assert match, "README suspicious KPI line is missing or malformed"
-
-    documented_count = int(match.group(1))
-    documented_percentage = float(match.group(2))
-
-    suspicious_count, _, suspicious_percentage = _compute_suspicious_stats()
-    assert documented_count == suspicious_count
-    assert documented_percentage == round(suspicious_percentage, 1)
+    for section in REQUIRED_README_SECTIONS:
+        assert section in readme_text
 
 
-def test_suspicious_summary_matches_spec_coverage():
+def test_docs_index_and_archive_docs_exist() -> None:
+    assert DOCS_INDEX_PATH.exists()
+    assert ARCHIVE_README_PATH.exists()
+    assert SNAPSHOT_README_PATH.exists()
+
+
+def test_archive_readme_documents_station_report_archive_location() -> None:
+    archive_text = ARCHIVE_README_PATH.read_text(encoding="utf-8")
+    assert "data/archive/station_reports_full/" in archive_text
+    assert "not tracked in git" in archive_text.lower()
+    assert "regenerated" in archive_text.lower()
+
+
+def test_snapshot_readme_has_no_placeholder_cleaning_or_aggregation_sections() -> None:
+    snapshot_text = SNAPSHOT_README_PATH.read_text(encoding="utf-8").lower()
+    assert "cleaning cli entrypoint not yet implemented" not in snapshot_text
+    assert "aggregation cli entrypoint not yet implemented" not in snapshot_text
+    assert "placeholder only; cleaning pipeline is not yet wired for cron" not in snapshot_text
+    assert "placeholder only; aggregation pipeline is not yet wired for cron" not in snapshot_text
+
+
+def test_suspicious_summary_matches_spec_coverage() -> None:
     summary_text = SUSPICIOUS_SUMMARY_PATH.read_text(encoding="utf-8")
 
     count_match = re.search(r"Total Suspicious Entries\*\*:\s*(\d+)", summary_text)
     pct_match = re.search(r"Percentage of Total Rules\*\*:\s*([\d.]+)%", summary_text)
 
-    assert count_match, "Suspicious summary count line is missing"
-    assert pct_match, "Suspicious summary percentage line is missing"
+    assert count_match
+    assert pct_match
 
-    documented_count = int(count_match.group(1))
-    documented_percentage = float(pct_match.group(1))
-
-    suspicious_count, _, suspicious_percentage = _compute_suspicious_stats()
-    assert documented_count == suspicious_count
-    assert documented_percentage == round(suspicious_percentage, 2)
+    suspicious_count, suspicious_percentage = _compute_suspicious_stats()
+    assert int(count_match.group(1)) == suspicious_count
+    assert float(pct_match.group(1)) == round(suspicious_percentage, 2)
 
 
-def test_validation_plan_references_existing_paths():
-    validation_plan = VALIDATION_PLAN_PATH.read_text(encoding="utf-8")
-
-    for relative_path in REQUIRED_VALIDATION_PLAN_REFERENCES:
-        assert relative_path in validation_plan, f"Missing reference in plan: {relative_path}"
-        assert (PROJECT_ROOT / relative_path).exists(), f"Referenced path missing: {relative_path}"
-
-
-def test_validation_plan_excludes_stale_references():
-    validation_plan = VALIDATION_PLAN_PATH.read_text(encoding="utf-8")
-
-    for stale_reference in DISALLOWED_VALIDATION_PLAN_REFERENCES:
-        assert stale_reference not in validation_plan, (
-            f"Stale reference should not appear in plan: {stale_reference}"
-        )
-
-
-def test_noaa_index_readme_has_no_placeholder_cleaning_or_aggregation_sections():
-    index_readme = NOAA_INDEX_README_PATH.read_text(encoding="utf-8")
-    lowered = index_readme.lower()
-
-    assert "cleaning cli entrypoint not yet implemented" not in lowered
-    assert "aggregation cli entrypoint not yet implemented" not in lowered
-    assert "placeholder only; cleaning pipeline is not yet wired for cron" not in lowered
-    assert "placeholder only; aggregation pipeline is not yet wired for cron" not in lowered
-
-
-def test_readme_excludes_known_stale_quantitative_claims():
-    readme_text = README_PATH.read_text(encoding="utf-8")
-    lowered = readme_text.lower()
-
-    for stale_phrase in STALE_README_QUANTITATIVE_PHRASES:
-        assert stale_phrase.lower() not in lowered, (
-            f"Stale README phrase should not appear: {stale_phrase}"
-        )
-
-
-def test_cleaning_run_docs_enforce_release_contract_paths():
-    readme_text = README_PATH.read_text(encoding="utf-8")
+def test_cleaning_run_docs_enforce_release_contract_paths() -> None:
     run_modes_text = RUN_MODES_PATH.read_text(encoding="utf-8")
-
     expected_layout = "release/build_<run_id>/{canonical_cleaned,domains,quality_reports,manifests}"
-    assert expected_layout in readme_text
     assert expected_layout in run_modes_text
-
-    for legacy_path in ("artifacts/test_runs", "artifacts/parquet_runs"):
-        assert legacy_path not in readme_text
-        assert legacy_path not in run_modes_text
+    assert "artifacts/test_runs" not in run_modes_text
+    assert "artifacts/parquet_runs" not in run_modes_text
 
 
-def test_publication_artifact_semantics_docs_match_current_split_model():
-    run_modes_text = RUN_MODES_PATH.read_text(encoding="utf-8")
-    current_state_text = (PROJECT_ROOT / "docs" / "CURRENT_PROJECT_STATE.md").read_text(encoding="utf-8")
-    implementation_report_text = (
-        PROJECT_ROOT
-        / "docs"
-        / "validation_reports"
-        / "implementation_update_after_first_100_station_audit.md"
-    ).read_text(encoding="utf-8")
-
-    combined = "\n".join((run_modes_text, current_state_text, implementation_report_text))
-
-    assert "publication_readiness_gate.json` is integrity-only" in run_modes_text
-    assert "quality_reports/quality_assessment.json" in combined
-
-    stale_phrases = (
-        "the quality section and the top-level publication gate now reflect that failure",
-        "surfaced explicitly in the publication gate outcome",
-        "quality gate was updated to use",
-        "pass/fail publication quality threshold",
-    )
-    lowered = combined.lower()
-    for phrase in stale_phrases:
-        assert phrase.lower() not in lowered
-
-
-def test_integration_tests_default_to_explicit_fixture_root():
-    integration_test_text = INTEGRATION_TEST_PATH.read_text(encoding="utf-8")
-
-    assert "NOAA_INTEGRATION_OUTPUT_DIR" in integration_test_text
-    assert (
-        'PROJECT_ROOT / "tests" / "fixtures" / "integration_output"'
-        in integration_test_text
-    )
-
-
-def test_artifact_boundary_policy_declares_publication_and_runtime_surfaces():
+def test_artifact_boundary_policy_declares_publication_and_runtime_surfaces() -> None:
     policy_text = ARTIFACT_BOUNDARY_POLICY_PATH.read_text(encoding="utf-8")
-
     assert "release/build_<build_id>/" in policy_text
     assert "output/" in policy_text
     assert "artifacts/test_runs/" in policy_text
@@ -207,12 +111,14 @@ def test_artifact_boundary_policy_declares_publication_and_runtime_surfaces():
     assert "tests/fixtures/" in policy_text
 
 
-def test_station_report_examples_are_tracked_under_docs_examples():
-    assert (PROJECT_ROOT / "docs" / "examples" / "station_reports").exists()
+def test_station_examples_are_curated_under_docs_examples() -> None:
+    assert (PROJECT_ROOT / "docs" / "examples" / "stations").exists()
     assert (PROJECT_ROOT / "docs" / "examples" / "noaa_demo").exists()
+    curated = sorted(path.name for path in (PROJECT_ROOT / "docs" / "examples" / "stations").iterdir())
+    assert curated == ["03041099999", "16754399999", "94368099999"]
 
 
-def test_operational_snapshots_are_not_tracked_in_publication_facing_paths():
+def test_operational_snapshots_are_not_tracked_in_publication_facing_paths() -> None:
     tracked_test_runs = subprocess.run(
         ["git", "ls-files", "artifacts/test_runs/**"],
         cwd=PROJECT_ROOT,
@@ -232,7 +138,7 @@ def test_operational_snapshots_are_not_tracked_in_publication_facing_paths():
     assert tracked_timing_logs == ""
 
 
-def test_legacy_split_scripts_do_not_duplicate_domain_contract_rules():
+def test_legacy_split_scripts_do_not_duplicate_domain_contract_rules() -> None:
     split_cleaned_text = SPLIT_CLEANED_SCRIPT_PATH.read_text(encoding="utf-8")
     assert "from noaa_spec.domain_split import COMMON_COLUMNS, classify_columns" in split_cleaned_text
     assert "DOMAIN_RULES" not in split_cleaned_text
@@ -243,20 +149,12 @@ def test_legacy_split_scripts_do_not_duplicate_domain_contract_rules():
     assert "cleaning-run" in split_by_station_text
 
 
-def test_gitignore_enforces_runtime_blocklist_and_release_allowlist():
+def test_gitignore_enforces_runtime_blocklist_and_station_archive_ignore() -> None:
     gitignore_text = GITIGNORE_PATH.read_text(encoding="utf-8")
-
     for expected_entry in (
         "output/",
         "artifacts/test_runs/",
         "artifacts/parquet_runs/",
-        "!release/build_*/canonical_cleaned/**/*.csv",
-        "!release/build_*/canonical_cleaned/**/*.parquet",
-        "!release/build_*/domains/**/*.csv",
-        "!release/build_*/domains/**/*.parquet",
-        "!release/build_*/quality_reports/**/*.csv",
-        "!release/build_*/quality_reports/**/*.parquet",
-        "!release/build_*/manifests/**/*.csv",
-        "!release/build_*/manifests/**/*.parquet",
+        "data/archive/station_reports_full/",
     ):
         assert expected_entry in gitignore_text

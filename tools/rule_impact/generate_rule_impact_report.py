@@ -2,7 +2,7 @@
 """Generate deterministic rule-impact artifacts for NOAA cleaning.
 
 Outputs:
-- RULE_IMPACT_REPORT.md
+- docs/reports/RULE_IMPACT_REPORT.md
 - rule_impact_summary.csv
 - rule_family_impact_summary.csv
 
@@ -952,7 +952,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--report-path",
         type=Path,
-        default=Path("RULE_IMPACT_REPORT.md"),
+        default=Path("docs/reports/RULE_IMPACT_REPORT.md"),
         help="Markdown report output path.",
     )
     parser.add_argument(
@@ -972,6 +972,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    args.report_path.parent.mkdir(parents=True, exist_ok=True)
     generate(
         repo_root=args.repo_root,
         station_limit=args.station_limit,

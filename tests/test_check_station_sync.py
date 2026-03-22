@@ -6,7 +6,7 @@ import sys
 import pandas as pd
 import pytest
 
-import check_station_sync
+from scripts import check_station_sync
 
 
 def test_check_station_sync_uses_raw_pull_state(

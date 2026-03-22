@@ -7,7 +7,7 @@ Date: 2026-03-15
 - `README.md`
 - `docs/CLEANING_RUN_MODES.md`
 - `docs/CURRENT_PROJECT_STATE.md`
-- `docs/validation_reports/implementation_update_after_first_100_station_audit.md`
+- `docs/reports/implementation_update_after_first_100_station_audit.md`
 - `src/noaa_spec/cleaning_runner.py`
 - `tests/test_cleaning_runner.py`
 - `tests/test_publication_schema_ci.py`
@@ -22,7 +22,7 @@ Date: 2026-03-15
 
 - `docs/CLEANING_RUN_MODES.md`
 - `docs/CURRENT_PROJECT_STATE.md`
-- `docs/validation_reports/implementation_update_after_first_100_station_audit.md`
+- `docs/reports/implementation_update_after_first_100_station_audit.md`
 - `tests/test_documentation_integrity.py`
 
 ## Code/Test Semantic Mismatch

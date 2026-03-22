@@ -2,7 +2,7 @@
 
 Implements parser strictness for NOAA comma-encoded field expansion by adding four validation gates: (A1) identifier allowlist restricts expansion to known NOAA codes only; (A2) exact token-shape validation rejects malformed suffixes like `CO02` or `Q100`; (A3) arity enforcement rejects truncated/extra comma-part payloads; (A4) fixed-width token validation for mandatory/additional data sections. Based on user decisions: invalid identifiers skip expansion and preserve raw values; malformed fields emit nulls with warning logs; REM fields get priority parsing before generic expansion; strict mode is default but opt-out via `strict_mode=False`.
 
-The core changes centralize validation in [constants.py](src/noaa_spec/constants.py) through enhanced identifier resolution and introduce a `strict_mode` parameter threading through [cleaning.py](src/noaa_spec/cleaning.py) parsing flow. This satisfies P0 requirements from [NEXT_STEPS.md](NEXT_STEPS.md) while preserving spec-compliant record behavior.
+The core changes centralize validation in [constants.py](src/noaa_spec/constants.py) through enhanced identifier resolution and introduce a `strict_mode` parameter threading through [cleaning.py](src/noaa_spec/cleaning.py) parsing flow. This satisfies P0 requirements from [docs/archive/NEXT_STEPS.md](docs/archive/NEXT_STEPS.md) while preserving spec-compliant record behavior.
 
 ## Steps
 
@@ -74,7 +74,7 @@ The core changes centralize validation in [constants.py](src/noaa_spec/constants
    - Modify `is_valid_repeated_identifier()` in [constants.py](src/noaa_spec/constants.py#L3723-L3731): check exact digit-count per family (e.g., OA must be 1 digit, not 2)
    - Add `is_valid_identifier()` that combines all checks (allowlist + EQD + repeated + static)
 
-8. **Update [NEXT_STEPS.md](NEXT_STEPS.md)** with completion checkmarks:
+8. **Update [docs/archive/NEXT_STEPS.md](docs/archive/NEXT_STEPS.md)** with completion checkmarks:
    - Mark A1 complete: "✅ Restrict comma-field expansion to known identifiers ([cleaning.py](src/noaa_spec/cleaning.py) allowlist check)"
    - Mark A2 complete: "✅ Enforce exact identifier token format ([constants.py](src/noaa_spec/constants.py) validation tightening)"
    - Mark A3 complete: "✅ Enforce per-identifier arity ([cleaning.py](src/noaa_spec/cleaning.py) part-count validation)"

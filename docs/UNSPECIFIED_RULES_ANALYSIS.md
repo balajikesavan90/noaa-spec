@@ -4,7 +4,7 @@
 
 - These rows are extracted spec rules where identifier attribution failed, so coverage uses `identifier=UNSPECIFIED`.
 - In this 29-row snapshot, 28 rows are section-header width statements (`FLD LEN: 3`) and 1 row is a positional-width statement (`POS: 61-63`).
-- All 29 include `synthetic_unmapped` and are excluded from the actionable strict-gap list in `SPEC_COVERAGE_REPORT.md`.
+- All 29 include `synthetic_unmapped` and are excluded from the actionable strict-gap list in `docs/reports/SPEC_COVERAGE_REPORT.md`.
 
 ## Corresponding Official Spec Lines
 
@@ -48,33 +48,33 @@
 
 ## Source Files
 
-- `SPEC_COVERAGE_REPORT.md`
+- `docs/reports/SPEC_COVERAGE_REPORT.md`
 - `unspecified_29.csv`
-- `isd-format-document-parts/part-03-mandatory-data-section.md`
-- `isd-format-document-parts/part-04-additional-data-section.md`
-- `isd-format-document-parts/part-05-weather-occurrence-data.md`
-- `isd-format-document-parts/part-06-climate-reference-network-unique-data.md`
-- `isd-format-document-parts/part-07-network-metadata.md`
-- `isd-format-document-parts/part-08-crn-control-section.md`
-- `isd-format-document-parts/part-09-subhourly-temperature-section.md`
-- `isd-format-document-parts/part-10-hourly-temperature-section.md`
-- `isd-format-document-parts/part-11-hourly-temperature-extreme-section.md`
-- `isd-format-document-parts/part-12-subhourly-wetness-section.md`
-- `isd-format-document-parts/part-13-hourly-geonor-vibrating-wire-summary-section.md`
-- `isd-format-document-parts/part-14-runway-visual-range-data.md`
-- `isd-format-document-parts/part-15-cloud-and-solar-data.md`
-- `isd-format-document-parts/part-16-sunshine-observation-data.md`
-- `isd-format-document-parts/part-17-solar-irradiance-section.md`
-- `isd-format-document-parts/part-18-net-solar-radiation-section.md`
-- `isd-format-document-parts/part-19-modeled-solar-irradiance-section.md`
-- `isd-format-document-parts/part-20-hourly-solar-angle-section.md`
-- `isd-format-document-parts/part-21-hourly-extraterrestrial-radiation-section.md`
-- `isd-format-document-parts/part-22-hail-data.md`
-- `isd-format-document-parts/part-23-ground-surface-data.md`
-- `isd-format-document-parts/part-24-temperature-data.md`
-- `isd-format-document-parts/part-25-sea-surface-temperature-data.md`
-- `isd-format-document-parts/part-26-soil-temperature-data.md`
-- `isd-format-document-parts/part-27-pressure-data.md`
-- `isd-format-document-parts/part-28-weather-occurrence-data-extended.md`
-- `isd-format-document-parts/part-29-wind-data.md`
-- `isd-format-document-parts/part-30-marine-data.md`
+- `reproducibility/isd-format-document-parts/part-03-mandatory-data-section.md`
+- `reproducibility/isd-format-document-parts/part-04-additional-data-section.md`
+- `reproducibility/isd-format-document-parts/part-05-weather-occurrence-data.md`
+- `reproducibility/isd-format-document-parts/part-06-climate-reference-network-unique-data.md`
+- `reproducibility/isd-format-document-parts/part-07-network-metadata.md`
+- `reproducibility/isd-format-document-parts/part-08-crn-control-section.md`
+- `reproducibility/isd-format-document-parts/part-09-subhourly-temperature-section.md`
+- `reproducibility/isd-format-document-parts/part-10-hourly-temperature-section.md`
+- `reproducibility/isd-format-document-parts/part-11-hourly-temperature-extreme-section.md`
+- `reproducibility/isd-format-document-parts/part-12-subhourly-wetness-section.md`
+- `reproducibility/isd-format-document-parts/part-13-hourly-geonor-vibrating-wire-summary-section.md`
+- `reproducibility/isd-format-document-parts/part-14-runway-visual-range-data.md`
+- `reproducibility/isd-format-document-parts/part-15-cloud-and-solar-data.md`
+- `reproducibility/isd-format-document-parts/part-16-sunshine-observation-data.md`
+- `reproducibility/isd-format-document-parts/part-17-solar-irradiance-section.md`
+- `reproducibility/isd-format-document-parts/part-18-net-solar-radiation-section.md`
+- `reproducibility/isd-format-document-parts/part-19-modeled-solar-irradiance-section.md`
+- `reproducibility/isd-format-document-parts/part-20-hourly-solar-angle-section.md`
+- `reproducibility/isd-format-document-parts/part-21-hourly-extraterrestrial-radiation-section.md`
+- `reproducibility/isd-format-document-parts/part-22-hail-data.md`
+- `reproducibility/isd-format-document-parts/part-23-ground-surface-data.md`
+- `reproducibility/isd-format-document-parts/part-24-temperature-data.md`
+- `reproducibility/isd-format-document-parts/part-25-sea-surface-temperature-data.md`
+- `reproducibility/isd-format-document-parts/part-26-soil-temperature-data.md`
+- `reproducibility/isd-format-document-parts/part-27-pressure-data.md`
+- `reproducibility/isd-format-document-parts/part-28-weather-occurrence-data-extended.md`
+- `reproducibility/isd-format-document-parts/part-29-wind-data.md`
+- `reproducibility/isd-format-document-parts/part-30-marine-data.md`

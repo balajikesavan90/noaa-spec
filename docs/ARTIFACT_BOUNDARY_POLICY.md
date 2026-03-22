@@ -70,7 +70,7 @@ Tracked examples and fixtures must live outside runtime roots:
 
 Tracked station report examples are stored at:
 
-- `docs/examples/station_reports/`
+- `docs/examples/stations/`
 - `docs/examples/noaa_demo/`
 
 This separation keeps publication boundaries explicit and prevents runtime state from being mistaken for release artifacts.

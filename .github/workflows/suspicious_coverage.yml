@@ -151,7 +151,7 @@ jobs:
         if: always()
         with:
           name: suspicious-coverage-summary
-          path: docs/validation_artifacts/suspicious_coverage/suspicious_summary.md
+          path: docs/reports/validation_artifacts/suspicious_coverage/suspicious_summary.md
           retention-days: 30
       
       - name: Comment PR with results
@@ -189,7 +189,7 @@ jobs:
             
             **Suspicious Coverage** = test_covered_any=TRUE but code_implemented=FALSE
             
-            ${current > 0 ? '⚠️ There are suspicious coverage entries. See [suspicious_summary.md](../docs/validation_artifacts/suspicious_coverage/suspicious_summary.md) for details.' : '✅ No suspicious coverage detected!'}
+            ${current > 0 ? '⚠️ There are suspicious coverage entries. See [suspicious_summary.md](../docs/reports/validation_artifacts/suspicious_coverage/suspicious_summary.md) for details.' : '✅ No suspicious coverage detected!'}
             `;
             
             github.rest.issues.createComment({

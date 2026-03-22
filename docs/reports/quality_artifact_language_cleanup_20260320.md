@@ -14,8 +14,8 @@ Removed normative quality-evaluation language and threshold/scoring logic from r
 - `tests/test_publication_schema_ci.py`
 - `docs/CLEANING_RUN_MODES.md`
 - `docs/CURRENT_PROJECT_STATE.md`
-- `docs/validation_reports/implementation_update_after_first_100_station_audit.md`
-- `docs/validation_reports/artifact_semantics_doc_consistency_check.md`
+- `docs/reports/implementation_update_after_first_100_station_audit.md`
+- `docs/reports/artifact_semantics_doc_consistency_check.md`
 
 ## Removed Fields
 

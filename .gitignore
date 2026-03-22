@@ -12,6 +12,7 @@ output/
 artifacts/test_runs/
 artifacts/parquet_runs/
 release/
+data/archive/station_reports_full/
 !release/build_*/canonical_cleaned/**/*.csv
 !release/build_*/canonical_cleaned/**/*.parquet
 !release/build_*/domains/**/*.csv

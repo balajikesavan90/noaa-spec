@@ -3,7 +3,7 @@
 
 Outputs:
 - spec_coverage.csv
-- SPEC_COVERAGE_REPORT.md
+- docs/reports/SPEC_COVERAGE_REPORT.md
 
 Test-coverage semantics:
 - `test_covered_any` is TRUE for any non-`none` test match strength.
@@ -2711,6 +2711,7 @@ def build_report(
     report_path: Path,
     arity_tests_detected: bool,
 ) -> None:
+    report_path.parent.mkdir(parents=True, exist_ok=True)
     extracted_rows = [row for row in rows if row.row_kind in EXTRACTED_ROW_KINDS]
     coverage_rows = [row for row in rows if row.row_kind in METRIC_ROW_KINDS]
     structural_rows_list = [row for row in rows if row.row_kind == ROW_KIND_STRUCTURAL]
@@ -3167,13 +3168,13 @@ def build_report(
 def main() -> None:
     repo_root = Path(__file__).resolve().parents[2]
 
-    spec_path = repo_root / "isd-format-document-parts" / SPEC_DOC_NAME
+    spec_path = repo_root / "reproducibility" / "isd-format-document-parts" / SPEC_DOC_NAME
     constants_path = repo_root / "src" / "noaa_spec" / "constants.py"
     cleaning_path = repo_root / "src" / "noaa_spec" / "cleaning.py"
     tests_path = repo_root / "tests" / "test_cleaning.py"
 
     csv_output = repo_root / "spec_coverage.csv"
-    report_output = repo_root / "SPEC_COVERAGE_REPORT.md"
+    report_output = repo_root / "docs" / "reports" / "SPEC_COVERAGE_REPORT.md"
 
     constants_ast = parse_constants_ast(constants_path)
     cleaning_index = parse_cleaning_index(cleaning_path)
@@ -3202,6 +3203,7 @@ def main() -> None:
     rows = sorted(rows, key=lambda r: r.sort_key())
 
     write_csv(csv_output, rows)
+    report_output.parent.mkdir(parents=True, exist_ok=True)
 
     build_report(rows, report_output, test_index.arity_tests_detected)
 

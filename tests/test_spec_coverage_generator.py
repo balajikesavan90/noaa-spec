@@ -345,7 +345,7 @@ def test_report_uses_strict_kpi_and_quarantines_wildcard_only(tmp_path: Path) ->
     none_row.code_implemented = False
     module.apply_test_match_result(none_row, "none", None)
 
-    report_path = tmp_path / "SPEC_COVERAGE_REPORT.md"
+    report_path = tmp_path / "docs/reports/SPEC_COVERAGE_REPORT.md"
     module.build_report(
         [strict_row, wildcard_row, none_row],
         report_path,
@@ -374,7 +374,7 @@ def test_report_metrics_include_structural_and_exclude_documentation(tmp_path: P
     documentation_row.code_implemented = False
     module.apply_test_match_result(documentation_row, "none", None)
 
-    report_path = tmp_path / "SPEC_COVERAGE_REPORT.md"
+    report_path = tmp_path / "docs/reports/SPEC_COVERAGE_REPORT.md"
     module.build_report(
         [structural_row, documentation_row],
         report_path,
@@ -426,7 +426,7 @@ def test_top_50_real_gaps_ranking_priority_is_stable(tmp_path: Path) -> None:
     excluded_unspecified.test_covered_strict = False
     excluded_unspecified.test_match_strength = "none"
 
-    report_path = tmp_path / "SPEC_COVERAGE_REPORT.md"
+    report_path = tmp_path / "docs/reports/SPEC_COVERAGE_REPORT.md"
     module.build_report(
         [top_row, second_row, third_row, excluded_unspecified],
         report_path,
@@ -446,7 +446,7 @@ def test_segment_spec_doc_lines_detects_expected_order_on_real_document() -> Non
     repo_root = Path(__file__).resolve().parents[1]
     module = _load_generator_module(repo_root)
 
-    spec_path = repo_root / "isd-format-document-parts" / module.SPEC_DOC_NAME
+    spec_path = repo_root / "reproducibility/isd-format-document-parts" / module.SPEC_DOC_NAME
     lines = spec_path.read_text(encoding="utf-8").splitlines()
     segments = module.segment_spec_doc_lines(lines)
 
@@ -1112,10 +1112,10 @@ def test_spec_coverage_generator_smoke() -> None:
     module.main()
 
     csv_path = repo_root / "spec_coverage.csv"
-    report_path = repo_root / "SPEC_COVERAGE_REPORT.md"
+    report_path = repo_root / "docs/reports/SPEC_COVERAGE_REPORT.md"
 
     assert csv_path.exists(), "spec_coverage.csv should be generated"
-    assert report_path.exists(), "SPEC_COVERAGE_REPORT.md should be generated"
+    assert report_path.exists(), "docs/reports/SPEC_COVERAGE_REPORT.md should be generated"
 
     rows = _read_csv_rows(csv_path)
 
@@ -1137,8 +1137,8 @@ def test_spec_coverage_generator_smoke() -> None:
     assert "Progress KPI (`tested_strict`)" in report_text
     assert "Weak coverage (`tested_any`, includes wildcard)" in report_text
     assert "NOAA_CLEANING_ALIGNMENT_REPORT.md" not in report_text
-    assert "NEXT_STEPS.md" not in report_text
-    assert "ARCHITECTURE_NEXT_STEPS.md" not in report_text
+    assert "docs/archive/NEXT_STEPS.md" not in report_text
+    assert "docs/architecture/ARCHITECTURE_NEXT_STEPS.md" not in report_text
     assert "Known-gap traceability" not in report_text
 
     metric_rows = [

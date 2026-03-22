@@ -25,13 +25,13 @@ A validation run is successful only when:
 These generated artifacts are the current source of truth for rule and coverage status:
 
 - `spec_coverage.csv`
-- `SPEC_COVERAGE_REPORT.md`
+- `docs/reports/SPEC_COVERAGE_REPORT.md`
 - `RULE_PROVENANCE_LEDGER.csv`
-- `RULE_PROVENANCE_LEDGER.md`
-- `RULE_IMPACT_REPORT.md`
+- `docs/reports/RULE_PROVENANCE_LEDGER.md`
+- `docs/reports/RULE_IMPACT_REPORT.md`
 - `rule_impact_summary.csv`
 - `rule_family_impact_summary.csv`
-- `docs/validation_artifacts/suspicious_coverage/suspicious_summary.md`
+- `docs/reports/validation_artifacts/suspicious_coverage/suspicious_summary.md`
 
 ---
 
@@ -88,7 +88,7 @@ The following docs must stay executable and in-sync with repository reality:
 - `README.md`
 - `docs/PIPELINE_DESIGN_RATIONALE.md`
 - `docs/PIPELINE_VALIDATION_PLAN.md`
-- `ARCHITECTURE_NEXT_STEPS.md`
+- `docs/architecture/ARCHITECTURE_NEXT_STEPS.md`
 
 Validation expectations:
 
