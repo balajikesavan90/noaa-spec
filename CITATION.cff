@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+title: NOAA-Spec
+message: "If you use this software, please cite it using the metadata below."
+type: software
+authors:
+  - family-names: Kesavan
+    given-names: Balaji
+    affiliation: Independent Researcher
+version: 0.1.0
+doi: 10.0000/TODO

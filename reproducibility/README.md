@@ -5,7 +5,7 @@ This folder contains a minimal, deterministic cleaning example plus a pipeline s
 ## Run cleaning pipeline (example)
 
 ```bash
-poetry run python reproducibility/run_pipeline_example.py
+python reproducibility/run_pipeline_example.py
 ```
 
 This reads reproducibility/sample_station_raw.txt and overwrites reproducibility/sample_station_cleaned.csv.
@@ -13,19 +13,19 @@ This reads reproducibility/sample_station_raw.txt and overwrites reproducibility
 Optional: write the cleaned CSV to a custom path instead of overwriting the repo file:
 
 ```bash
-poetry run python reproducibility/run_pipeline_example.py --out /tmp/sample_station_cleaned.csv
+python reproducibility/run_pipeline_example.py --out /tmp/sample_station_cleaned.csv
 ```
 
 ## Run coverage generator
 
 ```bash
-poetry run python tools/spec_coverage/generate_spec_coverage.py
+python tools/spec_coverage/generate_spec_coverage.py
 ```
 
 ## Run tests
 
 ```bash
-poetry run pytest tests/ -v
+pytest -q
 ```
 
 ## Data provenance
@@ -42,3 +42,11 @@ Pipeline transformations applied by the example script:
 - Apply missing-value checks, quality filtering, and min/max range enforcement.
 - Scale numeric values per field rules and emit QC columns.
 - Produce row-level usability summaries.
+
+## Archived full station reports
+
+The full historical station-report example tree is stored locally at:
+
+`data/archive/station_reports_full/docs/examples/station_reports/`
+
+Only a curated subset remains tracked under `docs/examples/stations/`.
