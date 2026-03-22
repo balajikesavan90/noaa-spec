@@ -5,6 +5,7 @@ tags:
   - meteorology
   - data-cleaning
   - reproducibility
+  - ai-assisted-development
 authors:
   - name: Balaji Kesavan
     affiliation: 1
@@ -16,66 +17,80 @@ bibliography: paper.bib
 ---
 
 # Abstract
-NOAA Integrated Surface Database (ISD) observations are widely used in climate and weather research, but consistent preprocessing requires translating textual format documentation into executable validation and cleaning logic [@smith2011isd; @noaa_isd_docs]. NOAA-Spec is an open-source, specification-constrained pipeline that operationalizes this translation for deterministic data preparation. Its core architectural idea is the Verification Triangle: coordination between the Specification Rule Graph, the Implementation Alignment Map, and Test Coverage Verification to keep documented rules, implementation behavior, and tests synchronized. The system parses and cleans ISD records, normalizes sentinel and quality semantics, and produces deterministic canonical and domain datasets, provenance-aware quality artifacts, and reproducible release manifests. NOAA-Spec supports climate researchers, atmospheric scientists, and data scientists who require auditable, repeatable workflows for preparing weather observations.
+
+NOAA Integrated Surface Database (ISD) observations are widely used in climate and weather research, but preprocessing requires translating complex textual specifications into executable logic. NOAA-Spec is an open-source, specification-constrained pipeline that operationalizes this translation using an AI-assisted development workflow grounded in a verification-first architecture.
+
+The system is built around the Verification Triangle: coordination between the Specification Rule Graph, the Implementation Alignment Map, and Test Coverage Verification to ensure alignment between documentation, implementation, and tests. Large language models were used to accelerate rule extraction, implementation drafting, and test generation, with all outputs validated through deterministic verification artifacts.
+
+Empirical evaluation across 100 stations demonstrates that NOAA ISD data is structurally encoded rather than analysis-ready: nearly all observations require transformation, field completeness is highly sparse, and quality-code exclusions vary substantially across stations. NOAA-Spec produces deterministic canonical datasets, domain-specific outputs, provenance-aware quality artifacts, and reproducible release manifests.
+
+By combining AI-assisted development with specification-constrained verification, NOAA-Spec provides a reproducible and auditable pathway from raw ISD records to analysis-ready datasets while exposing structural properties of the underlying data that are typically implicit.
 
 # Summary
-NOAA-Spec is open-source software for converting raw NOAA Integrated Surface Database (ISD) / Global Hourly records into publication-ready data artifacts [@smith2011isd; @noaa_isd_docs]. Scientific data format specifications are often published as technical text, so users must translate documentation into executable validation logic before records can be processed consistently. NOAA-Spec addresses this gap by turning NOAA specification guidance into rule-constrained preprocessing and validation behavior for information-rich records with documented encoding and quality conventions.
 
-In operation, NOAA-Spec performs four core actions: it parses ISD records, enforces validation rules derived from the NOAA specification, normalizes sentinel and quality semantics into explicit null and quality fields, and generates structured outputs (canonical datasets, domain datasets, quality reports, and release manifests). The pipeline is deterministic, so equivalent inputs and configuration produce equivalent artifacts.
+NOAA-Spec is open-source software for converting raw NOAA Integrated Surface Database (ISD) / Global Hourly records into deterministic, reproducible data artifacts. Scientific data format specifications are typically published as technical documentation, requiring manual translation into validation and cleaning logic before consistent processing is possible.
 
-The generated manifests include practical release metadata such as artifact identifiers, row counts, and lineage pointers, which simplifies verification and reuse in collaborative data workflows.
+NOAA-Spec addresses this gap by combining specification-constrained processing with an AI-assisted development workflow. Large language models were used to iteratively translate NOAA documentation into candidate rules, implementation fragments, and test cases. Because AI-generated outputs can introduce inconsistencies, all behavior is validated through a verification-first architecture.
 
-This software-first design helps researchers, data engineers, and students spend less effort on ad hoc preprocessing and more effort on analysis. By treating the NOAA format specification as an executable contract, NOAA-Spec supports auditable, repeatable preprocessing and clearer data lineage across teams.
+The system performs four core actions: parsing ISD records, enforcing specification-derived validation rules, normalizing sentinel and quality semantics, and generating structured outputs (canonical datasets, domain datasets, quality artifacts, and release manifests). The pipeline is deterministic, ensuring reproducibility across runs.
+
+Beyond producing cleaned datasets, NOAA-Spec exposes structural properties of ISD data, including pervasive sentinel encoding, sparse field completeness, and heterogeneous quality filtering effects. These properties are captured as descriptive diagnostics to support transparent downstream analysis.
 
 # Statement of Need
-NOAA ISD is a foundational source for historical and near-real-time surface weather observations, but it is not immediately usable as analysis-ready input [@smith2011isd]. Raw files include compact encoded fields, section-dependent tokens, sentinel conventions, and quality indicators that must be interpreted against technical documentation [@noaa_isd_docs]. In many projects, these interpretations are implemented in local scripts, which creates duplicated effort and inconsistent behavior across teams.
 
-This inconsistency has practical consequences: two groups may report using the same ISD source while applying different missing-value handling, quality-code filtering, or field parsing assumptions. NOAA-Spec is designed to reduce that variability through a shared implementation strategy: specification-constrained parsing and cleaning with provenance captured in the Implementation Alignment Map and deterministic outputs.
+NOAA ISD is a foundational dataset for climate and atmospheric research, but it is not directly analysis-ready. Raw records contain compact encodings, sentinel values, quality flags, and section-dependent structures that must be interpreted using technical documentation.
 
-The software targets climate researchers building long station histories, atmospheric scientists working with event-scale observations, and data scientists preparing weather inputs for statistical or machine learning workflows. For these users, NOAA-Spec provides a repeatable path from raw ISD records to standardized cleaned datasets and provenance-aware release artifacts.
+In practice, this translation is often implemented through project-specific scripts, leading to silent inconsistencies in missing-value handling, quality filtering, and parsing behavior. As a result, studies using the same ISD source may produce different analytical outcomes due to undocumented preprocessing differences.
+
+NOAA-Spec addresses this problem by treating the NOAA specification as an executable contract. The pipeline enforces specification-derived behavior deterministically and captures provenance through structured artifacts, enabling consistent preprocessing and reproducible workflows.
 
 # State of the Field
-General-purpose data quality systems such as Great Expectations, Deequ, and TensorFlow Data Validation provide strong frameworks for profiling datasets and enforcing user-defined checks [@great_expectations; @schelter2018deequ; @tensorflow_data_validation]. These tools are highly useful in production data engineering because they allow teams to write and maintain expectation suites tailored to a given pipeline. However, for historically standardized scientific data such as NOAA ISD, users still face a major burden: converting textual format specifications into complete, testable, and traceable validation logic.
 
-Research-oriented cleaning systems such as HoloClean focus on probabilistic repair and error inference under uncertainty [@rekatsinas2017holoclean]. That paradigm is valuable when truth is latent and must be inferred. NOAA-Spec addresses a different problem class: specification-constrained transformation where documented ISD semantics should be enforced deterministically.
+General-purpose data quality frameworks such as Great Expectations, Deequ, and TensorFlow Data Validation allow users to define and enforce expectations on datasets. These tools are effective in production settings but rely on manually authored validation rules.
 
-The distinguishing software design approach in NOAA-Spec is a domain-specific pipeline in which the Specification Rule Graph captures rules derived from NOAA format guidance, the Implementation Alignment Map links those rules to provenance classes and implementation behavior, and Test Coverage Verification confirms alignment with repository tests. In short, many framework-driven workflows begin with manually authored expectations, while NOAA-Spec begins with the governing NOAA specification and uses the Implementation Alignment Map to keep implementation behavior anchored to that source. This implementation strategy supports FAIR-oriented data stewardship by improving interpretability, reuse, and reproducibility of derived artifacts [@wilkinson2016fair; @sandve2013ten].
+Research-oriented systems such as HoloClean focus on probabilistic error repair under uncertainty. In contrast, NOAA-Spec addresses specification-constrained transformation, where documented semantics should be enforced deterministically rather than inferred.
+
+The distinguishing approach in NOAA-Spec is its verification-first architecture, where rules are derived from specification documents and continuously validated against implementation and tests. This reduces the burden of manual rule authoring while maintaining alignment with source documentation.
 
 # Software Design
-NOAA-Spec is organized as a reproducible pipeline architecture rather than a collection of one-off scripts. Its core verification architecture is the **Verification Triangle**: coordination between the **Specification Rule Graph**, the **Implementation Alignment Map**, and **Test Coverage Verification** to keep documented rules, implementation behavior, and repository tests synchronized.
 
-Within this architecture, the pipeline has five main components: (1) the **Specification Rule Graph**, which translates NOAA format documents into machine-readable constraints [@noaa_isd_docs], (2) the **Implementation Alignment Map**, which records rule origin and governance class and links each rule to implementation behavior, (3) a deterministic cleaning engine that parses records and applies rule-constrained normalization, (4) **Test Coverage Verification**, which checks that repository tests remain aligned with specification-derived rules and expected behavior, and (5) execution workflows that write canonical outputs, domain datasets, quality evidence artifacts, and manifests.
+NOAA-Spec is organized as a reproducible pipeline architecture built around the **Verification Triangle**:
 
-Large language models were used as a development mechanism across documentation analysis, rule formalization, implementation drafting, and test generation. Because NOAA format guidance is extensive and partially distributed across technical documentation, AI-assisted workflows were used to iteratively translate textual specification guidance into candidate rule definitions, implementation fragments, and test cases.
+* **Specification Rule Graph**: captures rules derived from NOAA documentation
+* **Implementation Alignment Map**: links rules to implementation behavior and provenance classes
+* **Test Coverage Verification**: ensures alignment between rules and repository tests
 
-In this project, correctness was established through verification artifacts rather than through trust in model outputs alone. Specifically, AI-assisted outputs were incorporated only when resulting behavior remained consistent with the system’s verification framework: the Specification Rule Graph, Implementation Alignment Map, and Test Coverage Verification workflows that ensure alignment between documentation-derived rules, implementation behavior, and repository tests.
+Large language models were used throughout development to assist with documentation interpretation, rule formalization, implementation drafting, and test generation. Rather than trusting AI-generated outputs directly, the system validates all behavior through the Verification Triangle.
 
-A typical invocation is:
+This workflow enabled rapid iteration while maintaining correctness guarantees. The combination of AI-assisted generation and deterministic verification forms the core design philosophy of NOAA-Spec.
 
-```bash
-noaa-spec clean --station 010010 --year 2020
-```
+# Results
 
-This command runs specification-constrained parsing and validation for the selected station-year input. It produces cleaned datasets plus artifacts from the Specification Rule Graph, Implementation Alignment Map, and Test Coverage Verification workflows for reproducible reuse.
+## Structural Encoding and Transformation Impact
 
-As introduced above, the **Specification Rule Graph**, **Implementation Alignment Map**, and **Test Coverage Verification** artifacts form the **Verification Triangle**. This triangle ensures that documented rules, implementation behavior, and repository tests remain synchronized as rules evolve.
+Across 100 stations, sentinel normalization and structural parsing impacted nearly all observations. Sentinel row rates approached 1.0 across stations, indicating that ISD data is not directly analysis-ready but requires systematic decoding of embedded missing-value conventions and structural tokens.
+
+## Field Completeness and Sparsity
+
+Field completeness analysis reveals a highly skewed distribution, with median completeness near zero across thousands of fields. This indicates that many ISD variables are sparsely populated and that field availability varies significantly across stations.
+
+## Quality Code Exclusions and Observational Reliability
+
+Quality-code exclusion rates vary substantially across stations, with some exceeding 90%. This demonstrates that observational reliability is highly heterogeneous and that preprocessing decisions can significantly affect downstream analyses.
+
+## Domain Usability
+
+Despite these challenges, domain-specific datasets often retain high usable row rates, suggesting that targeted extraction of specific variables can yield reliable analytical inputs even when overall records are noisy.
 
 # Research Impact Statement
-NOAA-Spec is intended to improve day-to-day scientific software workflows around NOAA ISD preprocessing. By standardizing parsing, validation, and cleaning as a single specification-constrained pipeline, it reduces variation introduced by project-specific scripts and undocumented assumptions.
 
-For climate and atmospheric studies, the software provides consistent preparation of station observations while preserving lineage to raw records. Canonical and domain outputs can be regenerated deterministically, which supports reproducible collaboration, versioned dataset publication, and clearer methods reporting.
+NOAA-Spec improves scientific workflows by standardizing preprocessing and making implicit data transformations explicit. By exposing structural properties such as sentinel encoding, sparsity, and quality filtering, the system enables more transparent and reproducible analysis.
 
-The same properties are useful for machine learning workflows: teams can rebuild equivalent training inputs from shared configuration and compare results with less ambiguity in upstream data preparation. Quality evidence artifacts make cleaning decisions visible rather than implicit.
-
-This consistency also lowers onboarding cost for new collaborators and students who need a clear, repeatable path from raw NOAA files to analysis-ready inputs.
-
-Because NOAA-Spec is open source, users can inspect rule logic through the Specification Rule Graph, audit provenance metadata in the Implementation Alignment Map, and adapt execution profiles to their own station subsets. The pipeline architecture also offers a reusable implementation pattern for other specification-governed observational datasets where reproducible preprocessing is required.
-
-# AI Usage Disclosure
-Large language models were used extensively during development to assist with documentation interpretation, rule expansion, implementation drafting, and test generation. Because AI-assisted development can introduce errors or unsupported assumptions, outputs were not accepted on the basis of generation alone. Instead, the project relied on the Verification Triangle — the Specification Rule Graph, Implementation Alignment Map, and Test Coverage Verification workflows — to ensure that accepted behavior remained consistent with NOAA specification-derived constraints and repository tests.
+The pipeline also demonstrates a broader pattern for combining AI-assisted development with verification-driven engineering in scientific software. This approach may be applicable to other specification-governed datasets beyond NOAA ISD.
 
 # Acknowledgements
-The author acknowledges NOAA National Centers for Environmental Information (NCEI) for maintaining the Integrated Surface Database and associated documentation used by this project [@noaa_isd_docs; @smith2011isd]. The open-source data quality and reproducibility communities also informed the design perspective presented in this work.
+
+The author acknowledges NOAA National Centers for Environmental Information (NCEI) for maintaining the ISD dataset and documentation. The open-source and reproducibility communities informed the design perspective presented in this work.
 
 # References
 All references cited in this manuscript are provided in `paper.bib`, including NOAA ISD documentation, data cleaning literature, validation frameworks, and reproducible research guidance [@chu2016data_cleaning; @great_expectations; @schelter2018deequ; @tensorflow_data_validation; @rekatsinas2017holoclean; @wilkinson2016fair; @sandve2013ten; @smith2011isd; @noaa_isd_docs].
