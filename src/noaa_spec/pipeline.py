@@ -34,6 +34,7 @@ from .noaa_client import (
     fetch_station_metadata_for_years,
     get_years,
     normalize_station_file_name,
+    read_csv_url_with_retries,
     url_for,
 )
 
@@ -350,6 +351,8 @@ def pull_random_station_raw(
 
         station = pick_random_station(stations_csv, raw_pull_state_csv=state_path, seed=seed)
         file_name = str(station["FileName"])
+        station_id = _station_id_from_row(station) or Path(normalize_station_file_name(file_name)).stem
+        print(f"Selected station {station_id} ({file_name}) for raw pull.")
         raw = download_location_data(
             file_name,
             years,
@@ -358,7 +361,6 @@ def pull_random_station_raw(
         )
         if raw.empty:
             raise ValueError("No raw data returned for selected station.")
-        station_id = _station_id_from_row(station) or Path(normalize_station_file_name(file_name)).stem
         station_dir = output_dir / station_id
         station_dir.mkdir(parents=True, exist_ok=True)
         output_path = station_dir / "LocationData_Raw.parquet"
@@ -575,9 +577,12 @@ def download_location_data(
     frames: list[pd.DataFrame] = []
     for year in years:
         url = url_for(year, file_name)
-        try:
-            frame = pd.read_csv(url, dtype=str, low_memory=False)
-        except Exception:
+        frame = read_csv_url_with_retries(
+            url,
+            dtype=str,
+            low_memory=False,
+        )
+        if frame is None:
             continue
         if not frame.empty:
             frame["YEAR"] = year

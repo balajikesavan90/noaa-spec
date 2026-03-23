@@ -116,6 +116,59 @@ class TestNoaaClient:
         assert metadata is not None
         assert metadata_year == 2021
 
+    def test_read_csv_url_with_retries_recovers_after_timeout(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        calls = {"count": 0}
+
+        class _FakeResponse:
+            def __init__(self, status_code: int, content: bytes) -> None:
+                self.status_code = status_code
+                self.content = content
+
+            def raise_for_status(self) -> None:
+                return None
+
+        def fake_get(*_args: object, **_kwargs: object) -> _FakeResponse:
+            calls["count"] += 1
+            if calls["count"] == 1:
+                raise noaa_client.requests.Timeout("timed out")
+            return _FakeResponse(200, b"DATE,TMP\n2020-01-01T00:00:00,\"0010,1\"\n")
+
+        monkeypatch.setattr(noaa_client.requests, "get", fake_get)
+        monkeypatch.setattr(noaa_client, "_sleep_backoff", lambda *_args, **_kwargs: None)
+
+        frame = noaa_client.read_csv_url_with_retries(
+            "https://example.test/station.csv",
+            retries=1,
+        )
+
+        assert frame is not None
+        assert calls["count"] == 2
+        assert frame.iloc[0]["DATE"] == "2020-01-01T00:00:00"
+        assert frame.iloc[0]["TMP"] == "0010,1"
+
+    def test_read_csv_url_with_retries_returns_none_for_404(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        class _FakeResponse:
+            status_code = 404
+            content = b""
+
+            def raise_for_status(self) -> None:
+                raise AssertionError("raise_for_status should not run for 404")
+
+        monkeypatch.setattr(noaa_client.requests, "get", lambda *_args, **_kwargs: _FakeResponse())
+
+        frame = noaa_client.read_csv_url_with_retries(
+            "https://example.test/missing.csv",
+            retries=0,
+        )
+
+        assert frame is None
+
 
 class TestCliCommands:
     def test_cli_file_list_invokes_builders(

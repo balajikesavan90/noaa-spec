@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from io import BytesIO
 from pathlib import Path
 from typing import Iterable
 
@@ -93,6 +94,35 @@ def _read_csv_head_with_retries(
         try:
             return pd.read_csv(url, nrows=1, dtype=str, low_memory=False)
         except Exception:
+            if attempt >= retries:
+                return None
+            _sleep_backoff(attempt, backoff_base, backoff_max)
+    return None
+
+
+def read_csv_url_with_retries(
+    url: str,
+    *,
+    timeout: int | tuple[int, int] = (10, 60),
+    retries: int = 3,
+    backoff_base: float = 0.5,
+    backoff_max: float = 8.0,
+    dtype: str | dict[str, str] | None = str,
+    low_memory: bool = False,
+) -> pd.DataFrame | None:
+    """Read a remote CSV with bounded request time and retry behavior."""
+    for attempt in range(retries + 1):
+        try:
+            response = requests.get(url, timeout=timeout)
+            if response.status_code == 404:
+                return None
+            response.raise_for_status()
+            return pd.read_csv(
+                BytesIO(response.content),
+                dtype=dtype,
+                low_memory=low_memory,
+            )
+        except requests.RequestException:
             if attempt >= retries:
                 return None
             _sleep_backoff(attempt, backoff_base, backoff_max)
