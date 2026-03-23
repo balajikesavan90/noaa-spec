@@ -13,7 +13,7 @@ NOAA ISD observations are structurally encoded rather than analysis-ready. Raw f
 ## Installation
 
 ```bash
-pip install .
+poetry install
 ```
 
 Optional development install:
@@ -26,6 +26,16 @@ Optional contributor setup:
 
 ```bash
 python3 -m pip install --user --break-system-packages pytest pytest-cov
+```
+
+For cron and other scheduled jobs, install the project with Poetry and use the project-local interpreter at `.venv/bin/python` so `python -m noaa_spec.cli` works without `PYTHONPATH`.
+
+If Poetry previously created an environment outside the repo, recreate it after switching to the project-local `.venv` layout.
+
+Install smoke test:
+
+```bash
+./scripts/smoke_test_install.sh
 ```
 
 ## 5-minute example
