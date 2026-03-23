@@ -33,7 +33,7 @@ Finalization ordering is strict:
 
 Once a finalized path has been checksum-registered, the pipeline must not write that path again in the same run.
 
-`quality_reports/quality_assessment.json` is a required finalized transparency artifact. Its presence is validated by the publication gate's manifest-coverage check, but its advisory threshold findings do not control the gate's top-level pass/fail result.
+`quality_reports/quality_assessment.json` is a required finalized transparency artifact. Its presence is validated by the publication gate's manifest-coverage check, but its descriptive metrics do not control the gate's top-level pass/fail result.
 
 `manifests/post_run_audit.md` may be written after finalization as a companion report for the finished build. It is intentionally outside the integrity inputs used by the manifests and publication gate, so it can summarize the final state without introducing recursion.
 

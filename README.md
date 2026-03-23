@@ -46,7 +46,7 @@ Run the deterministic sample cleaning example:
 python reproducibility/run_pipeline_example.py --out /tmp/noaa-spec-sample.csv
 ```
 
-This produces a cleaned CSV at `/tmp/noaa-spec-sample.csv` with normalized fields, resolved sentinel values, and quality-filtered observations.
+This produces a cleaned CSV at `/tmp/noaa-spec-sample.csv` with normalized fields, resolved sentinel values, and quality-filtered observations. The sample run is a reviewer-friendly smoke test of the core cleaning engine, not the final frozen submission build.
 
 Run the installed CLI:
 
@@ -56,15 +56,20 @@ noaa-spec --help
 
 The reproducibility example reads [sample_station_raw.txt](reproducibility/sample_station_raw.txt) and writes a cleaned CSV using the same cleaning engine exposed by the `noaa_spec` library and `noaa-spec` CLI.
 
-## Verification Triangle
+## Contracts and Validation
 
-NOAA-Spec is built around a concrete specification-to-output validation model:
+NOAA-Spec is organized around concrete software surfaces:
 
-- NOAA specifications are translated into formal rule inventories.
-- Implementation behavior is explicitly mapped to those rules in code and provenance artifacts.
-- Outputs are validated with tests and quality artifacts to keep documentation, implementation, and released data aligned.
+- contracts that define canonical, domain, quality-report, and manifest artifact expectations,
+- manifests and checksums that make release outputs auditable,
+- quality reports that describe completeness, sentinel effects, and QC exclusions,
+- validation tests that protect active documentation and publication-surface behavior.
 
-This keeps the system focused on transparent, deterministic preprocessing rather than ad hoc data munging.
+The visible GitHub Actions surface is intentionally small; fuller validation expectations are documented in [docs/PIPELINE_VALIDATION_PLAN.md](docs/PIPELINE_VALIDATION_PLAN.md) and are primarily run locally before release-oriented work.
+
+## Reviewer path
+
+Start with [docs/REVIEWER_GUIDE.md](docs/REVIEWER_GUIDE.md). It connects installation, the sample run, artifact interpretation, and how larger validation evidence should be read during active development.
 
 ## When to use / when not to use
 
@@ -83,7 +88,10 @@ Do not use NOAA-Spec when you need:
 
 ## Paper and docs links
 
+- Reviewer guide: [docs/REVIEWER_GUIDE.md](docs/REVIEWER_GUIDE.md)
 - JOSS paper source: [paper/paper.md](paper/paper.md)
 - Docs index: [docs/README.md](docs/README.md)
 - Reproducibility notes: [reproducibility/README.md](reproducibility/README.md)
 - Minimal examples: [examples/README.md](examples/README.md)
+
+Not every station necessarily emits every domain artifact. A domain dataset may be absent when no rows survive that projection or when a station has no valid data for that domain after cleaning. This is expected behavior, especially for sparse domains such as precipitation.

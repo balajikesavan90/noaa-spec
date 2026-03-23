@@ -9,6 +9,8 @@ observations and are joinable using shared identity keys:
 - `station_id`
 - `DATE`
 
+Domain artifacts are emitted only when at least one cleaned row survives projection into that domain. A station may therefore have a canonical dataset and only a subset of domain datasets. Sparse domains such as `precipitation` may be absent for some stations without indicating an error.
+
 ## core_meteorology
 
 - Join keys: `station_id`, `DATE`
@@ -50,5 +52,6 @@ observations and are joinable using shared identity keys:
 - Domain datasets are not aggregate products.
 - Aggregated rollups (hourly/monthly/yearly summaries) are intentionally out of
   scope for domain dataset contracts.
+- Empty domain projections are omitted rather than emitted as empty reviewer-facing artifacts.
 - Downstream researchers compose domain joins and analysis on top of canonical
   and domain publication artifacts.

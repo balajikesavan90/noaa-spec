@@ -11,6 +11,11 @@
 This validation plan defines the executable checks required to keep the
 specification-constrained cleaning system and publication artifacts trustworthy.
 
+It distinguishes between:
+
+1. local/full validation expectations used before release-oriented work, and
+2. the smaller visible automated CI surface currently tracked in GitHub Actions.
+
 A validation run is successful only when:
 
 1. parser/cleaner behavior remains deterministic,
@@ -35,9 +40,9 @@ These generated artifacts are the current source of truth for rule and coverage 
 
 ---
 
-## 3. Required Test Tracks
+## 3. Local Validation Tracks
 
-Run these tests before claiming validation completion.
+Run these tests locally before claiming validation completion.
 
 ### 3.1 Full Repository Test Suite
 
@@ -102,17 +107,22 @@ Validation expectations:
 
 ---
 
-## 6. CI Baseline
+## 6. Visible Automated CI Surface
 
-Current CI-relevant validation workflows and tests:
+The currently tracked GitHub Actions surface is intentionally narrow:
 
-- `.github/workflows/python-app.yml`
 - `.github/workflows/suspicious_coverage.yml`
-- `tests/test_suspicious_coverage_integrity.py`
-- `tests/test_documentation_integrity.py`
 
-Any new release-contract validation (schemas/manifests/lineage checks) should be
-added incrementally under `tests/` and then wired into CI.
+That workflow currently runs a focused subset of checks:
+
+- `tests/test_publication_schema_ci.py`
+- `tests/test_parser_spec_guardrails.py`
+- `tests/test_suspicious_coverage_integrity.py`
+- suspicious coverage summary generation
+
+Other validation tracks in this document remain local/full validation expectations rather than continuously visible CI gates.
+
+Any new release-contract validation should be added incrementally under `tests/` and then wired into CI when the repository is ready to expand the automated surface.
 
 ---
 

@@ -31,7 +31,7 @@ REQUIRED_README_SECTIONS = (
     "## Why NOAA ISD is not analysis-ready",
     "## Installation",
     "## 5-minute example",
-    "## Verification Triangle",
+    "## Contracts and Validation",
     "## When to use / when not to use",
     "## Paper and docs links",
 )

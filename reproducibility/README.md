@@ -1,6 +1,6 @@
 # Reproducibility
 
-This folder contains a minimal, deterministic cleaning example plus a pipeline snapshot artifact.
+This folder contains the minimal deterministic cleaning example used for local verification and reviewer orientation.
 
 ## Run cleaning pipeline (example)
 
@@ -15,6 +15,8 @@ Optional: write the cleaned CSV to a custom path instead of overwriting the repo
 ```bash
 python reproducibility/run_pipeline_example.py --out /tmp/sample_station_cleaned.csv
 ```
+
+This example is the active reproducibility anchor in the repository. Revision-specific environment captures and pipeline snapshots are intentionally not tracked here during active development because they become stale quickly and can be mistaken for frozen submission evidence.
 
 ## Run coverage generator
 
@@ -42,6 +44,12 @@ Pipeline transformations applied by the example script:
 - Apply missing-value checks, quality filtering, and min/max range enforcement.
 - Scale numeric values per field rules and emit QC columns.
 - Produce row-level usability summaries.
+
+## How to read this with the rest of the repo
+
+- Use this example to verify that installation and the cleaning engine work on a bounded input.
+- Use `docs/REVIEWER_GUIDE.md` for the reviewer path through install, outputs, manifests, and quality reports.
+- Treat larger batch builds as separate validation evidence that will be paired to a frozen submission revision later, not as part of this active development snapshot.
 
 ## Archived full station reports
 

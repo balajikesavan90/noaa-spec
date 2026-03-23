@@ -66,6 +66,19 @@ Recommended layout (auto-derived if not provided):
 
 - all modes: `release/build_<run_id>/{canonical_cleaned,domains,quality_reports,manifests}`
 
+## Domain Artifact Presence Semantics
+
+Domain datasets are written only when at least one cleaned row survives the domain projection for that station.
+
+This means a completed station run may legitimately include:
+
+- a canonical cleaned dataset,
+- station and run-level quality artifacts,
+- manifests and `_SUCCESS.json`,
+- only a subset of possible domain datasets.
+
+If a station has no valid data for a domain, or if no rows survive that domain-specific projection after cleaning and QC handling, the domain artifact is intentionally omitted. This is expected behavior, not a release-layout error.
+
 ## Manifest-First and Cron-Job Coexistence
 
 For `batch_parquet_dir`, `--manifest-first` defaults to enabled.

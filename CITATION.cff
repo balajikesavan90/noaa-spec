@@ -2,9 +2,10 @@ cff-version: 1.2.0
 title: NOAA-Spec
 message: "If you use this software, please cite it using the metadata below."
 type: software
+repository-code: "https://github.com/balajikesavan90/noaa-climate-data"
+abstract: "Specification-constrained software for converting NOAA Integrated Surface Database observations into deterministic canonical datasets, domain datasets, quality reports, and release manifests."
 authors:
   - family-names: Kesavan
     given-names: Balaji
     affiliation: Independent Researcher
 version: 0.1.0
-doi: 10.0000/TODO
