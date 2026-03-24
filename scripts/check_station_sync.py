@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 from pathlib import Path
 import sys
 from datetime import datetime, timezone
@@ -17,7 +18,6 @@ if str(SRC_ROOT) not in sys.path:
 from noaa_spec.noaa_client import normalize_station_file_name
 from noaa_spec.pipeline import default_raw_pull_state_path
 
-DEFAULT_OUTPUT_DIR = Path("output")
 RAW_PULL_STATE_COLUMNS = {
     "station_id",
     "FileName",
@@ -60,8 +60,11 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=DEFAULT_OUTPUT_DIR,
-        help="Root directory containing station parquet outputs (default: ./output)",
+        default=None,
+        help=(
+            "Root directory containing station parquet outputs "
+            "(default: inferred from raw_pull_state.csv, otherwise ./output)"
+        ),
     )
     parser.add_argument(
         "--max-mismatches",
@@ -91,6 +94,24 @@ def _station_dir(output_dir: Path, file_name: str) -> Path:
 
 def _station_parquet_path(output_dir: Path, file_name: str) -> Path:
     return _station_dir(output_dir, file_name) / "LocationData_Raw.parquet"
+
+
+def _infer_output_dir(raw_pull_state: pd.DataFrame) -> Path:
+    candidate_roots: list[Path] = []
+    for raw_path in raw_pull_state.get("raw_path", pd.Series(dtype=str)).fillna("").astype(str):
+        raw_path = raw_path.strip()
+        if not raw_path:
+            continue
+        path = Path(raw_path)
+        if len(path.parts) < 3:
+            continue
+        candidate_roots.append(path.parent.parent)
+
+    if candidate_roots:
+        most_common_root, _ = Counter(candidate_roots).most_common(1)[0]
+        return most_common_root
+
+    return Path("output")
 
 
 def _coerce_boolean_series(series: pd.Series) -> pd.Series:
@@ -136,10 +157,19 @@ def main() -> None:
     frame["FileName"] = frame["FileName"].fillna("").astype(str).map(normalize_station_file_name)
 
     raw_pull_state = _load_raw_pull_state(raw_pull_state_csv)
+    output_dir = args.output_dir or _infer_output_dir(raw_pull_state)
     pulled_files = set(
         raw_pull_state[raw_pull_state["raw_data_pulled"]]["FileName"].astype(str).tolist()
     )
     pulled_rows = raw_pull_state[raw_pull_state["raw_data_pulled"]].copy()
+    raw_path_by_file = (
+        raw_pull_state[["FileName", "raw_path"]]
+        .copy()
+        .assign(raw_path=lambda frame: frame["raw_path"].fillna("").astype(str).str.strip())
+        .drop_duplicates(subset=["FileName"], keep="first")
+        .set_index("FileName")["raw_path"]
+        .to_dict()
+    )
     expected_true = frame[frame["FileName"].isin(pulled_files)].copy()
     expected_false = frame[~frame["FileName"].isin(pulled_files)].copy()
 
@@ -149,7 +179,8 @@ def main() -> None:
 
     for _, row in expected_true.iterrows():
         file_name = str(row["FileName"])
-        parquet_path = _station_parquet_path(args.output_dir, file_name)
+        raw_path = raw_path_by_file.get(file_name, "")
+        parquet_path = Path(raw_path) if raw_path else _station_parquet_path(output_dir, file_name)
         if not parquet_path.exists():
             missing_files.append(
                 {
@@ -163,7 +194,7 @@ def main() -> None:
 
     for _, row in expected_false.iterrows():
         file_name = str(row["FileName"])
-        parquet_path = _station_parquet_path(args.output_dir, file_name)
+        parquet_path = _station_parquet_path(output_dir, file_name)
         if parquet_path.exists():
             unexpected_files.append(
                 {
@@ -176,7 +207,7 @@ def main() -> None:
     total = len(frame)
     print(f"Stations.csv: {stations_csv}")
     print(f"raw_pull_state.csv: {raw_pull_state_csv}")
-    print(f"Output dir: {args.output_dir}")
+    print(f"Output dir: {output_dir}")
     print(f"Total stations: {total}")
     print(f"raw_data_pulled=True: {len(expected_true)}")
     print(f"raw_data_pulled=False: {len(expected_false)}")
