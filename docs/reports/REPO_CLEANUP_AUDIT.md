@@ -25,7 +25,7 @@
 
 | Candidate | Why it is misplaced | Suggested target | Confidence |
 |---|---|---|---|
-| `check_station_sync.py` | Operational helper for raw-pull state reconciliation; defaults to `/media/balaji-kesavan/LaCie/NOAA_Data`, which is machine-specific. | `tools/ops/` or `scripts/ops/` | High |
+| `check_station_sync.py` | Operational helper for raw-pull state reconciliation; defaults to `<EXTERNAL_STORAGE>/NOAA_Data`, which is machine-specific. | `tools/ops/` or `scripts/ops/` | High |
 | `generate_audit_queue.py` | Specialized spec-audit utility; not a public repo entrypoint and sits outside the existing `tools/spec_coverage/` family. | `tools/spec_coverage/` | High |
 | `rerun_stations.py` | One-off rerun script with a hard-coded station list and ignored `output/` assumptions. | `tools/ops/` or `scripts/maintenance/` | High |
 | `ARCHITECTURE_NEXT_STEPS.md`, `NEXT_STEPS.md`, `P3_EXPAND_RESEARCH_VALUE.md` | Planning/roadmap material dominates the root instead of living under documentation. | `docs/roadmap/` and `docs/status/` | High |

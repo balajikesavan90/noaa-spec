@@ -2,6 +2,8 @@
 
 This repository distinguishes publication artifacts from runtime artifacts.
 
+Reviewer note: the active development checkout does not bundle a frozen `release/build_<build_id>/` snapshot. The reviewer-facing reproducibility path is the bounded sample in `reproducibility/` plus the tracked tests and docs.
+
 ## Canonical Publication Surface
 
 Release artifacts must be written under:
@@ -61,6 +63,8 @@ The following locations are runtime/operational surfaces and are not the publica
 
 These paths are for local processing, debugging, or transient operational records.
 
+External or machine-local examples of these runtime surfaces may exist in archival notes with placeholders such as `<LOCAL_PATH>` or `<EXTERNAL_STORAGE>`. Those references document provenance only and are not required for reproduction.
+
 ## Fixture and Example Surface
 
 Tracked examples and fixtures must live outside runtime roots:
@@ -85,3 +89,4 @@ Repository tracking defaults:
 Release exception policy:
 
 - CSV/Parquet artifacts under `release/build_*/{canonical_cleaned,domains,quality_reports,manifests}/` are explicitly unignored and may be versioned when needed for deterministic publication snapshots.
+- Until a frozen reviewer snapshot is prepared, tracked reviewer examples should stay under `reproducibility/` and `docs/examples/`, not under `release/`.

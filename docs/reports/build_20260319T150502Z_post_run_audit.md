@@ -1,10 +1,12 @@
 # Post-Run Audit Report
 
+Local-path note: `<EXTERNAL_STORAGE>` references below describe a machine-local audit target and are not required for reproduction from this repository.
+
 ## Overview
 
 | Check | Result |
 | --- | --- |
-| Build root | /media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260319T150502Z |
+| Build root | <EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260319T150502Z |
 | Build id | 20260319T150502Z |
 | Build timestamp | 2026-03-19T15:05:02+00:00 |
 | Run state | completed |
@@ -72,8 +74,8 @@
 
 ## Cross-Manifest Checksum Disagreements
 
-- /media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260319T150502Z/canonical_cleaned/07335099999/LocationData_Cleaned.parquet
-- /media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260319T150502Z/canonical_cleaned/15168099999/LocationData_Cleaned.parquet
+- <EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260319T150502Z/canonical_cleaned/07335099999/LocationData_Cleaned.parquet
+- <EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260319T150502Z/canonical_cleaned/15168099999/LocationData_Cleaned.parquet
 
 ## Embedded Gate Snapshot
 
@@ -142,7 +144,7 @@
   "generated_at": "2026-03-19T15:05:02+00:00",
   "passed": false,
   "quality_assessment_generated": true,
-  "quality_assessment_path": "/media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260319T150502Z/quality_reports/quality_assessment.json",
+  "quality_assessment_path": "<EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260319T150502Z/quality_reports/quality_assessment.json",
   "run_id": "20260319T150502Z",
   "scores": {
     "integrity_components": {

@@ -8,7 +8,7 @@ The full tracked station-report example set is preserved locally at:
 
 `data/archive/station_reports_full/docs/examples/station_reports/`
 
-This archive is intentionally not tracked in git because the full set is bulky, repetitive, and unnecessary for routine review. The repository keeps a smaller curated subset under [docs/examples/stations](/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/docs/examples/stations).
+This local archive is not tracked in git and is not required for reproduction. The repository keeps a smaller curated subset under [docs/examples/stations](../examples/stations).
 
 ## Regenerating station reports
 

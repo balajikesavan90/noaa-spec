@@ -1,5 +1,7 @@
 # Deep Publication Readiness Audit
 
+Local-path note: references in this archival review use placeholders such as `<EXTERNAL_STORAGE>` and document a machine-local audited build. Those paths are not required for reproduction from this repository.
+
 ## Executive summary
 
 ### Overall verdict
@@ -13,7 +15,7 @@ This repository is stronger as software than as a JOSS submission narrative. The
 2. The paper and README imply specification-grounded confidence more strongly than the repository's own provenance/risk reports justify.
    Evidence: `paper/paper.md`, `docs/reports/RULE_PROVENANCE_LEDGER.md`, `docs/reports/UNDOCUMENTED_RULES_REVIEW.md`.
 3. The strongest empirical evidence, `build_20260322T070910Z`, is external to the repository and was produced from a different code revision than the current checkout.
-   Evidence: `/media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260322T070910Z/manifests/build_metadata.json`, `git rev-parse HEAD`.
+   Evidence: `<EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260322T070910Z/manifests/build_metadata.json`, `git rev-parse HEAD`.
 4. Reviewer-facing reproducibility materials are stale or split across multiple revision anchors.
    Evidence: `reproducibility/pipeline_snapshot.json`, `reproducibility/environment.txt`, `README.md`, `reproducibility/README.md`.
 5. The public documentation surface still contains stale or contradictory traces of prior repository states.
@@ -22,7 +24,7 @@ This repository is stronger as software than as a JOSS submission narrative. The
 ### Top 5 strengths
 
 1. The 100-station build is internally coherent and integrity-clean.
-   Evidence: `/media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260322T070910Z/manifests/post_run_audit.md`, `/media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260322T070910Z/manifests/publication_readiness_gate.json`.
+   Evidence: `<EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260322T070910Z/manifests/post_run_audit.md`, `<EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260322T070910Z/manifests/publication_readiness_gate.json`.
 2. Publication contracts and deterministic artifact semantics are explicit.
    Evidence: `src/noaa_spec/contracts.py`, `src/noaa_spec/contract_schemas/v1/`, `docs/ARTIFACT_BOUNDARY_POLICY.md`, `docs/CLEANING_RUN_MODES.md`.
 3. The publication-surface tests are real and currently passing locally.
@@ -30,7 +32,7 @@ This repository is stronger as software than as a JOSS submission narrative. The
 4. Artifact integrity logic is more mature than typical research-pipeline repos.
    Evidence: `src/noaa_spec/cleaning_runner.py`, `src/noaa_spec/build_audit.py`.
 5. The build outputs do support the broad descriptive claims about sparsity, sentinel prevalence, and heterogeneous exclusion.
-   Evidence: `/media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260322T070910Z/quality_reports/*.csv`, `/media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260322T070910Z/quality_reports/quality_reports_summary.md`.
+   Evidence: `<EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260322T070910Z/quality_reports/*.csv`, `<EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260322T070910Z/quality_reports/quality_reports_summary.md`.
 
 ### Readiness assessment
 
@@ -47,18 +49,18 @@ More precisely: not "submit now", but also not a major rebuild. This looks like 
 - Active docs: `docs/README.md`, `docs/ARTIFACT_BOUNDARY_POLICY.md`, `docs/CLEANING_RUN_MODES.md`, `docs/DOMAIN_DATASET_REGISTRY.md`, `docs/PIPELINE_VALIDATION_PLAN.md`
 - Reports and archival state docs: `docs/reports/*.md`, `docs/archive/*.md`, `docs/architecture/ARCHITECTURE_NEXT_STEPS.md`
 - Examples and reproducibility: `examples/README.md`, `docs/examples/README.md`, `reproducibility/README.md`, `reproducibility/pipeline_snapshot.json`, `reproducibility/environment.txt`
-- External audited build: `/media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260322T070910Z`
+- External audited build: `<EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260322T070910Z`
 
 ## JOSS paper audit
 
 ### Supported claims
 
 - The claim that NOAA-Spec produces deterministic canonical datasets, domain datasets, quality artifacts, and release manifests is supported by the implementation and the 100-station build.
-  Evidence: `paper/paper.md`, `src/noaa_spec/cleaning_runner.py`, `/media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260322T070910Z/manifests/post_run_audit.md`.
+  Evidence: `paper/paper.md`, `src/noaa_spec/cleaning_runner.py`, `<EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260322T070910Z/manifests/post_run_audit.md`.
 - The descriptive results claims about sentinel prevalence, sparse completeness, and heterogeneous quality-code exclusions are broadly supported.
-  Evidence: `paper/paper.md:71-83`, `/media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260322T070910Z/quality_reports/sentinel_frequency.csv`, `/media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260322T070910Z/quality_reports/field_completeness.csv`, `/media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260322T070910Z/quality_reports/quality_code_exclusions.csv`, `/media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260322T070910Z/quality_reports/quality_reports_summary.md:22-35`.
+  Evidence: `paper/paper.md:71-83`, `<EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260322T070910Z/quality_reports/sentinel_frequency.csv`, `<EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260322T070910Z/quality_reports/field_completeness.csv`, `<EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260322T070910Z/quality_reports/quality_code_exclusions.csv`, `<EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260322T070910Z/quality_reports/quality_reports_summary.md:22-35`.
 - The claim that quality diagnostics are separated from publication integrity is supported.
-  Evidence: `paper/paper.md`, `docs/CLEANING_RUN_MODES.md:138-183`, `/media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260322T070910Z/manifests/publication_readiness_gate.json`, `/media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260322T070910Z/quality_reports/quality_assessment.json`.
+  Evidence: `paper/paper.md`, `docs/CLEANING_RUN_MODES.md:138-183`, `<EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260322T070910Z/manifests/publication_readiness_gate.json`, `<EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260322T070910Z/quality_reports/quality_assessment.json`.
 
 ### Weak claims
 
@@ -81,9 +83,9 @@ More precisely: not "submit now", but also not a major rebuild. This looks like 
 ### Missing context
 
 - The paper does not clearly state that the 100-station evidence currently lives in an external build root rather than in a versioned in-repo release snapshot.
-  Evidence: `paper/paper.md`; actual location: `/media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260322T070910Z`.
+  Evidence: `paper/paper.md`; actual location: `<EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260322T070910Z`.
 - The paper does not disclose that the audited build was produced from revision `173f3dc9...`, while the current inspected checkout is `ce4cf3ff...`.
-  Evidence: `/media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260322T070910Z/manifests/build_metadata.json:2-5`, `git rev-parse HEAD`.
+  Evidence: `<EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260322T070910Z/manifests/build_metadata.json:2-5`, `git rev-parse HEAD`.
 - The paper does not acknowledge that some enforced rules are currently judged by the repo itself as better handled as engineering guards or flag-only behavior.
   Evidence: `docs/reports/UNDOCUMENTED_RULES_REVIEW.md:18-76`.
 
@@ -99,7 +101,7 @@ More precisely: not "submit now", but also not a major rebuild. This looks like 
 - The paper should explicitly disclose that some rules are inferred, some are engineering guards, and some current cleaning behavior may be stricter than the NOAA documentation warrants.
   Evidence: `docs/reports/RULE_PROVENANCE_LEDGER.md:5-22`, `docs/reports/UNDOCUMENTED_RULES_REVIEW.md:5-16`.
 - The paper should disclose that the 100-station build is a bounded batch, not evidence of whole-dataset publication at repository scale.
-  Evidence: `/media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260322T070910Z/manifests/build_metadata.json:110-113`.
+  Evidence: `<EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260322T070910Z/manifests/build_metadata.json:110-113`.
 
 ## Repo and documentation audit
 
@@ -118,7 +120,7 @@ More precisely: not "submit now", but also not a major rebuild. This looks like 
 - The docs surface is light on bridging material. There is no single reviewer guide that says: "start here, run this, inspect this build, here is what the evidence means."
   Evidence: `README.md`, `docs/README.md`, `reproducibility/README.md`, `docs/examples/README.md`.
 - The build and release contract are documented as `release/build_<build_id>/...` inside the repository, but the audited submission-strength build is external.
-  Evidence: `docs/ARTIFACT_BOUNDARY_POLICY.md:7-23`, `docs/CLEANING_RUN_MODES.md:65-68`, actual build root `/media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260322T070910Z`.
+  Evidence: `docs/ARTIFACT_BOUNDARY_POLICY.md:7-23`, `docs/CLEANING_RUN_MODES.md:65-68`, actual build root `<EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260322T070910Z`.
 
 ### Hygiene problems
 
@@ -138,30 +140,30 @@ More precisely: not "submit now", but also not a major rebuild. This looks like 
 - `paper/README.md` only explains rendering, not how the manuscript claims map to repository evidence.
   Evidence: `paper/README.md:1-18`.
 - The public CLI still exposes many commands, including deprecated and placeholder-feeling ones, which makes the project look broader and less focused than the JOSS narrative.
-  Evidence: `src/noaa_spec/cli.py`, CLI help output from `./.venv/bin/python -m noaa_spec.cli --help`.
+  Evidence: `src/noaa_spec/cli.py`, CLI help output from `poetry run noaa-spec --help`.
 
 ## Build artifact audit: build_20260322T070910Z
 
 ### What the artifacts convincingly prove
 
 - The run completed successfully for 100 stations with finalization.
-  Evidence: `/media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260322T070910Z/manifests/run_state.json:2-18`.
+  Evidence: `<EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260322T070910Z/manifests/run_state.json:2-18`.
 - The build has coherent manifest coverage and passed recomputed checksum validation.
-  Evidence: `/media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260322T070910Z/manifests/post_run_audit.md:19-57`.
+  Evidence: `<EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260322T070910Z/manifests/post_run_audit.md:19-57`.
 - The release artifact set is substantial and nontrivial: 100 raw sources, 100 canonical datasets, 588 domain datasets, and 5 run-level quality reports.
-  Evidence: `/media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260322T070910Z/manifests/release_manifest.csv`.
+  Evidence: `<EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260322T070910Z/manifests/release_manifest.csv`.
 - The broad descriptive claims in the paper are supported by the measured outputs.
   Computed from:
-  - `/media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260322T070910Z/quality_reports/sentinel_frequency.csv`: mean sentinel row rate `0.9969`, min `0.8467`, max `1.0`
-  - `/media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260322T070910Z/quality_reports/field_completeness.csv`: median completeness `0.000567...`
-  - `/media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260322T070910Z/quality_reports/quality_code_exclusions.csv`: max exclusion rate `0.9313`
+  - `<EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260322T070910Z/quality_reports/sentinel_frequency.csv`: mean sentinel row rate `0.9969`, min `0.8467`, max `1.0`
+  - `<EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260322T070910Z/quality_reports/field_completeness.csv`: median completeness `0.000567...`
+  - `<EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260322T070910Z/quality_reports/quality_code_exclusions.csv`: max exclusion rate `0.9313`
 
 ### What they do not prove
 
 - They do not prove reproducibility from the current repository checkout.
-  Evidence: build revision `173f3dc9...` in `/media/.../build_metadata.json:2-5` versus current checkout `ce4cf3ff...`.
+  Evidence: build revision `173f3dc9...` in `<EXTERNAL_STORAGE>/.../build_metadata.json:2-5` versus current checkout `ce4cf3ff...`.
 - They do not prove external reviewer reproducibility, because the raw input staging root is external and machine-local.
-  Evidence: `/media/.../build_metadata.json:6-120`, `/media/.../run_config.json:1-25`.
+  Evidence: `<EXTERNAL_STORAGE>/.../build_metadata.json:6-120`, `<EXTERNAL_STORAGE>/.../run_config.json:1-25`.
 - They do not prove whole-dataset or production-at-scale coverage beyond this bounded 100-station run.
 
 ### Integrity/traceability assessment
@@ -170,16 +172,16 @@ More precisely: not "submit now", but also not a major rebuild. This looks like 
 - Strong on path-level lineage inside the run.
 - Moderate on external reproducibility.
 
-The biggest limitation is not manifest integrity. It is the fact that the best build evidence is local to `/media/...` and not packaged into a reviewer-portable release exemplar.
+The biggest limitation is not manifest integrity. It is the fact that the best build evidence is local to `<EXTERNAL_STORAGE>/...` and not packaged into a reviewer-portable release exemplar.
 
 ### Reviewer-facing weaknesses
 
 - The build is highly machine-readable but only moderately reviewer-readable.
   Evidence: manifests are strong; reviewer summary is mostly `quality_reports_summary.md` and `post_run_audit.md`.
 - `run_config.json` and `build_metadata.json` expose local absolute paths, which are useful for provenance but not reviewer-friendly.
-  Evidence: `/media/.../run_config.json:1-25`, `/media/.../build_metadata.json:2-120`.
+  Evidence: `<EXTERNAL_STORAGE>/.../run_config.json:1-25`, `<EXTERNAL_STORAGE>/.../build_metadata.json:2-120`.
 - The build contains 588 domain datasets rather than the naive expected 600, because 12 stations have no `precipitation` artifact. That may be legitimate, but it is not explained anywhere reviewer-facing.
-  Evidence: `/media/.../release_manifest.csv`; computed missing domain set from that file.
+  Evidence: `<EXTERNAL_STORAGE>/.../release_manifest.csv`; computed missing domain set from that file.
 
 ## Cross-file consistency audit
 
@@ -210,7 +212,7 @@ The biggest limitation is not manifest integrity. It is the fact that the best b
 ### Mismatched semantics
 
 - The gate and audit use the label `station_year_usable_row_rate`, but the actual CSV column is `usable_row_rate`.
-  Evidence: `src/noaa_spec/cleaning_runner.py:3840-3864`, `/media/.../manifests/publication_readiness_gate.json:9-30`, `/media/.../quality_reports/station_year_quality.csv`.
+  Evidence: `src/noaa_spec/cleaning_runner.py:3840-3864`, `<EXTERNAL_STORAGE>/.../manifests/publication_readiness_gate.json:9-30`, `<EXTERNAL_STORAGE>/.../quality_reports/station_year_quality.csv`.
 - The validation plan says "full repository test suite" is required, but the visible CI workflow does not run it.
   Evidence: `docs/PIPELINE_VALIDATION_PLAN.md:24-61`, `.github/workflows/suspicious_coverage.yml:49-147`.
 
@@ -258,13 +260,13 @@ The biggest limitation is not manifest integrity. It is the fact that the best b
 
 - The strongest 100-station evidence is not packaged as reviewer-portable submission evidence.
   Why it matters: reviewers can distrust claims if the decisive artifact lives only on a local external drive.
-  Exact evidence/files: `/media/.../build_20260322T070910Z/*`; no matching tracked `release/build_20260322T070910Z` snapshot.
+  Exact evidence/files: `<EXTERNAL_STORAGE>/.../build_20260322T070910Z/*`; no matching tracked `release/build_20260322T070910Z` snapshot.
   Recommended fix: archive a sanitized release exemplar or publish a Zenodo/OSF-style snapshot and cite it from the paper and README.
   Must-fix before submission: Yes.
 
 - The audited build does not match the current checkout revision.
   Why it matters: this weakens exact reproducibility and claim alignment.
-  Exact evidence/files: `/media/.../build_metadata.json:2-5` shows `173f3dc9...`; current checkout is `ce4cf3ff...`; `reproducibility/pipeline_snapshot.json:13-14` points to yet another commit.
+  Exact evidence/files: `<EXTERNAL_STORAGE>/.../build_metadata.json:2-5` shows `173f3dc9...`; current checkout is `ce4cf3ff...`; `reproducibility/pipeline_snapshot.json:13-14` points to yet another commit.
   Recommended fix: either rebuild from the submission commit or state exactly which commit the build corresponds to and freeze that pairing in submission materials.
   Must-fix before submission: Yes.
 
@@ -308,7 +310,7 @@ The biggest limitation is not manifest integrity. It is the fact that the best b
 
 - The build contains 12 stations without `precipitation` domain artifacts, but the absence is undocumented.
   Why it matters: this can look like incompleteness to a reviewer.
-  Exact evidence/files: `/media/.../release_manifest.csv`; derived count from manifest shows 588 domain datasets and 12 stations missing `precipitation`.
+  Exact evidence/files: `<EXTERNAL_STORAGE>/.../release_manifest.csv`; derived count from manifest shows 588 domain datasets and 12 stations missing `precipitation`.
   Recommended fix: document that empty domains may be omitted when no rows survive projection, if that is the intended semantics.
   Must-fix before submission: Nice-to-have.
 

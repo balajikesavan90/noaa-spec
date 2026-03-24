@@ -1,10 +1,12 @@
 # Post-Run Audit Report
 
+Local-path note: `<EXTERNAL_STORAGE>` references below describe a machine-local audit target and are not required for reproduction from this repository.
+
 ## Overview
 
 | Check | Result |
 | --- | --- |
-| Build root | /media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260320T040852Z |
+| Build root | <EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260320T040852Z |
 | Build id | 20260320T040852Z |
 | Build timestamp | 2026-03-20T04:08:52+00:00 |
 | Run state | completed |
@@ -131,7 +133,7 @@
   "generated_at": "2026-03-20T04:08:52+00:00",
   "passed": true,
   "quality_assessment_generated": true,
-  "quality_assessment_path": "/media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA/build_20260320T040852Z/quality_reports/quality_assessment.json",
+  "quality_assessment_path": "<EXTERNAL_STORAGE>/NOAA_CLEANED_DATA/build_20260320T040852Z/quality_reports/quality_assessment.json",
   "run_id": "20260320T040852Z",
   "scores": {
     "integrity_components": {
