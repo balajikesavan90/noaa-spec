@@ -87,6 +87,17 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _portable_artifact_path(config: CleaningRunConfig, path: Path) -> str:
+    return cleaning_runner._portable_artifact_path(config, path)
+
+
+def _resolved_manifest_artifact_path(config: CleaningRunConfig, artifact_path: str) -> Path:
+    return cleaning_runner._resolve_manifest_artifact_path(
+        artifact_path,
+        build_root=config.manifest_root.parent,
+    )
+
+
 def _expected_file_manifest_paths(config: CleaningRunConfig) -> set[str]:
     run_status = pd.read_csv(config.manifest_root / "run_status.csv", dtype=str)
     completed = run_status[run_status["status"].astype(str) == "completed"].copy()
@@ -100,12 +111,12 @@ def _expected_file_manifest_paths(config: CleaningRunConfig) -> set[str]:
         for path_text in output_paths:
             path = Path(str(path_text))
             if path.exists():
-                expected.add(str(path.resolve()))
+                expected.add(_portable_artifact_path(config, path))
         success_marker = str(record.get("success_marker_path", "")).strip()
         if success_marker:
             marker = Path(success_marker)
             if marker.exists():
-                expected.add(str(marker.resolve()))
+                expected.add(_portable_artifact_path(config, marker))
 
     global_artifacts = [
         config.manifest_root / "run_manifest.csv",
@@ -127,7 +138,7 @@ def _expected_file_manifest_paths(config: CleaningRunConfig) -> set[str]:
 
     for path in global_artifacts:
         if path.exists():
-            expected.add(str(path.resolve()))
+            expected.add(_portable_artifact_path(config, path))
     return expected
 
 
@@ -179,7 +190,7 @@ def test_ci_schema_validation_for_publication_artifact_types(tmp_path: Path) -> 
         assert row["schema_version"] == quality_contract["schema_version"]
         for required_field in quality_contract["required_metadata_fields"]:
             assert row.get(str(required_field), "")
-        assert Path(str(row["artifact_path"])).exists()
+        assert _resolved_manifest_artifact_path(config, str(row["artifact_path"])).exists()
 
 
 def test_ci_detects_stale_domain_artifacts_against_registry_and_schema(tmp_path: Path) -> None:
@@ -296,7 +307,7 @@ def test_ci_smoke_end_to_end_artifact_graph_generation(tmp_path: Path) -> None:
     }
 
     for artifact_path in release_manifest["artifact_path"].astype(str):
-        assert Path(artifact_path).exists()
+        assert _resolved_manifest_artifact_path(config, artifact_path).exists()
 
     artifact_ids = set(release_manifest["artifact_id"].astype(str))
     raw_ids = {
@@ -392,17 +403,18 @@ def test_ci_file_manifest_completeness_matches_write_flags(
         assert "station_quality_profile" not in observed_types
 
 
-def test_ci_manifest_checksums_follow_path_plus_content_policy(tmp_path: Path) -> None:
+def test_ci_manifest_checksums_follow_portable_content_policy(tmp_path: Path) -> None:
     config, _station_id = _run_fixture_build(tmp_path, run_id="20260101T120006Z")
 
     for manifest_name in ("release_manifest.csv", "file_manifest.csv"):
         manifest = pd.read_csv(config.manifest_root / manifest_name, dtype=str)
         assert not manifest.empty
         for row in manifest.to_dict(orient="records"):
-            artifact_path = Path(str(row["artifact_path"]))
+            artifact_path = _resolved_manifest_artifact_path(config, str(row["artifact_path"]))
             assert artifact_path.exists()
             expected_checksum = cleaning_runner._checksum_for_output_bundle([artifact_path])
             assert str(row["checksum"]) == expected_checksum
+            assert not Path(str(row["artifact_path"])).is_absolute()
 
 
 def test_ci_end_to_end_contract_check_prefixed_run_id_scenario(tmp_path: Path) -> None:

@@ -63,7 +63,7 @@ This output-oriented design is important for scientific reuse. Researchers can i
 
 The repository includes a deterministic sample run, contract validation tests, parser/spec guardrails, documentation integrity checks, and publication-surface schema tests. These checks are intended to verify that the software continues to emit stable artifacts and that active documentation remains aligned with the implemented interfaces.
 
-NOAA-Spec also separates descriptive quality evidence from publication-integrity checks. Quality reports describe observed completeness, sentinel frequency, and exclusion patterns in cleaned data, while manifest and checksum validation focus on artifact integrity and lineage. This distinction helps reviewers and downstream users understand both what the software produced and how reliably it was packaged.
+NOAA-Spec also separates descriptive quality evidence from publication-integrity checks. Quality reports describe observed completeness, sentinel frequency, and exclusion patterns in cleaned data, while manifest and checksum validation focus on artifact integrity and lineage using portable content checksums. This distinction helps reviewers and downstream users understand both what the software produced and how reliably it was packaged.
 
 # Limitations and Rule Provenance
 

@@ -6,7 +6,11 @@ from pathlib import Path
 
 import pandas as pd
 
-from .cleaning_runner import _checksum_for_output_bundle, _publication_checksum_check
+from .cleaning_runner import (
+    _checksum_for_output_bundle,
+    _publication_checksum_check,
+    _resolve_manifest_artifact_path,
+)
 
 
 RELEASE_COLUMNS = [
@@ -84,8 +88,10 @@ def _parse_lineage(value: object) -> list[str]:
     return [str(item) for item in parsed]
 
 
-def _artifact_path_exists(frame: pd.DataFrame) -> pd.Series:
-    return frame["artifact_path"].astype(str).map(lambda value: Path(value).exists())
+def _artifact_path_exists(frame: pd.DataFrame, *, build_root: Path) -> pd.Series:
+    return frame["artifact_path"].astype(str).map(
+        lambda value: _resolve_manifest_artifact_path(value, build_root=build_root).exists()
+    )
 
 
 def _existing_dir_entries(path: Path) -> list[Path]:
@@ -94,11 +100,11 @@ def _existing_dir_entries(path: Path) -> list[Path]:
     return list(path.iterdir())
 
 
-def _recompute_checksum_mismatches(frame: pd.DataFrame) -> list[str]:
+def _recompute_checksum_mismatches(frame: pd.DataFrame, *, build_root: Path) -> list[str]:
     invalid: list[str] = []
     for row in frame.to_dict(orient="records"):
         artifact_id = str(row["artifact_id"])
-        artifact_path = Path(str(row["artifact_path"]))
+        artifact_path = _resolve_manifest_artifact_path(str(row["artifact_path"]), build_root=build_root)
         if not artifact_path.exists():
             invalid.append(artifact_id)
             continue
@@ -190,17 +196,23 @@ def render_build_audit_report(build_root: Path) -> str:
             quality_lineage_ok = False
             break
 
-    recomputed_release_mismatches = _recompute_checksum_mismatches(release)
+    recomputed_release_mismatches = _recompute_checksum_mismatches(release, build_root=build_root)
     recomputed_file_mismatches = _recompute_checksum_mismatches(
-        file_manifest[file_manifest["artifact_type"].astype(str) != "publication_readiness_gate"].copy()
+        file_manifest[file_manifest["artifact_type"].astype(str) != "publication_readiness_gate"].copy(),
+        build_root=build_root,
     )
-    recomputed_gate_checksum = _publication_checksum_check(release, file_manifest)
+    recomputed_gate_checksum = _publication_checksum_check(
+        build_root=build_root,
+        release_manifest=release,
+        file_manifest=file_manifest,
+    )
     cross_manifest_disagreements = _cross_manifest_checksum_disagreements(release, file_manifest)
 
-    release_paths_exist = bool(_artifact_path_exists(release).all())
+    release_paths_exist = bool(_artifact_path_exists(release, build_root=build_root).all())
     file_paths_exist = bool(
         _artifact_path_exists(
-            file_manifest[file_manifest["artifact_type"].astype(str) != "publication_readiness_gate"].copy()
+            file_manifest[file_manifest["artifact_type"].astype(str) != "publication_readiness_gate"].copy(),
+            build_root=build_root,
         ).all()
     )
 

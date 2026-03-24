@@ -43,12 +43,17 @@ Once a finalized path has been checksum-registered, the pipeline must not write 
 
 Artifact checksums use a deterministic SHA-256 bundle hash with this exact policy:
 
-1. append the artifact absolute path bytes
-2. append a `\0` separator
-3. append full file content bytes
-4. append a trailing `\0`
+1. read the artifact bytes from disk
+2. append the full file content bytes
+3. append a trailing `\0`
 
-This is a path+content policy (not content-only) and applies to both `release_manifest.csv` and `file_manifest.csv`.
+This is a content-only policy for reviewer/publication integrity and applies to both `release_manifest.csv` and `file_manifest.csv`.
+
+Publication manifest path rules:
+
+- `artifact_path` values in `release_manifest.csv` and `file_manifest.csv` are portable relative paths rooted at the build workspace, not absolute machine-local paths.
+- identical artifact bytes produced in the same relative publication layout should verify cleanly on a different machine.
+- runtime provenance files may still record machine-local absolute paths when needed for operational recovery, but those local paths are not part of the reviewer-facing checksum contract.
 
 ## Runtime Artifact Surface (Not Publication)
 

@@ -199,6 +199,17 @@ def _bundle_checksum(path: Path) -> str:
     return cleaning_runner._checksum_for_output_bundle([path])
 
 
+def _manifest_artifact_path(config: CleaningRunConfig, artifact_path: str) -> Path:
+    return cleaning_runner._resolve_manifest_artifact_path(
+        artifact_path,
+        build_root=config.manifest_root.parent,
+    )
+
+
+def _portable_artifact_path(config: CleaningRunConfig, path: Path) -> str:
+    return cleaning_runner._portable_artifact_path(config, path)
+
+
 def test_quality_profile_null_counts_are_per_identifier_rows_not_part_sums() -> None:
     builder = cleaning_runner._QualityProfileBuilder()
     cleaned = pd.DataFrame(
@@ -1369,12 +1380,16 @@ def test_parquet_raw_source_and_build_file_checksums_match(tmp_path: Path) -> No
     file_manifest = pd.read_csv(config.manifest_root / "file_manifest.csv", dtype=str)
 
     raw_release = release_manifest[release_manifest["artifact_type"] == "raw_source"].iloc[0].to_dict()
-    raw_build_file = file_manifest[file_manifest["artifact_path"] == str(raw_path.resolve())].iloc[0].to_dict()
+    raw_build_file = file_manifest[
+        file_manifest["artifact_path"] == _portable_artifact_path(config, raw_path)
+    ].iloc[0].to_dict()
     assert raw_release["checksum"] == raw_build_file["checksum"] == _bundle_checksum(raw_path)
 
     canonical_path = config.output_root / station_id / "LocationData_Cleaned.parquet"
     canonical_release = release_manifest[release_manifest["artifact_type"] == "canonical_dataset"].iloc[0].to_dict()
-    canonical_build_file = file_manifest[file_manifest["artifact_path"] == str(canonical_path.resolve())].iloc[0].to_dict()
+    canonical_build_file = file_manifest[
+        file_manifest["artifact_path"] == _portable_artifact_path(config, canonical_path)
+    ].iloc[0].to_dict()
     assert canonical_release["checksum"] == canonical_build_file["checksum"] == _bundle_checksum(canonical_path)
 
 

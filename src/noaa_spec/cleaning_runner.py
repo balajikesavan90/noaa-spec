@@ -1511,8 +1511,6 @@ def _validate_release_metadata(payload: dict[str, Any]) -> None:
 def _checksum_for_output_bundle(paths: list[Path]) -> str:
     digest = hashlib.sha256()
     for path in sorted((item.resolve() for item in paths), key=lambda item: str(item)):
-        digest.update(str(path).encode("utf-8"))
-        digest.update(b"\0")
         with path.open("rb") as handle:
             while True:
                 chunk = handle.read(1024 * 1024)
@@ -1525,12 +1523,34 @@ def _checksum_for_output_bundle(paths: list[Path]) -> str:
 
 def _checksum_for_serialized_artifact(path: Path, payload: bytes) -> str:
     digest = hashlib.sha256()
-    resolved = path.resolve()
-    digest.update(str(resolved).encode("utf-8"))
-    digest.update(b"\0")
     digest.update(payload)
     digest.update(b"\0")
     return digest.hexdigest()
+
+
+def _publication_workspace_root(config: CleaningRunConfig) -> Path:
+    build_root = config.manifest_root.parent.resolve()
+    return Path(os.path.commonpath([str(build_root), str(config.input_root.resolve())]))
+
+
+def _portable_artifact_path(config: CleaningRunConfig, path: Path) -> str:
+    resolved = path.resolve()
+    workspace_root = _publication_workspace_root(config)
+    return resolved.relative_to(workspace_root).as_posix()
+
+
+def _artifact_path_root_from_build_root(build_root: Path) -> Path:
+    resolved_build_root = build_root.resolve()
+    if resolved_build_root.parent.name == "release":
+        return resolved_build_root.parent.parent
+    return resolved_build_root.parent
+
+
+def _resolve_manifest_artifact_path(artifact_path: str, *, build_root: Path) -> Path:
+    path = Path(artifact_path)
+    if path.is_absolute():
+        return path
+    return (_artifact_path_root_from_build_root(build_root) / path).resolve()
 
 
 def _json_bytes(payload: dict[str, Any]) -> bytes:
@@ -3171,7 +3191,7 @@ def _source_release_manifest_rows(
             {
                 "artifact_id": artifact_id,
                 "artifact_type": "raw_source",
-                "artifact_path": str(raw_path.resolve()),
+                "artifact_path": _portable_artifact_path(config, raw_path),
                 "schema_version": RELEASE_MANIFEST_CONTRACT.schema_version,
                 "build_id": config.run_id,
                 "input_lineage": _json_compact(
@@ -3243,7 +3263,7 @@ def _canonical_release_manifest_rows(
             {
                 "artifact_id": f"canonical_dataset/{config.run_id}/{station_id}",
                 "artifact_type": "canonical_dataset",
-                "artifact_path": str(cleaned_path.resolve()),
+                "artifact_path": _portable_artifact_path(config, cleaned_path),
                 "schema_version": CANONICAL_DATASET_CONTRACT.schema_version,
                 "build_id": config.run_id,
                 "input_lineage": _json_compact(lineage),
@@ -3302,7 +3322,7 @@ def _domain_release_manifest_rows(
                 {
                     "artifact_id": f"domain_dataset/{config.run_id}/{station_id}/{domain_name}",
                     "artifact_type": "domain_dataset",
-                    "artifact_path": str(file_path.resolve()),
+                    "artifact_path": _portable_artifact_path(config, file_path),
                     "schema_version": DOMAIN_DATASET_CONTRACT.schema_version,
                     "build_id": config.run_id,
                     "input_lineage": _json_compact(lineage),
@@ -3336,7 +3356,7 @@ def _quality_release_manifest_rows(
             {
                 "artifact_id": f"quality_report/{config.run_id}/{report_type}",
                 "artifact_type": "quality_report",
-                "artifact_path": str(artifact_path.resolve()),
+                "artifact_path": _portable_artifact_path(config, artifact_path),
                 "schema_version": QUALITY_REPORT_CONTRACT.schema_version,
                 "build_id": config.run_id,
                 "input_lineage": _json_compact(lineage),
@@ -3377,7 +3397,7 @@ def _build_full_file_manifest_rows(
     )
 
     rows: list[dict[str, Any]] = []
-    for path in sorted(paths, key=lambda item: str(item)):
+    for path in sorted(paths, key=lambda item: _portable_artifact_path(config, item)):
         checksum = None
         if precomputed_checksums is not None:
             checksum = precomputed_checksums.get(path.resolve())
@@ -3387,7 +3407,7 @@ def _build_full_file_manifest_rows(
             {
                 "artifact_id": _full_file_manifest_artifact_id(config, path),
                 "artifact_type": _full_file_manifest_artifact_type(config, path),
-                "artifact_path": str(path),
+                "artifact_path": _portable_artifact_path(config, path),
                 "schema_version": RELEASE_MANIFEST_CONTRACT.schema_version,
                 "build_id": config.run_id,
                 "input_lineage": _json_compact([]),
@@ -3597,7 +3617,11 @@ def _build_publication_readiness_gate(
         release_manifest=release_manifest,
         file_manifest=file_manifest,
     )
-    checksum_check = _publication_checksum_check(release_manifest, file_manifest)
+    checksum_check = _publication_checksum_check(
+        build_root=config.manifest_root.parent,
+        release_manifest=release_manifest,
+        file_manifest=file_manifest,
+    )
     structural_check = _publication_structural_sanity_check(quality_frames)
     build_metadata_check = _publication_build_metadata_completeness_check(build_metadata_path)
 
@@ -3616,7 +3640,7 @@ def _build_publication_readiness_gate(
         "passed": overall_pass,
         "generated_at": generated_at,
         "quality_assessment_generated": quality_assessment_path.exists(),
-        "quality_assessment_path": str(quality_assessment_path.resolve()),
+        "quality_assessment_path": _portable_artifact_path(config, quality_assessment_path),
         "checks": checks,
         "scores": scores,
     }
@@ -3657,14 +3681,14 @@ def _publication_manifest_coverage_check(
         if input_path:
             raw_path = Path(input_path)
             if raw_path.exists():
-                expected_paths.add(str(raw_path.resolve()))
+                expected_paths.add(_portable_artifact_path(config, raw_path))
 
         expected_outputs = _parse_lineage_values(record.get("expected_outputs", "[]"))
         for path_text in expected_outputs:
             output_path = Path(path_text)
             if output_path.exists():
                 resolved_output = output_path.resolve()
-                expected_paths.add(str(resolved_output))
+                expected_paths.add(_portable_artifact_path(config, resolved_output))
                 if resolved_output.name == "station_split_manifest.csv":
                     try:
                         split_manifest = pd.read_csv(resolved_output)
@@ -3673,13 +3697,13 @@ def _publication_manifest_coverage_check(
                     for split_record in split_manifest.to_dict(orient="records"):
                         split_path = Path(str(split_record.get("file", "")))
                         if split_path.exists():
-                            expected_paths.add(str(split_path.resolve()))
+                            expected_paths.add(_portable_artifact_path(config, split_path))
 
         success_marker = str(record.get("success_marker_path", "")).strip()
         if success_marker:
             success_path = Path(success_marker)
             if success_path.exists():
-                expected_paths.add(str(success_path.resolve()))
+                expected_paths.add(_portable_artifact_path(config, success_path))
 
     global_paths = [
         run_manifest_path,
@@ -3695,7 +3719,7 @@ def _publication_manifest_coverage_check(
         global_paths.append(config.reports_root / "global_quality_summary.json")
     for path in global_paths:
         if path.exists():
-            expected_paths.add(str(path.resolve()))
+            expected_paths.add(_portable_artifact_path(config, path))
 
     file_manifest_paths = (
         set(filtered_file_manifest["artifact_path"].astype(str).tolist())
@@ -3753,6 +3777,8 @@ def _publication_timestamp_check(
 
 
 def _publication_checksum_check(
+    *,
+    build_root: Path,
     release_manifest: pd.DataFrame,
     file_manifest: pd.DataFrame,
 ) -> dict[str, Any]:
@@ -3761,7 +3787,10 @@ def _publication_checksum_check(
     combined = pd.concat([release_manifest, filtered_file_manifest], ignore_index=True, sort=False)
     for row in combined.to_dict(orient="records"):
         artifact_id = str(row.get("artifact_id", ""))
-        artifact_path = Path(str(row.get("artifact_path", "")))
+        artifact_path = _resolve_manifest_artifact_path(
+            str(row.get("artifact_path", "")),
+            build_root=build_root,
+        )
         expected_checksum = str(row.get("checksum", ""))
         if not artifact_path.exists():
             invalid_rows.append(artifact_id or "<missing-path>")
