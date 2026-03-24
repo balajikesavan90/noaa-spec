@@ -56,14 +56,14 @@ poetry run noaa-spec --help
 
 This produces a cleaned CSV at `/tmp/noaa-spec-sample.csv` with normalized fields, resolved sentinel values, and quality-filtered observations. The sample run is the reproducible in-repo example. It is intentionally small and is not a substitute for larger external release builds.
 
-The reproducibility example reads [sample_station_raw.txt](reproducibility/sample_station_raw.txt) and writes a cleaned CSV using the same cleaning engine exposed by the `noaa_spec` library and the `noaa-spec` CLI.
+The reproducibility example reads [sample_station_raw.txt](reproducibility/sample_station_raw.txt) and writes a cleaned CSV using the same cleaning engine exposed by the `noaa_spec` library and the `noaa-spec` CLI. The reviewer path writes to `/tmp`, not to tracked repository files, and should exit without `[PARSE_STRICT]` warnings.
 
 ## Contracts and Validation
 
 NOAA-Spec is organized around concrete software surfaces:
 
 - contracts that define canonical, domain, quality-report, and manifest artifact expectations,
-- manifests and checksums that make release outputs auditable,
+- manifests with portable relative artifact paths and content checksums that make release outputs auditable,
 - quality reports that describe completeness, sentinel effects, and QC exclusions,
 - validation tests that protect active documentation and publication-surface behavior.
 

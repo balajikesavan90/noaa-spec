@@ -1586,9 +1586,16 @@ def clean_noaa_dataframe(
         if column in processed_columns:
             continue
 
+        series = cleaned[column]
+        if not pd.api.types.is_object_dtype(series) and not pd.api.types.is_string_dtype(series):
+            continue
+        sample = series.dropna().astype(str).head(200)
+        if sample.empty or not _should_parse_column(sample):
+            continue
+
         # A1: Strict mode allowlist gate - only expand known NOAA identifiers.
-        # Avoid broad prefix matching here so metadata columns like STATION/DATE
-        # are never parsed as additional-data families.
+        # Evaluate this only for columns that actually look parseable so metadata
+        # columns like STATION/DATE do not emit reviewer-facing noise.
         if strict_mode:
             section_identifier_valid = is_valid_section_identifier_token(column)
             if section_identifier_valid is False:
@@ -1603,16 +1610,9 @@ def clean_noaa_dataframe(
                 or is_valid_repeated_identifier(column) is True
             )
             if not known_identifier:
-            # Skip expansion for unknown identifiers, keep raw column
+                # Skip expansion for unknown identifiers, keep raw column.
                 logger.warning(f"[PARSE_STRICT] Skipping unknown identifier: {column}")
                 continue
-
-        series = cleaned[column]
-        if not pd.api.types.is_object_dtype(series) and not pd.api.types.is_string_dtype(series):
-            continue
-        sample = series.dropna().astype(str).head(200)
-        if sample.empty or not _should_parse_column(sample):
-            continue
 
         parsed_rows = []
         normalized_values = series.fillna("").astype(str)

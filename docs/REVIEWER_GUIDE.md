@@ -66,7 +66,9 @@ What this demonstrates:
 Expected output:
 
 - `/tmp/noaa-spec-sample.csv` exists and contains cleaned observation rows
+- the sample command exits cleanly without `[PARSE_STRICT]` warnings
 - `poetry run noaa-spec --help` exits successfully
+- `bash scripts/smoke_test_install.sh` verifies the generated CSV against the tracked reproducibility anchor and confirms that no tracked repository file is modified by the reviewer flow
 
 This sample run is intentionally small. It demonstrates the software interface and output semantics, not the full bounded batch evidence used for later submission packaging.
 
@@ -96,7 +98,8 @@ Reviewer-facing interpretation:
 
 - contracts define what each artifact type must contain,
 - manifests record what was produced,
-- checksums make those recorded artifacts auditable,
+- publication manifests use portable relative artifact paths and content-only checksums,
+- checksums make those recorded artifacts auditable across machines when artifact bytes match,
 - lineage fields show how outputs relate back to raw inputs and intermediate artifacts.
 
 Useful companion docs:

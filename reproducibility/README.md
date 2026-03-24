@@ -46,6 +46,15 @@ Optional: write the cleaned CSV to a different custom path:
 poetry run python reproducibility/run_pipeline_example.py --out /tmp/sample_station_cleaned.csv
 ```
 
+The reviewer path writes outside the repository by default and should exit cleanly without `[PARSE_STRICT]` warnings.
+
+Tracked anchor files:
+
+- `reproducibility/sample_station_cleaned.csv` is the tracked sample artifact
+- `reproducibility/sample_station_cleaned_expected.csv` is the verification fixture used by tests and the smoke script
+
+`bash scripts/smoke_test_install.sh` automates the reviewer verification path: it runs the sample command with `poetry run`, compares the generated CSV with the tracked fixture, and fails if the reviewer flow mutates tracked reproducibility files.
+
 This example is the active reproducibility anchor in the repository. Revision-specific environment captures and pipeline snapshots are intentionally not tracked here during active development because they become stale quickly and can be mistaken for frozen submission evidence.
 
 ## Run coverage generator

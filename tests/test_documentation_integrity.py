@@ -7,6 +7,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 README_PATH = PROJECT_ROOT / "README.md"
 DOCS_INDEX_PATH = PROJECT_ROOT / "docs" / "README.md"
+REVIEWER_GUIDE_PATH = PROJECT_ROOT / "docs" / "REVIEWER_GUIDE.md"
+REPRODUCIBILITY_README_PATH = PROJECT_ROOT / "reproducibility" / "README.md"
 RUN_MODES_PATH = PROJECT_ROOT / "docs" / "CLEANING_RUN_MODES.md"
 ARTIFACT_BOUNDARY_POLICY_PATH = PROJECT_ROOT / "docs" / "ARTIFACT_BOUNDARY_POLICY.md"
 ARCHIVE_README_PATH = PROJECT_ROOT / "docs" / "archive" / "README.md"
@@ -57,6 +59,18 @@ def test_readme_has_required_joss_sections() -> None:
     readme_text = README_PATH.read_text(encoding="utf-8")
     for section in REQUIRED_README_SECTIONS:
         assert section in readme_text
+
+
+def test_reviewer_docs_use_pipx_poetry_install_path_and_poetry_run_commands() -> None:
+    doc_paths = (README_PATH, REVIEWER_GUIDE_PATH, REPRODUCIBILITY_README_PATH)
+    for path in doc_paths:
+        text = path.read_text(encoding="utf-8")
+        assert "Python `>=3.12`" in text
+        assert "python3 -m pip install --user pipx" in text
+        assert "python3 -m pipx ensurepath" in text
+        assert "pipx install poetry" in text
+        assert "python3 -m pip install --user poetry" not in text
+        assert "poetry run python reproducibility/run_pipeline_example.py --out /tmp/noaa-spec-sample.csv" in text
 
 
 def test_docs_index_and_archive_docs_exist() -> None:

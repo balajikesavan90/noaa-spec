@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import tempfile
 
 import pandas as pd
 
@@ -27,7 +28,8 @@ def main() -> None:
     args = _parse_args()
     repo_root = Path(__file__).resolve().parents[1]
     raw_path = repo_root / "reproducibility" / "sample_station_raw.txt"
-    cleaned_path = args.out or (repo_root / "reproducibility" / "sample_station_cleaned.csv")
+    cleaned_path = args.out or (Path(tempfile.gettempdir()) / "noaa-spec-sample.csv")
+    cleaned_path.parent.mkdir(parents=True, exist_ok=True)
 
     raw = pd.read_csv(raw_path, dtype=str)
     cleaned = clean_noaa_dataframe(raw, keep_raw=False, strict_mode=True)
