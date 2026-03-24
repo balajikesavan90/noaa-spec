@@ -4,14 +4,22 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-VENV_PYTHON="${REPO_ROOT}/.venv/bin/python"
+SMOKE_OUTPUT="${TMPDIR:-/tmp}/noaa-spec-smoke-test.csv"
 
-if [[ ! -x "${VENV_PYTHON}" ]]; then
-    echo "Missing ${VENV_PYTHON}. Run 'poetry install' to create the project-local virtualenv." >&2
+cd "${REPO_ROOT}"
+
+if ! command -v poetry >/dev/null 2>&1; then
+    echo "Missing 'poetry' on PATH. Install Poetry, then rerun 'poetry install'." >&2
     exit 1
 fi
 
-"${VENV_PYTHON}" -c "import noaa_spec"
-"${VENV_PYTHON}" -m noaa_spec.cli --help >/dev/null
+poetry run python -c "import noaa_spec"
+poetry run noaa-spec --help >/dev/null
+poetry run python reproducibility/run_pipeline_example.py --out "${SMOKE_OUTPUT}"
 
-echo "Smoke test passed: .venv can import noaa_spec and run the CLI."
+if [[ ! -s "${SMOKE_OUTPUT}" ]]; then
+    echo "Smoke test failed: expected cleaned CSV at ${SMOKE_OUTPUT}." >&2
+    exit 1
+fi
+
+echo "Smoke test passed: Poetry can import noaa_spec, run the CLI, and produce the sample cleaned CSV."

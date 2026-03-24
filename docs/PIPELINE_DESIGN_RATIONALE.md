@@ -252,7 +252,7 @@ spec_coverage.csv | docs/reports/SPEC_COVERAGE_REPORT.md
 cd /path/to/noaa-climate-data
 
 # Generate spec_coverage.csv and docs/reports/SPEC_COVERAGE_REPORT.md
-python tools/spec_coverage/generate_spec_coverage.py
+poetry run python tools/spec_coverage/generate_spec_coverage.py
 ```
 
 Outputs:
@@ -328,7 +328,7 @@ To implement a rule (e.g., OA1 speed range):
 
 2. Re-run the spec coverage generator:
    ```bash
-   python tools/spec_coverage/generate_spec_coverage.py
+   poetry run python tools/spec_coverage/generate_spec_coverage.py
    ```
 
 3. Check the updated CSV for OA1 range rule:
@@ -358,7 +358,7 @@ To implement a rule (e.g., OA1 speed range):
 
 6. Re-run spec coverage to confirm test is matched:
    ```bash
-   python tools/spec_coverage/generate_spec_coverage.py
+   poetry run python tools/spec_coverage/generate_spec_coverage.py
    grep "OA1.*range" spec_coverage.csv | grep "test_covered_strict"
    ```
 

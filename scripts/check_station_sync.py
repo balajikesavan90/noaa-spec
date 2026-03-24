@@ -17,7 +17,7 @@ if str(SRC_ROOT) not in sys.path:
 from noaa_spec.noaa_client import normalize_station_file_name
 from noaa_spec.pipeline import default_raw_pull_state_path
 
-DEFAULT_OUTPUT_DIR = Path("/media/balaji-kesavan/LaCie/NOAA_Data")
+DEFAULT_OUTPUT_DIR = Path("output")
 RAW_PULL_STATE_COLUMNS = {
     "station_id",
     "FileName",
@@ -61,7 +61,7 @@ def _parse_args() -> argparse.Namespace:
         "--output-dir",
         type=Path,
         default=DEFAULT_OUTPUT_DIR,
-        help="Root directory containing station parquet outputs",
+        help="Root directory containing station parquet outputs (default: ./output)",
     )
     parser.add_argument(
         "--max-mismatches",
@@ -103,7 +103,7 @@ def _load_raw_pull_state(raw_pull_state_csv: Path) -> pd.DataFrame:
         raise FileNotFoundError(
             "raw_pull_state.csv not found: "
             f"{raw_pull_state_csv}. Run "
-            "`poetry run python -m noaa_spec.cli materialize-raw-pull-state` "
+            "`poetry run noaa-spec materialize-raw-pull-state` "
             "if you need to bootstrap it from legacy state."
         )
 

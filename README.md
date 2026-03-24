@@ -13,48 +13,40 @@ NOAA ISD observations are structurally encoded rather than analysis-ready. Raw f
 ## Installation
 
 ```bash
+python3 -m pip install --user poetry
 poetry install
 ```
 
-Optional development install:
+Requirements:
 
-```bash
-pip install -e .
-```
+- Python `>=3.12`
+- Poetry available on `PATH`
 
-Optional contributor setup:
-
-```bash
-python3 -m pip install --user --break-system-packages pytest pytest-cov
-```
-
-For cron and other scheduled jobs, install the project with Poetry and use the project-local interpreter at `.venv/bin/python` so `python -m noaa_spec.cli` works without `PYTHONPATH`.
-
-If Poetry previously created an environment outside the repo, recreate it after switching to the project-local `.venv` layout.
+All documented project commands below are run through Poetry. Do not rely on a global `noaa-spec` install or a repo-local `.venv/bin/python` path.
 
 Install smoke test:
 
 ```bash
-./scripts/smoke_test_install.sh
+bash scripts/smoke_test_install.sh
 ```
 
 ## 5-minute example
 
-Run the deterministic sample cleaning example:
+From a clean environment, the shortest reviewer path is:
 
 ```bash
-python reproducibility/run_pipeline_example.py --out /tmp/noaa-spec-sample.csv
+poetry run python reproducibility/run_pipeline_example.py --out /tmp/noaa-spec-sample.csv
 ```
 
-This produces a cleaned CSV at `/tmp/noaa-spec-sample.csv` with normalized fields, resolved sentinel values, and quality-filtered observations. The sample run is a reviewer-friendly smoke test of the core cleaning engine, not the final frozen submission build.
-
-Run the installed CLI:
+Verify that the installed CLI is available:
 
 ```bash
-noaa-spec --help
+poetry run noaa-spec --help
 ```
 
-The reproducibility example reads [sample_station_raw.txt](reproducibility/sample_station_raw.txt) and writes a cleaned CSV using the same cleaning engine exposed by the `noaa_spec` library and `noaa-spec` CLI.
+This produces a cleaned CSV at `/tmp/noaa-spec-sample.csv` with normalized fields, resolved sentinel values, and quality-filtered observations. The sample run is the reproducible in-repo example. It is intentionally small and is not a substitute for larger external release builds.
+
+The reproducibility example reads [sample_station_raw.txt](reproducibility/sample_station_raw.txt) and writes a cleaned CSV using the same cleaning engine exposed by the `noaa_spec` library and the `noaa-spec` CLI.
 
 ## Contracts and Validation
 
@@ -69,7 +61,7 @@ The visible GitHub Actions surface is intentionally small; fuller validation exp
 
 ## Reviewer path
 
-Start with [docs/REVIEWER_GUIDE.md](docs/REVIEWER_GUIDE.md). It connects installation, the sample run, artifact interpretation, and how larger validation evidence should be read during active development.
+Start with [docs/REVIEWER_GUIDE.md](docs/REVIEWER_GUIDE.md). It gives the exact install, sample run, verification, and artifact-boundary path for reviewers working from a clean checkout.
 
 ## When to use / when not to use
 
@@ -93,5 +85,17 @@ Do not use NOAA-Spec when you need:
 - Docs index: [docs/README.md](docs/README.md)
 - Reproducibility notes: [reproducibility/README.md](reproducibility/README.md)
 - Minimal examples: [examples/README.md](examples/README.md)
+
+What is reproducible from this repository:
+
+- `poetry install`
+- the bounded sample run in `reproducibility/`
+- the test suite and validation docs
+
+What is not bundled as part of this active-development checkout:
+
+- large external release builds
+- machine-local archives
+- reviewer-irrelevant runtime leftovers
 
 Not every station necessarily emits every domain artifact. A domain dataset may be absent when no rows survive that projection or when a station has no valid data for that domain after cleaning. This is expected behavior, especially for sparse domains such as precipitation.

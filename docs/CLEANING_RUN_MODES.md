@@ -3,7 +3,7 @@
 This document defines the production-safe cleaning runner:
 
 ```bash
-poetry run python -m noaa_spec.cli cleaning-run ...
+poetry run noaa-spec cleaning-run ...
 ```
 
 ## Why This Exists
@@ -222,7 +222,7 @@ Optional global summary (`quality_reports/global_quality_summary.json`) is built
 ### Local CSV test mode
 
 ```bash
-poetry run python -m noaa_spec.cli cleaning-run \
+poetry run noaa-spec cleaning-run \
   --mode test_csv_dir \
   --input-root outputs \
   --input-format csv
@@ -231,18 +231,20 @@ poetry run python -m noaa_spec.cli cleaning-run \
 ### Production parquet batch mode
 
 ```bash
-poetry run python -m noaa_spec.cli cleaning-run \
+poetry run noaa-spec cleaning-run \
   --mode batch_parquet_dir \
-  --input-root /media/<user>/LaCie/NOAA_Data \
+  --input-root <EXTERNAL_STORAGE>/NOAA_Data \
   --input-format parquet \
   --max-station-retries 1
 ```
 
+`<EXTERNAL_STORAGE>` is a placeholder from a local run environment and is not required for reproduction.
+
 ### Frozen pulled-station batch helper
 
 ```bash
-poetry run python -m noaa_spec.cli run-cleaning-batch \
-  --raw-root /media/<user>/LaCie/NOAA_Data \
+poetry run noaa-spec run-cleaning-batch \
+  --raw-root <EXTERNAL_STORAGE>/NOAA_Data \
   --count 100
 ```
 
@@ -263,9 +265,9 @@ Selection strategies:
 ### Resume a prior run id
 
 ```bash
-poetry run python -m noaa_spec.cli cleaning-run \
+poetry run noaa-spec cleaning-run \
   --mode batch_parquet_dir \
-  --input-root /media/<user>/LaCie/NOAA_Data \
+  --input-root <EXTERNAL_STORAGE>/NOAA_Data \
   --input-format parquet \
   --run-id 20260307T091500Z
 ```
@@ -273,9 +275,9 @@ poetry run python -m noaa_spec.cli cleaning-run \
 ### Refresh manifest/config for same run id (explicit)
 
 ```bash
-poetry run python -m noaa_spec.cli cleaning-run \
+poetry run noaa-spec cleaning-run \
   --mode batch_parquet_dir \
-  --input-root /media/<user>/LaCie/NOAA_Data \
+  --input-root <EXTERNAL_STORAGE>/NOAA_Data \
   --input-format parquet \
   --run-id 20260307T091500Z \
   --manifest-refresh
@@ -285,14 +287,14 @@ poetry run python -m noaa_spec.cli cleaning-run \
 
 ```bash
 # Turn on station reports explicitly
-poetry run python -m noaa_spec.cli cleaning-run \
+poetry run noaa-spec cleaning-run \
   --mode test_csv_dir \
   --input-root outputs \
   --input-format csv \
   --write-station-reports
 
 # Turn off domain splits
-poetry run python -m noaa_spec.cli cleaning-run \
+poetry run noaa-spec cleaning-run \
   --mode test_csv_dir \
   --input-root outputs \
   --input-format csv \

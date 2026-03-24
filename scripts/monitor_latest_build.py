@@ -12,7 +12,7 @@ import time
 import pandas as pd
 
 
-DEFAULT_RELEASE_BASE_ROOT = Path("/media/balaji-kesavan/LaCie/NOAA_CLEANED_DATA")
+DEFAULT_RELEASE_BASE_ROOT = Path("release")
 
 
 def _parse_args() -> argparse.Namespace:
@@ -23,7 +23,7 @@ def _parse_args() -> argparse.Namespace:
         "--release-base-root",
         type=Path,
         default=DEFAULT_RELEASE_BASE_ROOT,
-        help="Root containing build_<run_id> release folders",
+        help="Root containing build_<run_id> release folders (default: ./release)",
     )
     parser.add_argument(
         "--run-id",

@@ -1,6 +1,6 @@
 # Reviewer Guide
 
-This guide is the shortest path for evaluating NOAA-Spec in its current pre-freeze state.
+This guide is the shortest path for evaluating NOAA-Spec from a clean checkout.
 
 ## What to evaluate now
 
@@ -11,32 +11,52 @@ NOAA-Spec is scientific software for turning NOAA ISD / Global Hourly records in
 - quality reports,
 - release manifests with checksums and lineage.
 
-This repository is still in active development. The final frozen submission revision and paired larger-build evidence are not being packaged in this pass.
+This repository is still in active development. The final frozen submission revision and paired larger-build evidence are not packaged in this cleanup pass.
 
 ## Install
 
 ```bash
+python3 -m pip install --user poetry
 poetry install
 ```
+
+Requirements:
+
+- Python `>=3.12`
+- Poetry available on `PATH`
 
 Quick smoke test:
 
 ```bash
-./scripts/smoke_test_install.sh
+bash scripts/smoke_test_install.sh
 ```
 
 ## Run the sample example
 
+1. Run the bounded deterministic example:
+
 ```bash
-python reproducibility/run_pipeline_example.py --out /tmp/noaa-spec-sample.csv
+poetry run python reproducibility/run_pipeline_example.py --out /tmp/noaa-spec-sample.csv
+```
+
+2. Verify the installed CLI surface:
+
+```bash
+poetry run noaa-spec --help
 ```
 
 What this demonstrates:
 
 - the package installs,
 - the cleaning engine runs deterministically on a bounded input,
+- the documented CLI is available without a global install,
 - sentinel handling, scaling, and QC-aware normalization are active,
 - the same core cleaning code used by the library and CLI is exercised.
+
+Expected output:
+
+- `/tmp/noaa-spec-sample.csv` exists and contains cleaned observation rows
+- `poetry run noaa-spec --help` exits successfully
 
 This sample run is intentionally small. It demonstrates the software interface and output semantics, not the full bounded batch evidence used for later submission packaging.
 
@@ -87,7 +107,19 @@ A domain artifact may be intentionally omitted when:
 
 This is expected behavior for sparse domains such as precipitation and should not be interpreted as a packaging failure by itself.
 
-## How to read larger validation evidence
+## Artifact boundary
+
+Reproducible from this repository:
+
+- `poetry install`
+- the bounded example in `reproducibility/`
+- the tracked tests and validation docs
+
+External to this repository:
+
+- large release builds
+- machine-local archives
+- archived operational snapshots
 
 The repository includes active validation surfaces such as parser/spec guardrails, publication-schema tests, and documentation integrity checks. Those support day-to-day development.
 

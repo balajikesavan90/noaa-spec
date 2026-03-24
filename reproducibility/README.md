@@ -2,10 +2,25 @@
 
 This folder contains the minimal deterministic cleaning example used for local verification and reviewer orientation.
 
-## Run cleaning pipeline (example)
+## Reviewer flow
+
+1. Install the project:
 
 ```bash
-python reproducibility/run_pipeline_example.py
+python3 -m pip install --user poetry
+poetry install
+```
+
+2. Run the bounded cleaning example:
+
+```bash
+poetry run python reproducibility/run_pipeline_example.py
+```
+
+3. Verify that the installed CLI is available:
+
+```bash
+poetry run noaa-spec --help
 ```
 
 This reads reproducibility/sample_station_raw.txt and overwrites reproducibility/sample_station_cleaned.csv.
@@ -13,7 +28,7 @@ This reads reproducibility/sample_station_raw.txt and overwrites reproducibility
 Optional: write the cleaned CSV to a custom path instead of overwriting the repo file:
 
 ```bash
-python reproducibility/run_pipeline_example.py --out /tmp/sample_station_cleaned.csv
+poetry run python reproducibility/run_pipeline_example.py --out /tmp/sample_station_cleaned.csv
 ```
 
 This example is the active reproducibility anchor in the repository. Revision-specific environment captures and pipeline snapshots are intentionally not tracked here during active development because they become stale quickly and can be mistaken for frozen submission evidence.
@@ -21,13 +36,13 @@ This example is the active reproducibility anchor in the repository. Revision-sp
 ## Run coverage generator
 
 ```bash
-python tools/spec_coverage/generate_spec_coverage.py
+poetry run python tools/spec_coverage/generate_spec_coverage.py
 ```
 
 ## Run tests
 
 ```bash
-pytest -q
+poetry run pytest -q
 ```
 
 ## Data provenance
@@ -53,8 +68,6 @@ Pipeline transformations applied by the example script:
 
 ## Archived full station reports
 
-The full historical station-report example tree is stored locally at:
+The full historical station-report example tree is stored outside the tracked repository surface in `data/archive/station_reports_full/`.
 
-`data/archive/station_reports_full/docs/examples/station_reports/`
-
-Only a curated subset remains tracked under `docs/examples/stations/`.
+This local archive is not required for reproduction. Only a curated subset remains tracked under `docs/examples/stations/`.
