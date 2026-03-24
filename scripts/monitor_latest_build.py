@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 from datetime import datetime
 import math
 from pathlib import Path
@@ -12,9 +13,6 @@ import time
 import pandas as pd
 
 
-DEFAULT_RELEASE_BASE_ROOT = Path("release")
-
-
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Monitor progress for the latest or selected cleaning build."
@@ -22,8 +20,11 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--release-base-root",
         type=Path,
-        default=DEFAULT_RELEASE_BASE_ROOT,
-        help="Root containing build_<run_id> release folders (default: ./release)",
+        default=None,
+        help=(
+            "Root containing build_<run_id> release folders "
+            "(default: inferred from local state, otherwise ./release)"
+        ),
     )
     parser.add_argument(
         "--run-id",
@@ -44,6 +45,30 @@ def _parse_args() -> argparse.Namespace:
         help="How many slowest completed stations to print (default: 5)",
     )
     return parser.parse_args()
+
+
+def _infer_release_base_root() -> Path:
+    raw_pull_state_csv = Path("noaa_file_index/state/raw_pull_state.csv")
+    if raw_pull_state_csv.exists():
+        try:
+            frame = pd.read_csv(raw_pull_state_csv, usecols=["raw_path"])
+        except Exception:
+            frame = pd.DataFrame(columns=["raw_path"])
+        candidate_roots: list[Path] = []
+        for raw_path in frame["raw_path"].dropna().astype(str):
+            raw_path = raw_path.strip()
+            if not raw_path:
+                continue
+            path = Path(raw_path)
+            if len(path.parts) < 3:
+                continue
+            candidate_roots.append(path.parent.parent.parent / "NOAA_CLEANED_DATA")
+        if candidate_roots:
+            most_common_root, _ = Counter(candidate_roots).most_common(1)[0]
+            if most_common_root.exists():
+                return most_common_root
+
+    return Path("release")
 
 
 def _resolve_build_root(release_base_root: Path, run_id: str | None) -> Path:
@@ -320,7 +345,8 @@ def _print_progress(progress: dict[str, object], *, top: int) -> None:
 
 def main() -> None:
     args = _parse_args()
-    build_root = _resolve_build_root(args.release_base_root, args.run_id)
+    release_base_root = args.release_base_root or _infer_release_base_root()
+    build_root = _resolve_build_root(release_base_root, args.run_id)
 
     while True:
         progress = _load_progress(build_root)
