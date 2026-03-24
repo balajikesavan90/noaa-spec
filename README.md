@@ -13,14 +13,24 @@ NOAA ISD observations are structurally encoded rather than analysis-ready. Raw f
 ## Installation
 
 ```bash
-python3 -m pip install --user poetry
+python3 --version
+python3 -m pip install --user pipx
+python3 -m pipx ensurepath
+pipx install poetry
 poetry install
 ```
 
 Requirements:
 
 - Python `>=3.12`
+- `pipx` used to install Poetry on a clean machine
 - Poetry available on `PATH`
+
+Recommended Poetry installation path:
+
+- install Poetry with `pipx`
+- if `pipx` is already installed, run `pipx install poetry`
+- the official Poetry installer is an acceptable alternative, but this repository documents `pipx` as the primary reviewer path
 
 All documented project commands below are run through Poetry. Do not rely on a global `noaa-spec` install or a repo-local `.venv/bin/python` path.
 

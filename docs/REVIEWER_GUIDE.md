@@ -16,14 +16,24 @@ This repository is still in active development. The final frozen submission revi
 ## Install
 
 ```bash
-python3 -m pip install --user poetry
+python3 --version
+python3 -m pip install --user pipx
+python3 -m pipx ensurepath
+pipx install poetry
 poetry install
 ```
 
 Requirements:
 
 - Python `>=3.12`
+- `pipx` used to install Poetry on a clean machine
 - Poetry available on `PATH`
+
+Recommended Poetry installation path:
+
+- install Poetry with `pipx`
+- if `pipx` is already installed, run `pipx install poetry`
+- the official Poetry installer is a viable fallback, but the reviewer path in this repository uses `pipx`
 
 Quick smoke test:
 

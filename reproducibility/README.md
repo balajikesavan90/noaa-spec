@@ -7,14 +7,29 @@ This folder contains the minimal deterministic cleaning example used for local v
 1. Install the project:
 
 ```bash
-python3 -m pip install --user poetry
+python3 --version
+python3 -m pip install --user pipx
+python3 -m pipx ensurepath
+pipx install poetry
 poetry install
 ```
+
+Requirements:
+
+- Python `>=3.12`
+- `pipx` used to install Poetry on a clean machine
+- Poetry available on `PATH`
+
+Recommended Poetry installation path:
+
+- install Poetry with `pipx`
+- if `pipx` is already installed, run `pipx install poetry`
+- the official Poetry installer is an acceptable fallback, but this repository documents `pipx` as the primary path
 
 2. Run the bounded cleaning example:
 
 ```bash
-poetry run python reproducibility/run_pipeline_example.py
+poetry run python reproducibility/run_pipeline_example.py --out /tmp/noaa-spec-sample.csv
 ```
 
 3. Verify that the installed CLI is available:
@@ -23,9 +38,9 @@ poetry run python reproducibility/run_pipeline_example.py
 poetry run noaa-spec --help
 ```
 
-This reads reproducibility/sample_station_raw.txt and overwrites reproducibility/sample_station_cleaned.csv.
+This reads `reproducibility/sample_station_raw.txt` and writes a cleaned CSV to the path passed with `--out`.
 
-Optional: write the cleaned CSV to a custom path instead of overwriting the repo file:
+Optional: write the cleaned CSV to a different custom path:
 
 ```bash
 poetry run python reproducibility/run_pipeline_example.py --out /tmp/sample_station_cleaned.csv
