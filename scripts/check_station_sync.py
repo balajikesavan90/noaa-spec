@@ -27,6 +27,11 @@ RAW_PULL_STATE_COLUMNS = {
     "registry_snapshot",
 }
 
+# This script monitors the raw-pull cron job, which is expected to run every
+# 2 minutes and refresh raw_pull_state.csv on each successful station pull.
+# A stale pulled_at timestamp is therefore an operational warning, not just an
+# informational idle state.
+
 
 def _latest_index_dir(base_index_dir: Path) -> Path:
     if not base_index_dir.exists():

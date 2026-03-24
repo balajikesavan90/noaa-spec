@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from pathlib import Path
 import sys
 
@@ -83,3 +84,59 @@ def test_check_station_sync_requires_state_file(
 
     with pytest.raises(FileNotFoundError, match="materialize-raw-pull-state"):
         check_station_sync.main()
+
+
+def test_check_station_sync_reports_stale_for_old_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    index_dir = tmp_path / "noaa_file_index" / "20250101"
+    index_dir.mkdir(parents=True)
+    pd.DataFrame([{"ID": "01234567890", "FileName": "01234567890.csv"}]).to_csv(
+        index_dir / "Stations.csv",
+        index=False,
+    )
+
+    state_dir = tmp_path / "noaa_file_index" / "state"
+    state_dir.mkdir(parents=True)
+    pd.DataFrame(
+        [
+            {
+                "station_id": "01234567890",
+                "FileName": "01234567890.csv",
+                "raw_data_pulled": True,
+                "raw_path": "",
+                "pulled_at": "2026-03-24T00:54:53.301964+00:00",
+                "registry_snapshot": str(index_dir / "Stations.csv"),
+            }
+        ]
+    ).to_csv(state_dir / "raw_pull_state.csv", index=False)
+
+    output_dir = tmp_path / "output"
+    station_dir = output_dir / "01234567890"
+    station_dir.mkdir(parents=True)
+    (station_dir / "LocationData_Raw.parquet").write_text("fake", encoding="utf-8")
+
+    class _FixedDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):  # type: ignore[override]
+            return cls(2026, 3, 24, 5, 50, 55, 701964, tzinfo=timezone.utc)
+
+    monkeypatch.setattr(check_station_sync, "datetime", _FixedDateTime)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "prog",
+            "--output-dir",
+            str(output_dir),
+        ],
+    )
+
+    check_station_sync.main()
+
+    output = capsys.readouterr().out
+    assert "Progress freshness status: stale" in output
