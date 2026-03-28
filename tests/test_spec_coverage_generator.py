@@ -1122,6 +1122,7 @@ def test_spec_coverage_generator_smoke() -> None:
     assert len(rows) > 200, f"Expected >200 spec rows, got {len(rows)}"
 
     report_text = report_path.read_text(encoding="utf-8")
+    assert report_text.startswith("# INTERNAL DEVELOPMENT RECORD — NOT REVIEWER EVIDENCE")
     assert "Overall coverage" in report_text
     assert "Enforcement layer breakdown" in report_text
     assert "Confidence breakdown" in report_text

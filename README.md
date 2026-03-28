@@ -2,7 +2,7 @@
 
 ## Supported Platform
 
-This reviewer workflow is validated on Linux (Ubuntu/Debian-like systems) with Python 3.11+ and bash.
+This reviewer workflow is validated on Linux (Ubuntu/Debian-like systems) with Python 3.12+ and bash.
 
 Other platforms (macOS, Windows) are not part of the canonical reviewer path for this revision.
 
@@ -21,6 +21,8 @@ NOAA ISD observations contain fixed-width fields, comma-encoded substructures, s
 `requirements-review.txt` is the exact tested reviewer dependency set for this revision.
 
 `pip install -e .` installs the `noaa_spec` package from this repository checkout.
+
+Tested in a fresh virtual environment with no pre-installed package.
 
 For this revision, only the Reviewer Quickstart and `reproducibility/README.md` define the supported reproducibility path.
 
@@ -53,6 +55,7 @@ These are OS-level dependencies and are not installed via pip.
 bash scripts/check_reviewer_env.sh
 python3 -m venv .review-venv
 source .review-venv/bin/activate
+which python
 python -m pip install --upgrade pip
 pip install -r requirements-review.txt
 pip install -e .
@@ -67,7 +70,7 @@ Expected SHA256: `b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f28875
 
 This revision demonstrates deterministic, specification-constrained cleaning at bounded scale using tracked reproducibility fixtures.
 
-Full release-scale artifacts are part of the broader workflow but are not bundled as reviewer evidence in this revision.
+Full release-scale artifacts are not bundled as reviewer evidence in this revision.
 
 ## Contracts and Validation
 

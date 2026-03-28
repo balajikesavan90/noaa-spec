@@ -4,6 +4,8 @@ This directory contains the tracked bounded reproducibility fixtures used for re
 
 The supported reproducibility path for this revision is the Linux reviewer workflow in the root [README.md](../README.md).
 
+The supported reviewer interpreter requirement is Python 3.12+.
+
 The canonical reviewer example is under `reproducibility/minimal/`.
 
 `requirements-review.txt` is the exact tested reviewer dependency set for this revision.

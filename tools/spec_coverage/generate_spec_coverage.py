@@ -2892,6 +2892,8 @@ def build_report(
     arity_tested_any = sum(1 for r in arity_rows if r.test_covered_any)
 
     lines: list[str] = []
+    lines.append("# INTERNAL DEVELOPMENT RECORD — NOT REVIEWER EVIDENCE")
+    lines.append("")
     lines.append("# SPEC Coverage Report")
     lines.append("")
     lines.append("## How to run")

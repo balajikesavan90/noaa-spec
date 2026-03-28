@@ -25,18 +25,26 @@ if ((${#missing[@]} > 0)); then
     exit 1
 fi
 
-tmpdir="$(mktemp -d)"
-trap 'rm -rf "${tmpdir}"' EXIT
-
-if ! python3 -m venv "${tmpdir}/review-venv" >/dev/null 2>&1; then
-    echo "FAIL: python3 cannot create a virtual environment." >&2
-    echo "Run: sudo apt-get install python3-venv" >&2
+if ! python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 12) else 1)' >/dev/null 2>&1; then
+    echo "FAIL: python3 must be Python 3.12 or newer." >&2
     print_fix
     exit 1
 fi
 
+tmpdir="$(mktemp -d)"
+test_venv_tmp="${tmpdir}/test_venv_tmp"
+trap 'rm -rf "${tmpdir}"' EXIT
+
+if ! python3 -m venv "${test_venv_tmp}" >/dev/null 2>&1; then
+    echo "Missing python3-venv. Run: sudo apt-get install python3-venv" >&2
+    exit 1
+fi
+
+rm -rf "${test_venv_tmp}"
+
 echo "PASS: reviewer environment prerequisites are available."
 echo "python3=$(command -v python3)"
+echo "python3_version=$(python3 -c 'import sys; print(\".\".join(map(str, sys.version_info[:3])))')"
 echo "git=$(command -v git)"
 echo "bash=$(command -v bash)"
 echo "sha256sum=$(command -v sha256sum)"

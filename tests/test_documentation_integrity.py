@@ -48,6 +48,7 @@ CANONICAL_QUICKSTART = """```bash
 bash scripts/check_reviewer_env.sh
 python3 -m venv .review-venv
 source .review-venv/bin/activate
+which python
 python -m pip install --upgrade pip
 pip install -r requirements-review.txt
 pip install -e .
@@ -87,7 +88,7 @@ def test_readme_has_required_joss_sections() -> None:
 
 def test_readme_defines_linux_only_supported_platform() -> None:
     text = README_PATH.read_text(encoding="utf-8")
-    assert "This reviewer workflow is validated on Linux (Ubuntu/Debian-like systems) with Python 3.11+ and bash." in text
+    assert "This reviewer workflow is validated on Linux (Ubuntu/Debian-like systems) with Python 3.12+ and bash." in text
     assert "Other platforms (macOS, Windows) are not part of the canonical reviewer path for this revision." in text
 
 
@@ -117,6 +118,7 @@ def test_reviewer_docs_use_single_linux_quickstart() -> None:
 
     reproducibility_text = REPRODUCIBILITY_README_PATH.read_text(encoding="utf-8")
     assert "The supported reproducibility path for this revision is the Linux reviewer workflow in the root [README.md](../README.md)." in reproducibility_text
+    assert "The supported reviewer interpreter requirement is Python 3.12+." in reproducibility_text
     assert "The canonical reviewer example is under `reproducibility/minimal/`." in reproducibility_text
     assert "requirements-review.txt" in reproducibility_text
     assert "pip install -e ." in reproducibility_text
@@ -128,6 +130,7 @@ def test_reviewer_docs_use_single_linux_quickstart() -> None:
 
     guide_text = REVIEWER_GUIDE_PATH.read_text(encoding="utf-8")
     assert "Use the root [README.md](../README.md) line-by-line." in guide_text
+    assert "The supported reviewer interpreter requirement is Python 3.12+." in guide_text
     assert "The canonical reviewer example is under `reproducibility/minimal/`." in guide_text
     assert "No archived release bundle is linked for this revision." in guide_text
     assert "poetry" not in guide_text.lower()
@@ -139,6 +142,7 @@ def test_readme_and_reproducibility_docs_define_authoritative_dependency_story()
 
     assert "`requirements-review.txt` is the exact tested reviewer dependency set for this revision." in readme_text
     assert "`pip install -e .` installs the `noaa_spec` package from this repository checkout." in readme_text
+    assert "Tested in a fresh virtual environment with no pre-installed package." in readme_text
     assert "For this revision, only the Reviewer Quickstart and `reproducibility/README.md` define the supported reproducibility path." in readme_text
     assert "`requirements-review.txt` is the exact tested reviewer dependency set for this revision." in reproducibility_text
     assert "`pip install -e .` installs the `noaa_spec` package from this repository checkout." in reproducibility_text
@@ -151,7 +155,9 @@ def test_reviewer_scripts_enforce_linux_prerequisites_and_checksum_verification(
     assert "for command_name in python3 git bash sha256sum; do" in env_text
     assert "command -v \"${command_name}\"" in env_text
     assert "python3 -m venv" in env_text
-    assert "Run: sudo apt-get install python3-venv" in env_text
+    assert "python3 must be Python 3.12 or newer" in env_text
+    assert "Missing python3-venv. Run: sudo apt-get install python3-venv" in env_text
+    assert "test_venv_tmp" in env_text
     assert "sudo apt-get install -y python3 python3-venv git coreutils bash" in env_text
 
     assert "command -v sha256sum" in verify_text
