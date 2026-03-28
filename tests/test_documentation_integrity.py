@@ -116,7 +116,8 @@ def test_reviewer_docs_use_docker_quickstart() -> None:
 
     guide_text = REVIEWER_GUIDE_PATH.read_text(encoding="utf-8")
     assert "Use the root [README.md](../README.md) line-by-line." in guide_text
-    assert "The supported reviewer interpreter requirement is Python 3.12+." in guide_text
+    assert "That supported path requires a working Docker installation with daemon access; the `docker` CLI alone is not sufficient." in guide_text
+    assert "Python 3.12+ applies only to the optional local development path, not to the supported reviewer workflow." in guide_text
     assert "The canonical reviewer example is under `reproducibility/minimal/`." in guide_text
     assert "No archived release bundle is linked for this revision." in guide_text
     assert "poetry" not in guide_text.lower()
