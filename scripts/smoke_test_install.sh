@@ -11,7 +11,7 @@ TRACKED_ANCHOR="${REPO_ROOT}/reproducibility/minimal/station_cleaned.csv"
 cd "${REPO_ROOT}"
 
 if ! command -v poetry >/dev/null 2>&1; then
-    echo "Missing 'poetry' on PATH. Install Poetry with the official installer or the documented venv fallback, then rerun 'poetry install'." >&2
+    echo "Missing 'poetry' on PATH. Install Poetry with the documented official installer, then rerun 'poetry install'." >&2
     exit 1
 fi
 

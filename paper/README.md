@@ -17,4 +17,4 @@ pandoc paper/paper.md --citeproc --bibliography=paper/paper.bib -o /tmp/noaa-spe
 
 The preview HTML is a local convenience artifact and is not tracked as part of the repository.
 
-For reviewer-facing context, use [docs/REVIEWER_GUIDE.md](../docs/REVIEWER_GUIDE.md) alongside the manuscript. The paper is intentionally software-first; frozen larger-build evidence will be paired to a later submission revision rather than to the active development state.
+For reviewer-facing context, use [docs/REVIEWER_GUIDE.md](../docs/REVIEWER_GUIDE.md) alongside the manuscript. No archived release bundle is linked for this revision.

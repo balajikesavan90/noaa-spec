@@ -1,3 +1,5 @@
+# INTERNAL DEVELOPMENT RECORD — NOT REVIEWER EVIDENCE
+
 # Artifact Semantics Documentation Consistency Check
 
 Date: 2026-03-15

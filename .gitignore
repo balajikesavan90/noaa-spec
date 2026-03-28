@@ -16,11 +16,7 @@ artifacts/parquet_runs/
 release/
 !release/
 release/*
-!release/sample_build/
-!release/sample_build/README.md
-!release/sample_build/manifest.json
-!release/sample_build/file_manifest.csv
-!release/sample_build/quality_assessment.json
+!release/README.md
 data/archive/station_reports_full/
 !release/build_*/canonical_cleaned/**/*.csv
 !release/build_*/canonical_cleaned/**/*.parquet

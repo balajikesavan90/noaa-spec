@@ -12,33 +12,37 @@ NOAA ISD observations are structurally encoded rather than analysis-ready. Raw f
 
 ## Installation
 
-Tested on clean Linux (`Python 3.12`, `PEP 668`).
+Tested on Linux with `Python 3.12`.
+
+Network access is required for the Poetry installer and dependency resolution.
+
+Linux prerequisites:
+
+- `python3`
+- `curl`
+- virtual environment support for your Python installation
+- Debian/Ubuntu-like systems commonly need `python3-venv`
 
 This project relies on `poetry.lock` for deterministic dependency resolution. Do not regenerate it unless you are intentionally updating dependencies.
 
-Option A, primary reviewer path:
+Primary reviewer install path:
 
 ```bash
 python3 --version
-curl -sSL https://install.python-poetry.org | python3 -
+curl --version
+curl -sSL https://install.python-poetry.org | python3 - --version 2.1.3
 export PATH="$HOME/.local/bin:$PATH"
+poetry --version
 poetry install
 ```
 
-Option B, fallback when you prefer an isolated virtual environment first:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install poetry
-poetry install
-```
+If this checkout already contains a leftover `.venv` from an older revision, remove it before running `poetry install`. The reviewer quickstart does not use an in-project virtual environment.
 
 All documented project commands below are run through Poetry. Do not rely on a global `noaa-spec` install.
 
 ## Reviewer Quickstart (3 Steps)
 
-1. Install dependencies using one of the two installation options above.
+1. Install dependencies with the Poetry path above.
 
 2. Run the minimal reproducibility example:
 
@@ -63,25 +67,32 @@ Expected SHA256: `b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f28875
 
 The default reproducibility example reads [station_raw.csv](reproducibility/minimal/station_raw.csv) and writes a cleaned CSV using the same cleaning engine exposed by the `noaa_spec` library and the `noaa-spec` CLI. The reviewer path writes to `/tmp`, not to tracked repository files.
 
-## Guaranteed Working Commands
+## Supported Reviewer Commands
 
-These commands are executed in CI from a clean Linux runner:
+These are the reviewer commands for this repository snapshot:
 
 ```bash
 poetry run noaa-spec --help
 poetry run python3 reproducibility/run_pipeline_example.py --example minimal --out /tmp/noaa-spec-sample.csv
 bash scripts/verify_reproducibility.sh
+poetry run pytest -q
 ```
 
-## Reproducibility Artifacts (Post-Freeze)
+Success means:
 
-Full release artifacts are intentionally placeholders in this active development snapshot. Reviewers should rely on:
+- `poetry run noaa-spec --help` exits successfully
+- `bash scripts/verify_reproducibility.sh` prints `PASS:` and the expected SHA256
+- `poetry run pytest -q` completes in the same Poetry-managed environment
+
+## Reproducibility Boundary
+
+This revision demonstrates deterministic, specification-constrained cleaning at bounded scale using tracked reproducibility fixtures. Full release-scale artifacts are part of the broader publication workflow but are not bundled as reviewer evidence in this development snapshot.
+
+No archived release bundle is linked for this revision. Reviewers should rely on:
 
 - the minimal reproducibility example in `reproducibility/minimal/`
 - deterministic checksum verification
 - the test suite and documentation checks
-
-After final code freeze, the placeholders under `release/sample_build/` will be replaced by a frozen artifact set with manifests, checksums, quality reports, and commit-hash linkage.
 
 ## Contracts and Validation
 
@@ -115,6 +126,6 @@ Do not use NOAA-Spec when you need:
 - JOSS paper source: [paper/paper.md](paper/paper.md)
 - Docs index: [docs/README.md](docs/README.md)
 - Reproducibility notes: [reproducibility/README.md](reproducibility/README.md)
-- Minimal examples: [examples/README.md](examples/README.md)
+- Example scripts: [examples/README.md](examples/README.md)
 
 Not every station necessarily emits every domain artifact. A domain dataset may be absent when no rows survive that projection or when a station has no valid data for that domain after cleaning. This is expected behavior, especially for sparse domains such as precipitation.

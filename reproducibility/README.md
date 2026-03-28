@@ -7,37 +7,37 @@ This folder contains the tracked deterministic cleaning examples used for local 
 
 The NOAA ISD specification snapshot used for rule provenance and spec-coverage generation is stored separately under `spec_sources/isd-format-document-parts/`; it is not part of the reviewer sample-run surface.
 
-## Canonical reviewer path
+## Reviewer command sequence
 
-Install on clean Linux (`Python 3.12`, `PEP 668`) with the primary Poetry installer path:
+Use the same Poetry-managed environment documented in the root `README.md`.
+
+Tested on Linux with `Python 3.12`.
+
+Network access is required for the Poetry installer and dependency resolution.
+
+Linux prerequisites:
+
+- `python3`
+- `curl`
+- virtual environment support for your Python installation
+- Debian/Ubuntu-like systems commonly need `python3-venv`
+
+Install and verify the environment:
 
 ```bash
 python3 --version
-curl -sSL https://install.python-poetry.org | python3 -
+curl --version
+curl -sSL https://install.python-poetry.org | python3 - --version 2.1.3
 export PATH="$HOME/.local/bin:$PATH"
+poetry --version
 poetry install
-```
-
-Fallback:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install poetry
-poetry install
-```
-
-Run the default minimal cleaning example:
-
-```bash
+poetry run noaa-spec --help
 poetry run python3 reproducibility/run_pipeline_example.py --example minimal --out /tmp/noaa-spec-sample.csv
-```
-
-Verify the output:
-
-```bash
 bash scripts/verify_reproducibility.sh
+poetry run pytest -q
 ```
+
+If this checkout already contains a leftover `.venv` from an older revision, remove it before running `poetry install`. The reviewer quickstart does not use an in-project virtual environment.
 
 Manual checksum verification:
 
@@ -50,9 +50,15 @@ Expected SHA256: `b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f28875
 
 This reads `reproducibility/minimal/station_raw.csv` and writes a cleaned CSV to the path passed with `--out`. This project relies on `poetry.lock` for deterministic dependency resolution. Do not regenerate it unless you are intentionally updating dependencies.
 
-## Secondary local validation path
+This revision demonstrates deterministic, specification-constrained cleaning at bounded scale using tracked reproducibility fixtures. Full release-scale artifacts are part of the broader publication workflow but are not bundled as reviewer evidence in this development snapshot.
 
-The full-station example is intentionally secondary and is not part of the reviewer quickstart:
+No archived release bundle is linked for this revision.
+
+## Optional local development path
+
+Optional local development path — not part of reviewer quickstart.
+
+The full-station example is intentionally secondary:
 
 ```bash
 poetry run python3 reproducibility/run_pipeline_example.py --example full_station --out /tmp/noaa-spec-full-station.csv
@@ -97,7 +103,7 @@ Pipeline transformations applied by the example script:
 
 ## How to read this with the rest of the repo
 
+- Use the root `README.md` for the canonical reviewer quickstart.
 - Use the minimal example to verify that installation and the cleaning engine work on a bounded input.
-- Use the full-station example to verify that one complete real station can be reproduced deterministically without invoking a larger batch build.
-- Use `docs/REVIEWER_GUIDE.md` for the reviewer path through install, outputs, manifests, and quality reports.
-- Treat larger batch builds as separate validation evidence that will be paired to a frozen submission revision later, not as part of this active development snapshot.
+- Use the full-station example only as an optional local development check.
+- Use `docs/REVIEWER_GUIDE.md` for submission framing and evidence boundaries.

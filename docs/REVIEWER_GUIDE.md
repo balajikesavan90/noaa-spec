@@ -1,69 +1,29 @@
 # Reviewer Guide
 
-This guide is the shortest path for evaluating NOAA-Spec from a clean checkout. The root `README.md` is the canonical reviewer path; this page mirrors it in a tighter audit-oriented format.
+This page provides submission framing only. The root `README.md` contains the single canonical reviewer command sequence.
 
 ## What to evaluate now
 
-This repository snapshot demonstrates the canonical cleaning pipeline and deterministic output generation on a tracked sample input. Full release-scale artifacts are not included in this development snapshot.
+This revision demonstrates deterministic, specification-constrained cleaning at bounded scale using tracked reproducibility fixtures. Full release-scale artifacts are part of the broader publication workflow but are not bundled as reviewer evidence in this development snapshot.
 
-## Install
+Tested on Linux with `Python 3.12`.
 
-Tested on clean Linux (`Python 3.12`, `PEP 668`).
+The repository relies on `poetry.lock` for deterministic dependency resolution.
 
-Primary path:
+No archived release bundle is linked for this revision.
 
-```bash
-python3 --version
-curl -sSL https://install.python-poetry.org | python3 -
-export PATH="$HOME/.local/bin:$PATH"
-poetry install
-```
+## Canonical reviewer path
 
-Fallback path:
+Run only the command sequence in the root `README.md`:
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install poetry
-poetry install
-```
+- install Poetry with the official installer
+- run `poetry install`
+- run `poetry run noaa-spec --help`
+- run `poetry run python3 reproducibility/run_pipeline_example.py --example minimal --out /tmp/noaa-spec-sample.csv`
+- run `bash scripts/verify_reproducibility.sh`
+- run `poetry run pytest -q`
 
-This project relies on `poetry.lock` for deterministic dependency resolution. Do not regenerate it unless you are intentionally updating dependencies.
-
-## Reviewer Quickstart (3 Steps)
-
-1. Install the project with one of the two paths above.
-
-2. Run the bounded deterministic example:
-
-```bash
-poetry run python3 reproducibility/run_pipeline_example.py --example minimal --out /tmp/noaa-spec-sample.csv
-```
-
-3. Verify the installed output:
-
-```bash
-bash scripts/verify_reproducibility.sh
-```
-
-Manual verification:
-
-```bash
-poetry run noaa-spec --help
-sha256sum /tmp/noaa-spec-sample.csv
-sha256sum reproducibility/minimal/station_cleaned_expected.csv
-```
-
-Expected SHA256: `b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597`
-
-What this demonstrates:
-
-- the package installs on a clean Linux environment without relying on `pipx`
-- the cleaning engine runs deterministically on a bounded input
-- the documented CLI is available without a global install
-- the generated CSV matches the tracked expected artifact byte-for-byte
-
-This sample run is intentionally small. It demonstrates the software interface and output semantics, not the full bounded batch evidence used for later submission packaging.
+Expected SHA256 for the minimal fixture: `b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597`
 
 ## How to interpret outputs
 
@@ -116,15 +76,13 @@ This is expected behavior for sparse domains such as precipitation and should no
 
 Reproducible from this repository:
 
-- `poetry install`
+- the Poetry-based install path in the root `README.md`
 - the bounded example in `reproducibility/`
 - the tracked tests and validation docs
 
 External to this repository:
 
-- frozen post-freeze release artifacts
+- frozen release bundles
 - production-scale archived outputs
 
 The repository includes active validation surfaces such as parser/spec guardrails, publication-schema tests, and documentation integrity checks. Those support day-to-day development.
-
-Larger bounded build evidence is separate from this minimal tracked sample path. In the final submission pass, that evidence should be paired to a frozen repository revision so reviewers can evaluate one exact code-and-build snapshot together.

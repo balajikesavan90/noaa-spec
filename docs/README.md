@@ -8,7 +8,9 @@ This folder contains the active documentation surface for NOAA-Spec.
 - Validation expectations: [docs/PIPELINE_VALIDATION_PLAN.md](PIPELINE_VALIDATION_PLAN.md)
 - Operations: [docs/operations](operations)
 - Examples: [docs/examples](examples)
-- Reports: [docs/reports](reports)
+- Internal development reports: [docs/reports](reports)
 - Archive: [docs/archive](archive)
 
 Reviewer-facing evaluation should start with the root [README.md](../README.md) and [docs/REVIEWER_GUIDE.md](REVIEWER_GUIDE.md). Operational documentation is intentionally separated under `docs/operations/` and is not part of reviewer reproducibility.
+
+`docs/reports/` contains internal development records and audit notes. Those files are not reviewer evidence.

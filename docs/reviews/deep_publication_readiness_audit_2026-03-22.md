@@ -1,3 +1,5 @@
+# INTERNAL DEVELOPMENT RECORD — NOT REVIEWER EVIDENCE
+
 # Deep Publication Readiness Audit
 
 Local-path note: references in this archival review use placeholders such as `<EXTERNAL_STORAGE>` and document a machine-local audited build. Those paths are not required for reproduction from this repository.

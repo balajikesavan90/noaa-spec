@@ -1,3 +1,5 @@
+# INTERNAL DEVELOPMENT RECORD — NOT REVIEWER EVIDENCE
+
 # RULE_PROVENANCE_LEDGER Summary
 
 - Total enforced rules inventoried: **4926**

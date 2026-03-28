@@ -34,7 +34,7 @@ REQUIRED_README_SECTIONS = (
     "## Why NOAA ISD is not analysis-ready",
     "## Installation",
     "## Reviewer Quickstart (3 Steps)",
-    "## Guaranteed Working Commands",
+    "## Supported Reviewer Commands",
     "## Contracts and Validation",
     "## When to use / when not to use",
     "## Paper and docs links",
@@ -64,17 +64,26 @@ def test_readme_has_required_joss_sections() -> None:
 
 
 def test_reviewer_docs_use_official_poetry_install_path_and_python3_commands() -> None:
-    doc_paths = (README_PATH, REVIEWER_GUIDE_PATH, REPRODUCIBILITY_README_PATH)
-    for path in doc_paths:
+    install_doc_paths = (README_PATH, REPRODUCIBILITY_README_PATH)
+    for path in install_doc_paths:
         text = path.read_text(encoding="utf-8")
         assert "Python 3.12" in text
         assert "curl -sSL https://install.python-poetry.org | python3 -" in text
-        assert "python3 -m venv .venv" in text
+        assert "--version 2.1.3" in text
+        assert "Network access is required" in text
         assert "poetry.lock" in text
+        assert "python3-venv" in text
+        assert "python3 -m venv .venv" not in text
+        assert "pip install poetry" not in text
         assert "pipx install poetry" not in text
         assert "python3 -m pip install --user poetry" not in text
         assert "poetry run python3 reproducibility/run_pipeline_example.py --example minimal --out /tmp/noaa-spec-sample.csv" in text
         assert "bash scripts/verify_reproducibility.sh" in text
+
+    guide_text = REVIEWER_GUIDE_PATH.read_text(encoding="utf-8")
+    assert "single canonical reviewer command sequence" in guide_text
+    assert "poetry run python3 reproducibility/run_pipeline_example.py --example minimal --out /tmp/noaa-spec-sample.csv" in guide_text
+    assert "bash scripts/verify_reproducibility.sh" in guide_text
 
 
 def test_readme_includes_expected_reproducibility_hash() -> None:
@@ -131,12 +140,13 @@ def test_cleaning_run_docs_enforce_release_contract_paths() -> None:
     assert "artifacts/parquet_runs" not in run_modes_text
 
 
-def test_release_sample_build_placeholders_exist() -> None:
-    sample_build = PROJECT_ROOT / "release" / "sample_build"
-    assert (sample_build / "README.md").exists()
-    assert (sample_build / "manifest.json").exists()
-    assert (sample_build / "file_manifest.csv").exists()
-    assert (sample_build / "quality_assessment.json").exists()
+def test_release_surface_is_a_non_evidence_stub() -> None:
+    release_readme = PROJECT_ROOT / "release" / "README.md"
+    assert release_readme.exists()
+    text = release_readme.read_text(encoding="utf-8")
+    assert "NON-EVIDENCE PLACEHOLDER FOR FUTURE FROZEN RELEASE ARTIFACTS" in text
+    assert "No archived release bundle is linked for this revision." in text
+    assert not (PROJECT_ROOT / "release" / "sample_build").exists()
 
 
 def test_artifact_boundary_policy_declares_publication_and_runtime_surfaces() -> None:
