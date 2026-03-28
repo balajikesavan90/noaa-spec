@@ -2,13 +2,13 @@
 
 This directory contains the tracked bounded reproducibility fixtures used for reviewer verification.
 
-The supported reproducibility path for this revision is the Linux reviewer workflow in the root [README.md](../README.md).
+The supported reproducibility path for this revision is the Docker reviewer workflow in the root [README.md](../README.md).
 
-The supported reviewer interpreter requirement is Python 3.12+.
+The containerized reviewer environment uses Python 3.12.
 
 The canonical reviewer example is under `reproducibility/minimal/`.
 
-`requirements-review.txt` is the exact tested reviewer dependency set for this revision.
+`requirements-review.txt` is the exact tested dependency set used inside the reviewer container and in the optional local workflow.
 
 `pip install -e .` installs the `noaa_spec` package from this repository checkout.
 
@@ -28,6 +28,6 @@ Expected SHA256 for the minimal cleaned output:
 
 `b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597`
 
-`bash scripts/verify_reproducibility.sh` checks the installed package, reruns the canonical minimal example, computes the checksum with `sha256sum`, and compares it against the tracked expected artifact.
+`bash scripts/verify_reproducibility.sh` checks the installed package, reruns the canonical minimal example, computes the checksum with `sha256sum`, and compares it against the tracked expected artifact. The script runs unchanged inside the Docker reviewer path.
 
 No archived release bundle is linked for this revision.

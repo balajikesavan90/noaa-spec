@@ -38,23 +38,15 @@ REQUIRED_README_SECTIONS = (
     "## Why NOAA ISD is not analysis-ready",
     "## Installation",
     "## System Prerequisites",
-    "## Reviewer Quickstart",
+    "## Reviewer Quickstart (Docker)",
     "## Contracts and Validation",
     "## When to use / when not to use",
     "## Paper and docs links",
 )
 
 CANONICAL_QUICKSTART = """```bash
-bash scripts/check_reviewer_env.sh
-python3 -m venv .review-venv
-source .review-venv/bin/activate
-which python
-python -m pip install --upgrade pip
-pip install -r requirements-review.txt
-pip install -e .
-python reproducibility/run_pipeline_example.py --example minimal --out /tmp/noaa-spec-sample.csv
-bash scripts/verify_reproducibility.sh
-pytest -q
+docker build -t noaa-spec .
+docker run --rm noaa-spec
 ```"""
 
 INTERNAL_RECORD_BANNER = "INTERNAL DEVELOPMENT RECORD — NOT REVIEWER EVIDENCE"
@@ -86,28 +78,22 @@ def test_readme_has_required_joss_sections() -> None:
         assert section in readme_text
 
 
-def test_readme_defines_linux_only_supported_platform() -> None:
+def test_readme_defines_containerized_supported_platform() -> None:
     text = README_PATH.read_text(encoding="utf-8")
-    assert "This reviewer workflow is validated on Linux (Ubuntu/Debian-like systems) with Python 3.12+ and bash." in text
-    assert "Other platforms (macOS, Windows) are not part of the canonical reviewer path for this revision." in text
+    assert "The canonical reviewer workflow is containerized with Docker so it runs consistently independent of host system configuration." in text
+    assert "An alternative local workflow is provided for advanced users on Linux with Python 3.12+ and bash." in text
 
 
 def test_readme_lists_explicit_system_prerequisites() -> None:
     text = README_PATH.read_text(encoding="utf-8")
     for expected in (
-        "- `python3`",
-        "- `python3-venv`",
-        "- `git`",
-        "- `bash`",
-        "- `sha256sum`",
-        "sudo apt-get update",
-        "sudo apt-get install -y python3 python3-venv git coreutils bash",
-        "These are OS-level dependencies and are not installed via pip.",
+        "The canonical reviewer path requires Docker on the host and no additional reviewer-managed OS packages inside the container.",
+        "The alternative local workflow requires host system packages including `python3`, `python3-venv`, `git`, `bash`, and `sha256sum`.",
     ):
         assert expected in text
 
 
-def test_reviewer_docs_use_single_linux_quickstart() -> None:
+def test_reviewer_docs_use_docker_quickstart() -> None:
     readme_text = README_PATH.read_text(encoding="utf-8")
     assert CANONICAL_QUICKSTART in readme_text
     assert readme_text.count("## Reviewer Quickstart") == 1
@@ -117,8 +103,8 @@ def test_reviewer_docs_use_single_linux_quickstart() -> None:
     assert "poetry" not in readme_text
 
     reproducibility_text = REPRODUCIBILITY_README_PATH.read_text(encoding="utf-8")
-    assert "The supported reproducibility path for this revision is the Linux reviewer workflow in the root [README.md](../README.md)." in reproducibility_text
-    assert "The supported reviewer interpreter requirement is Python 3.12+." in reproducibility_text
+    assert "The supported reproducibility path for this revision is the Docker reviewer workflow in the root [README.md](../README.md)." in reproducibility_text
+    assert "The containerized reviewer environment uses Python 3.12." in reproducibility_text
     assert "The canonical reviewer example is under `reproducibility/minimal/`." in reproducibility_text
     assert "requirements-review.txt" in reproducibility_text
     assert "pip install -e ." in reproducibility_text
@@ -142,9 +128,9 @@ def test_readme_and_reproducibility_docs_define_authoritative_dependency_story()
 
     assert "`requirements-review.txt` is the exact tested reviewer dependency set for this revision." in readme_text
     assert "`pip install -e .` installs the `noaa_spec` package from this repository checkout." in readme_text
-    assert "Tested in a fresh virtual environment with no pre-installed package." in readme_text
+    assert "Tested in a fresh environment with no pre-installed package." in readme_text
     assert "For this revision, only the Reviewer Quickstart and `reproducibility/README.md` define the supported reproducibility path." in readme_text
-    assert "`requirements-review.txt` is the exact tested reviewer dependency set for this revision." in reproducibility_text
+    assert "`requirements-review.txt` is the exact tested dependency set used inside the reviewer container and in the optional local workflow." in reproducibility_text
     assert "`pip install -e .` installs the `noaa_spec` package from this repository checkout." in reproducibility_text
 
 

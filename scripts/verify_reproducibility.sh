@@ -8,12 +8,6 @@ OUTPUT_PATH="${1:-/tmp/noaa-spec-sample.csv}"
 EXPECTED_PATH="${REPO_ROOT}/reproducibility/minimal/station_cleaned_expected.csv"
 EXPECTED_HASH="b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597"
 
-print_sha_fix() {
-    echo "Install the required OS dependencies with:" >&2
-    echo "sudo apt-get update" >&2
-    echo "sudo apt-get install -y python3 python3-venv git coreutils bash" >&2
-}
-
 cd "${REPO_ROOT}"
 
 if ! command -v python >/dev/null 2>&1; then
@@ -23,7 +17,6 @@ fi
 
 if ! command -v sha256sum >/dev/null 2>&1; then
     echo "FAIL: sha256sum is required for reproducibility verification." >&2
-    print_sha_fix
     exit 1
 fi
 
