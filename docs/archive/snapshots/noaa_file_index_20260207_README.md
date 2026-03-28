@@ -1,3 +1,5 @@
+# INTERNAL DEVELOPMENT RECORD — NOT REVIEWER EVIDENCE
+
 # NOAA file index (2026-02-07)
 
 This folder contains the NOAA Global Hourly file index and year-counts used by the pipeline.

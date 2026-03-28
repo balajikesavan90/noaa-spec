@@ -1,5 +1,11 @@
 # NOAA-Spec
 
+## Supported Platform
+
+This reviewer workflow is validated on Linux (Ubuntu/Debian-like systems) with Python 3.11+ and bash.
+
+Other platforms (macOS, Windows) are not part of the canonical reviewer path for this revision.
+
 ## What NOAA-Spec does
 
 NOAA-Spec converts raw NOAA Integrated Surface Database (ISD) / Global Hourly records into deterministic, specification-constrained cleaned outputs. In this repository snapshot, the reviewer-verifiable surface is a bounded cleaning example with checksum verification and tests.
@@ -12,28 +18,37 @@ NOAA ISD observations contain fixed-width fields, comma-encoded substructures, s
 
 ## Installation
 
-Tested on Linux with `Python 3.12`.
+`requirements-review.txt` is the exact tested reviewer dependency set for this revision.
 
-Documented prerequisites:
+`pip install -e .` installs the `noaa_spec` package from this repository checkout.
+
+For this revision, only the Reviewer Quickstart and `reproducibility/README.md` define the supported reproducibility path.
+
+No archived release bundle is linked for this revision.
+
+## System Prerequisites
+
+Required OS-level tools:
 
 - `python3`
-- virtual environment support for your Python installation
-- Debian/Ubuntu-like systems commonly need `python3-venv`
+- `python3-venv`
+- `git`
+- `bash`
+- `sha256sum`
 
-These steps were designed to run in a fresh virtual environment.
+Install them on Ubuntu/Debian with:
 
-Clean-room sanity check:
+```bash
+sudo apt-get update
+sudo apt-get install -y python3 python3-venv git coreutils bash
+```
 
-- do not rely on pre-existing Poetry environments
-- do not rely on system packages outside the documented prerequisites
-
-`requirements-review.txt` is the reviewer dependency snapshot for this submission revision. Package metadata in `pyproject.toml` defines the install requirements. `requirements-review.txt` captures the exact tested reviewer environment for this revision.
-
-Poetry may still be used for developer workflow only. It is not part of the reviewer quickstart.
+These are OS-level dependencies and are not installed via pip.
 
 ## Reviewer Quickstart
 
 ```bash
+bash scripts/check_reviewer_env.sh
 python3 -m venv .review-venv
 source .review-venv/bin/activate
 python -m pip install --upgrade pip
@@ -46,40 +61,24 @@ pytest -q
 
 Expected SHA256: `b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597`
 
-`scripts/check_reviewer_env.sh` provides a lightweight sanity check for the active reviewer environment.
-
-## Supported Reviewer Commands
-
-These are the reviewer commands for this repository snapshot:
-
-```bash
-python reproducibility/run_pipeline_example.py --example minimal --out /tmp/noaa-spec-sample.csv
-bash scripts/verify_reproducibility.sh
-pytest -q
-```
-
-Success means:
-
-- the minimal example writes `/tmp/noaa-spec-sample.csv`
-- `bash scripts/verify_reproducibility.sh` prints `PASS:` and the expected SHA256
-- `pytest -q` completes in the active virtual environment
-
 ## Reproducibility Boundary
 
-This revision demonstrates deterministic, specification-constrained cleaning using tracked reproducibility fixtures at bounded scale. Full release-scale artifact generation is part of the broader publication workflow, but is not bundled as reviewer evidence in this revision.
+This revision demonstrates deterministic, specification-constrained cleaning at bounded scale using tracked reproducibility fixtures.
 
-No archived release bundle is linked for this revision. Reviewers should rely on the bounded reproducibility example and test suite.
+Full release-scale artifacts are part of the broader workflow but are not bundled as reviewer evidence in this revision.
 
 ## Contracts and Validation
 
 NOAA-Spec is organized around explicit software surfaces:
 
-- the canonical cleaning pipeline,
-- artifact contracts and schema validation,
-- deterministic serialization and checksum verification,
-- tests that guard parser behavior and documentation integrity.
+- the canonical cleaning pipeline
+- artifact contracts and schema validation
+- deterministic serialization and checksum verification
+- tests that guard parser behavior and documentation integrity
 
-The broader release-oriented publication workflow remains part of the repository design, but the reviewer-facing evidence in this revision is the bounded reproducibility example plus the test suite.
+`sha256sum` is required for checksum verification.
+
+`git` is required by the test suite.
 
 ## When to use / when not to use
 
@@ -99,6 +98,5 @@ Do not use NOAA-Spec when you need:
 
 - Reviewer guide: [docs/REVIEWER_GUIDE.md](docs/REVIEWER_GUIDE.md)
 - Reproducibility notes: [reproducibility/README.md](reproducibility/README.md)
-- Example scripts: [examples/README.md](examples/README.md)
 - JOSS paper source: [paper/paper.md](paper/paper.md)
 - Docs index: [docs/README.md](docs/README.md)

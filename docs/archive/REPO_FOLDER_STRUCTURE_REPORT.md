@@ -1,3 +1,5 @@
+# INTERNAL DEVELOPMENT RECORD — NOT REVIEWER EVIDENCE
+
 # Repository Folder Structure Report
 
 This report reflects the current repository structure as of 2026-03-21 in the local workspace.

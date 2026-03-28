@@ -1,5 +1,6 @@
 import csv
 import re
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -28,17 +29,34 @@ SPEC_COVERAGE_PATH = PROJECT_ROOT / "spec_coverage.csv"
 GITIGNORE_PATH = PROJECT_ROOT / ".gitignore"
 SPLIT_CLEANED_SCRIPT_PATH = PROJECT_ROOT / "scripts" / "split_cleaned_by_domain.py"
 SPLIT_BY_STATION_SCRIPT_PATH = PROJECT_ROOT / "scripts" / "split_domains_by_station.py"
+CHECK_REVIEWER_ENV_PATH = PROJECT_ROOT / "scripts" / "check_reviewer_env.sh"
+VERIFY_REPRODUCIBILITY_PATH = PROJECT_ROOT / "scripts" / "verify_reproducibility.sh"
 
 REQUIRED_README_SECTIONS = (
+    "## Supported Platform",
     "## What NOAA-Spec does",
     "## Why NOAA ISD is not analysis-ready",
     "## Installation",
+    "## System Prerequisites",
     "## Reviewer Quickstart",
-    "## Supported Reviewer Commands",
     "## Contracts and Validation",
     "## When to use / when not to use",
     "## Paper and docs links",
 )
+
+CANONICAL_QUICKSTART = """```bash
+bash scripts/check_reviewer_env.sh
+python3 -m venv .review-venv
+source .review-venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements-review.txt
+pip install -e .
+python reproducibility/run_pipeline_example.py --example minimal --out /tmp/noaa-spec-sample.csv
+bash scripts/verify_reproducibility.sh
+pytest -q
+```"""
+
+INTERNAL_RECORD_BANNER = "INTERNAL DEVELOPMENT RECORD — NOT REVIEWER EVIDENCE"
 
 
 def _compute_suspicious_stats() -> tuple[int, float]:
@@ -57,39 +75,84 @@ def _compute_suspicious_stats() -> tuple[int, float]:
     return suspicious_count, percentage
 
 
+def _require_git() -> None:
+    assert shutil.which("git"), "git is required for this test suite. Install it with: sudo apt-get install -y git"
+
+
 def test_readme_has_required_joss_sections() -> None:
     readme_text = README_PATH.read_text(encoding="utf-8")
     for section in REQUIRED_README_SECTIONS:
         assert section in readme_text
 
 
-def test_reviewer_docs_use_single_pip_based_quickstart() -> None:
-    install_doc_paths = (README_PATH, REPRODUCIBILITY_README_PATH)
-    for path in install_doc_paths:
-        text = path.read_text(encoding="utf-8")
-        assert "Python 3.12" in text
-        assert "python3-venv" in text
-        assert "python3 -m venv .review-venv" in text
-        assert "source .review-venv/bin/activate" in text
-        assert "python -m pip install --upgrade pip" in text
-        assert "pip install -r requirements-review.txt" in text
-        assert "pip install -e ." in text
-        assert "python reproducibility/run_pipeline_example.py --example minimal --out /tmp/noaa-spec-sample.csv" in text
-        assert "pytest -q" in text
-        assert "pip install poetry" not in text
-        assert "pipx install poetry" not in text
-        assert "python3 -m pip install --user poetry" not in text
-        assert "poetry install" not in text
-        assert "poetry run" not in text
-        assert "bash scripts/verify_reproducibility.sh" in text
+def test_readme_defines_linux_only_supported_platform() -> None:
+    text = README_PATH.read_text(encoding="utf-8")
+    assert "This reviewer workflow is validated on Linux (Ubuntu/Debian-like systems) with Python 3.11+ and bash." in text
+    assert "Other platforms (macOS, Windows) are not part of the canonical reviewer path for this revision." in text
+
+
+def test_readme_lists_explicit_system_prerequisites() -> None:
+    text = README_PATH.read_text(encoding="utf-8")
+    for expected in (
+        "- `python3`",
+        "- `python3-venv`",
+        "- `git`",
+        "- `bash`",
+        "- `sha256sum`",
+        "sudo apt-get update",
+        "sudo apt-get install -y python3 python3-venv git coreutils bash",
+        "These are OS-level dependencies and are not installed via pip.",
+    ):
+        assert expected in text
+
+
+def test_reviewer_docs_use_single_linux_quickstart() -> None:
+    readme_text = README_PATH.read_text(encoding="utf-8")
+    assert CANONICAL_QUICKSTART in readme_text
+    assert readme_text.count("## Reviewer Quickstart") == 1
+    assert "## Supported Reviewer Commands" not in readme_text
+    assert "Poetry" not in readme_text
+    assert "poetry" not in readme_text
+
+    reproducibility_text = REPRODUCIBILITY_README_PATH.read_text(encoding="utf-8")
+    assert "The supported reproducibility path for this revision is the Linux reviewer workflow in the root [README.md](../README.md)." in reproducibility_text
+    assert "requirements-review.txt" in reproducibility_text
+    assert "pip install -e ." in reproducibility_text
+    assert "sha256sum" in reproducibility_text
+    assert "No archived release bundle is linked for this revision." in reproducibility_text
+    assert "poetry" not in reproducibility_text.lower()
+    assert "full_station" not in reproducibility_text
 
     guide_text = REVIEWER_GUIDE_PATH.read_text(encoding="utf-8")
-    assert "single canonical reviewer command sequence" in guide_text
-    assert "pip install -e ." in guide_text
-    assert "python reproducibility/run_pipeline_example.py --example minimal --out /tmp/noaa-spec-sample.csv" in guide_text
-    assert "pytest -q" in guide_text
+    assert "Use the root [README.md](../README.md) line-by-line." in guide_text
+    assert "No archived release bundle is linked for this revision." in guide_text
     assert "poetry" not in guide_text.lower()
-    assert "bash scripts/verify_reproducibility.sh" in guide_text
+
+
+def test_readme_and_reproducibility_docs_define_authoritative_dependency_story() -> None:
+    readme_text = README_PATH.read_text(encoding="utf-8")
+    reproducibility_text = REPRODUCIBILITY_README_PATH.read_text(encoding="utf-8")
+
+    assert "`requirements-review.txt` is the exact tested reviewer dependency set for this revision." in readme_text
+    assert "`pip install -e .` installs the `noaa_spec` package from this repository checkout." in readme_text
+    assert "For this revision, only the Reviewer Quickstart and `reproducibility/README.md` define the supported reproducibility path." in readme_text
+    assert "`requirements-review.txt` is the exact tested reviewer dependency set for this revision." in reproducibility_text
+    assert "`pip install -e .` installs the `noaa_spec` package from this repository checkout." in reproducibility_text
+
+
+def test_reviewer_scripts_enforce_linux_prerequisites_and_checksum_verification() -> None:
+    env_text = CHECK_REVIEWER_ENV_PATH.read_text(encoding="utf-8")
+    verify_text = VERIFY_REPRODUCIBILITY_PATH.read_text(encoding="utf-8")
+
+    assert "for command_name in python3 git bash sha256sum; do" in env_text
+    assert "command -v \"${command_name}\"" in env_text
+    assert "python3 -m venv" in env_text
+    assert "sudo apt-get install -y python3 python3-venv git coreutils bash" in env_text
+
+    assert "command -v sha256sum" in verify_text
+    assert "FAIL: sha256sum is required for reproducibility verification." in verify_text
+    assert "python reproducibility/run_pipeline_example.py --example minimal --out" in verify_text
+    assert "PASS: reproducibility verification succeeded." in verify_text
 
 
 def test_readme_includes_expected_reproducibility_hash() -> None:
@@ -105,6 +168,15 @@ def test_docs_index_and_archive_docs_exist() -> None:
     assert OPERATIONS_README_PATH.exists()
     assert ARCHIVE_README_PATH.exists()
     assert SNAPSHOT_README_PATH.exists()
+
+
+def test_archive_and_report_markdown_files_have_internal_record_banner() -> None:
+    markdown_paths = sorted((PROJECT_ROOT / "docs" / "archive").rglob("*.md"))
+    markdown_paths.extend(sorted((PROJECT_ROOT / "docs" / "reports").rglob("*.md")))
+    assert markdown_paths
+    for path in markdown_paths:
+        text = path.read_text(encoding="utf-8")
+        assert text.startswith(f"# {INTERNAL_RECORD_BANNER}")
 
 
 def test_archive_readme_documents_station_report_archive_location() -> None:
@@ -172,6 +244,8 @@ def test_station_examples_are_curated_under_docs_examples() -> None:
 
 
 def test_operational_snapshots_are_not_tracked_in_publication_facing_paths() -> None:
+    _require_git()
+
     tracked_test_runs = subprocess.run(
         ["git", "ls-files", "artifacts/test_runs/**"],
         cwd=PROJECT_ROOT,

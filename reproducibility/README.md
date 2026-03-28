@@ -2,67 +2,22 @@
 
 This directory contains the tracked bounded reproducibility fixtures used for reviewer verification.
 
-- `minimal/` is the canonical reviewer example
-- `full_station/` is an optional larger local check and is not part of reviewer verification
+The supported reproducibility path for this revision is the Linux reviewer workflow in the root [README.md](../README.md).
 
-Tested on Linux with `Python 3.12`.
+`requirements-review.txt` is the exact tested reviewer dependency set for this revision.
 
-Documented prerequisites:
+`pip install -e .` installs the `noaa_spec` package from this repository checkout.
 
-- `python3`
-- virtual environment support for your Python installation
-- Debian/Ubuntu-like systems commonly need `python3-venv`
-
-## Canonical reviewer flow
-
-Use the single command sequence from the root [README.md](../README.md):
-
-```bash
-python3 -m venv .review-venv
-source .review-venv/bin/activate
-python -m pip install --upgrade pip
-pip install -r requirements-review.txt
-pip install -e .
-python reproducibility/run_pipeline_example.py --example minimal --out /tmp/noaa-spec-sample.csv
-bash scripts/verify_reproducibility.sh
-pytest -q
-```
-
-Expected SHA256: `b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597`
-
-`requirements-review.txt` is the reviewer dependency snapshot for this submission revision. Package metadata in `pyproject.toml` defines install requirements. `requirements-review.txt` records the exact tested reviewer environment for this revision.
-
-These steps were designed to run in a fresh virtual environment.
-
-Clean-room sanity check:
-
-- do not rely on pre-existing Poetry environments
-- do not rely on system packages outside the documented prerequisites
-
-No archived release bundle is linked for this revision. Reviewers should rely on the bounded reproducibility example and test suite.
-
-## What the verification script checks
-
-`bash scripts/verify_reproducibility.sh`:
-
-- imports the installed package
-- runs the minimal example if needed
-- computes the output checksum
-- compares it against the tracked expected fixture
-- fails if tracked reproducibility files were modified
-
-Tracked anchors for the minimal example:
+Tracked reviewer fixtures:
 
 - `reproducibility/minimal/station_raw.csv`
 - `reproducibility/minimal/station_cleaned.csv`
 - `reproducibility/minimal/station_cleaned_expected.csv`
 
-## Optional local development path
+Expected SHA256 for the minimal cleaned output:
 
-Developer workflow only. Not part of reviewer quickstart.
+`b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597`
 
-```bash
-python reproducibility/run_pipeline_example.py --example full_station --out /tmp/noaa-spec-full-station.csv
-```
+`bash scripts/verify_reproducibility.sh` checks the installed package, reruns the minimal example, computes the checksum with `sha256sum`, and compares it against the tracked expected artifact.
 
-If you use Poetry for local development, treat it as developer workflow only. It is not part of the reviewer path.
+No archived release bundle is linked for this revision.

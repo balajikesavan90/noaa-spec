@@ -1,3 +1,5 @@
+# INTERNAL DEVELOPMENT RECORD — NOT REVIEWER EVIDENCE
+
 # Archive
 
 This folder holds historical planning notes, cleanup audits, legacy materials, and archival references that are useful for provenance but are not part of the primary reviewer-facing documentation surface.
