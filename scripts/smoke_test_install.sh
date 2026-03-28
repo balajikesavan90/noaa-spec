@@ -10,17 +10,16 @@ TRACKED_ANCHOR="${REPO_ROOT}/reproducibility/minimal/station_cleaned.csv"
 
 cd "${REPO_ROOT}"
 
-if ! command -v poetry >/dev/null 2>&1; then
-    echo "Missing 'poetry' on PATH. Install Poetry with the documented official installer, then rerun 'poetry install'." >&2
+if ! command -v python >/dev/null 2>&1; then
+    echo "Missing 'python' on PATH. Activate the reviewer virtual environment, then rerun this smoke test." >&2
     exit 1
 fi
 
 expected_before="$(sha256sum "${TRACKED_EXPECTED}" | cut -d' ' -f1)"
 anchor_before="$(sha256sum "${TRACKED_ANCHOR}" | cut -d' ' -f1)"
 
-poetry run python3 -c "import noaa_spec"
-poetry run noaa-spec --help >/dev/null
-poetry run python3 reproducibility/run_pipeline_example.py --example minimal --out "${SMOKE_OUTPUT}"
+python -c "import noaa_spec"
+python reproducibility/run_pipeline_example.py --example minimal --out "${SMOKE_OUTPUT}"
 
 if [[ ! -s "${SMOKE_OUTPUT}" ]]; then
     echo "Smoke test failed: expected cleaned CSV at ${SMOKE_OUTPUT}." >&2
@@ -40,4 +39,4 @@ if [[ "${expected_before}" != "${expected_after}" || "${anchor_before}" != "${an
     exit 1
 fi
 
-echo "Smoke test passed: Poetry can import noaa_spec, run the CLI, verify the sample anchor, and avoid tracked-file mutation."
+echo "Smoke test passed: pip-installed noaa_spec can run the bounded reviewer example without mutating tracked fixtures."

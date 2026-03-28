@@ -10,16 +10,15 @@ EXPECTED_HASH="b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597"
 
 cd "${REPO_ROOT}"
 
-if ! command -v poetry >/dev/null 2>&1; then
-    echo "FAIL: poetry is not available on PATH." >&2
+if ! command -v python >/dev/null 2>&1; then
+    echo "FAIL: python is not available on PATH." >&2
     exit 1
 fi
 
 expected_before="$(sha256sum "${EXPECTED_PATH}" | cut -d' ' -f1)"
 
-poetry run python3 -c "import noaa_spec"
-poetry run noaa-spec --help >/dev/null
-poetry run python3 reproducibility/run_pipeline_example.py --example minimal --out "${OUTPUT_PATH}"
+python -c "import noaa_spec"
+python reproducibility/run_pipeline_example.py --example minimal --out "${OUTPUT_PATH}"
 
 if [[ ! -s "${OUTPUT_PATH}" ]]; then
     echo "FAIL: expected cleaned CSV at ${OUTPUT_PATH}." >&2

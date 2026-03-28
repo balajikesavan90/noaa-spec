@@ -18,52 +18,41 @@ bibliography: paper.bib
 
 # Abstract
 
-NOAA-Spec is open-source software for converting raw NOAA Integrated Surface Database (ISD) / Global Hourly observations into deterministic research artifacts. The package implements specification-constrained parsing and cleaning for fixed-width and comma-encoded NOAA fields, normalizes sentinel and quality semantics, and targets four artifact classes: canonical cleaned datasets, domain datasets, quality reports, and release manifests. This revision demonstrates deterministic, specification-constrained cleaning at bounded scale using tracked reproducibility fixtures. Full release-scale artifacts are part of the broader publication workflow but are not bundled as reviewer evidence in this development snapshot. The software is designed for transparent preprocessing rather than downstream analysis: it emphasizes stable contracts, explicit lineage, deterministic serialization, and checksum-backed manifests. NOAA-Spec addresses a recurring problem in ISD workflows, where project-specific scripts often encode undocumented differences in missing-value handling, quality filtering, and field validation. By turning these steps into versioned software surfaces, NOAA-Spec makes preprocessing more reproducible, auditable, and comparable across studies.
+NOAA-Spec is open-source software for converting raw NOAA Integrated Surface Database (ISD) / Global Hourly observations into deterministic cleaned outputs. The package implements specification-constrained parsing and cleaning for fixed-width and comma-encoded NOAA fields and normalizes sentinel and quality semantics. This revision demonstrates deterministic, specification-constrained cleaning using tracked reproducibility fixtures at bounded scale. Full release-scale artifact generation is part of the broader publication workflow, but is not bundled as reviewer evidence in this revision. The software is designed for transparent preprocessing rather than downstream analysis: it emphasizes explicit cleaning behavior, stable interfaces, deterministic serialization, and checksum-backed verification. NOAA-Spec addresses a recurring problem in ISD workflows, where project-specific scripts often encode undocumented differences in missing-value handling, quality filtering, and field validation. By turning these steps into versioned software surfaces, NOAA-Spec makes preprocessing more reproducible, auditable, and comparable across studies.
 
 # Summary
 
 NOAA ISD is a widely used observational resource for weather and climate research, but its raw records are not analysis-ready [@smith2011isd; @noaa_isd_docs]. Users must interpret fixed-width fields, repeated section families, sentinel values, and quality codes from technical documentation before they can produce consistent cleaned datasets. In practice, these decisions are often embedded in local scripts, making preprocessing hard to inspect and reproduce.
 
-NOAA-Spec provides a software-first alternative. It packages specification-constrained parsing, deterministic cleaning, and release-oriented artifact generation in a single reproducible workflow. In this development snapshot, the repository directly demonstrates the canonical cleaning path and deterministic sample-output verification; full release-scale artifacts are not bundled as reviewer evidence. The public software surface is organized around concrete outputs rather than conceptual architecture terms:
-
-- canonical cleaned datasets with stable column naming and explicit null semantics,
-- domain datasets for reusable observation-level slices,
-- quality reports describing completeness, sentinel effects, and quality-code exclusions,
-- release manifests containing artifact identifiers, schema versions, checksums, and lineage.
-
-This design keeps the software focused on standardization and transparency. Rather than embedding downstream aggregation or climate analysis, NOAA-Spec publishes interoperable artifacts that researchers can inspect, join, and analyze in their own workflows.
+NOAA-Spec provides a software-first alternative. It packages specification-constrained parsing and deterministic cleaning in a reproducible workflow. In this revision, the repository directly demonstrates the canonical cleaning path and deterministic sample-output verification; broader release-scale outputs are part of the surrounding publication workflow but are not bundled as reviewer evidence. This design keeps the software focused on standardization and transparency rather than downstream analysis.
 
 # Statement of Need
 
 NOAA ISD preprocessing is a reproducibility problem as much as a parsing problem. Raw observations contain compact encodings, section-dependent field structures, sentinel values, and quality flags that must be translated into explicit software behavior [@noaa_isd_docs]. When those translations live in ad hoc scripts, differences in cleaning logic can silently change downstream scientific results.
 
-NOAA-Spec addresses this need by treating preprocessing as a versioned software contract. The package implements specification-derived validation and normalization rules, preserves quality and provenance signals, and emits deterministic artifacts with manifest-level metadata. This gives researchers a concrete and inspectable preprocessing layer between NOAA raw records and downstream analysis.
+NOAA-Spec addresses this need by treating preprocessing as a versioned software contract. The package implements specification-derived validation and normalization rules, preserves quality and provenance signals during cleaning, and emits deterministic outputs for a fixed input and configuration. This gives researchers a concrete and inspectable preprocessing layer between NOAA raw records and downstream analysis.
 
 # State of the Field
 
 General-purpose validation frameworks such as Great Expectations, Deequ, and TensorFlow Data Validation support user-authored data checks in production pipelines [@great_expectations; @schelter2018deequ; @tensorflow_data_validation]. These tools are valuable, but they do not provide a NOAA-specific interpretation layer for ISD field semantics, sentinel conventions, and section structure. Research systems such as HoloClean focus on probabilistic repair under uncertainty [@rekatsinas2017holoclean], whereas NOAA-Spec is aimed at deterministic standardization under a published format specification.
 
-The distinctive contribution of NOAA-Spec is not generic validation infrastructure. It is a domain-specific software package that converts NOAA documentation and engineering safeguards into reproducible publication artifacts for ISD data.
+The distinctive contribution of NOAA-Spec is not generic validation infrastructure. It is a domain-specific software package that converts NOAA documentation and engineering safeguards into reproducible preprocessing behavior for ISD data.
 
 # Software Design
 
-NOAA-Spec implements a specification-constrained publication workflow:
+NOAA-Spec implements a specification-constrained workflow:
 
 1. parse raw NOAA observations using documented field structure and token-width expectations,
 2. normalize sentinel and null behavior while preserving quality-code context,
-3. publish a canonical cleaned dataset as the observation-level foundation artifact,
-4. project canonical data into stable domain datasets,
-5. emit quality reports and release manifests with checksums and lineage metadata.
+3. emit a canonical cleaned dataset as the observation-level output.
 
-The package exposes these behaviors through the `noaa_spec` library and CLI, with schemas and contracts treated as public interfaces. The repository demonstrates deterministic canonical output generation for a fixed input and configuration. Full release-scale artifacts are not included in this development snapshot; in production runs, release manifests record artifact identity, schema version, row counts, and lineage so later consumers can trace published outputs back to their raw sources.
+The package exposes these behaviors through the `noaa_spec` library and CLI, with schemas and contracts treated as public interfaces. The repository demonstrates deterministic canonical output generation for a fixed input and configuration. Full release-scale artifact generation is part of the broader publication workflow, but is not bundled as reviewer evidence in this revision.
 
-This output-oriented design is important for scientific reuse. Researchers can inspect artifact contracts directly, evaluate how cleaning decisions affected data availability through quality reports, and join domain datasets without depending on private pipeline state.
+This design is important for scientific reuse because it makes preprocessing behavior inspectable and repeatable without coupling users to private local scripts.
 
 # Validation and Reproducibility
 
-The repository provides a bounded reproducibility path for review: a tracked sample input in `reproducibility/` can be processed through the cleaning engine to produce a deterministic cleaned CSV with a corresponding expected-output fixture. This gives reviewers a concrete way to confirm installation, execute the software on a known input, and compare the emitted artifact against a version-controlled reference result. This revision demonstrates deterministic, specification-constrained cleaning at bounded scale using tracked reproducibility fixtures. Full release-scale artifacts are part of the broader publication workflow but are not bundled as reviewer evidence in this development snapshot.
-
-Automated validation complements this sample run. The test and validation surface checks parser behavior, schema and artifact contracts, spec-derived guardrails, and manifest or checksum integrity so that changes affecting publication outputs are caught as software regressions rather than discovered only in downstream analysis. NOAA-Spec also separates descriptive quality evidence from publication-integrity checks: quality reports describe observed completeness, sentinel frequency, and exclusion patterns in cleaned data, while manifest-level validation focuses on artifact identity, integrity, and lineage. Larger bounded batch builds are used separately for broader validation, but they are not required to verify the in-repository software submission and should be paired with a frozen revision when cited as formal release evidence.
+The repository provides a bounded reproducibility path for review: a tracked sample input in `reproducibility/` can be processed through the cleaning engine to produce a deterministic cleaned CSV with a corresponding expected-output fixture. This gives reviewers a concrete way to confirm installation, execute the software on a known input, and compare the emitted output against a version-controlled reference result. Automated validation complements this sample run. The test surface checks parser behavior, schema and contract boundaries, and checksum-backed reproducibility so that changes affecting the demonstrated cleaning output are caught as software regressions. Larger builds are used separately for broader development validation, but they are not required to verify the in-repository software submission and should not be treated as bundled reviewer evidence for this revision.
 
 # Limitations and Rule Provenance
 
