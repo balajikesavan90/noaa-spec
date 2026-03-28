@@ -8,9 +8,9 @@ The containerized reviewer environment uses Python 3.12.
 
 The canonical reviewer example is under `reproducibility/minimal/`.
 
-`requirements-review.txt` is the exact tested dependency set used inside the reviewer container and in the optional local workflow.
+`requirements-review.txt` is the exact tested dependency set used inside the reviewer container.
 
-`pip install -e .` installs the `noaa_spec` package from this repository checkout.
+Local installation is optional and intended for development only; it is not required for reproducibility validation. See [docs/LOCAL_DEV.md](../docs/LOCAL_DEV.md).
 
 Tracked reviewer fixtures:
 
@@ -29,5 +29,11 @@ Expected SHA256 for the minimal cleaned output:
 `b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597`
 
 `bash scripts/verify_reproducibility.sh` checks the installed package, reruns the canonical minimal example, computes the checksum with `sha256sum`, and compares it against the tracked expected artifact. The script runs unchanged inside the Docker reviewer path.
+
+Expected pytest result in the reviewer container:
+
+- `2194 passed, 15 skipped`
+
+This submission validates deterministic canonical cleaning using a bounded, checksum-verified example included in-repo. Broader publication artifacts (release bundles, manifests, and quality reports) are part of the system design but are not included in this review package.
 
 No archived release bundle is linked for this revision.

@@ -4,7 +4,7 @@
 
 The canonical reviewer workflow is containerized with Docker so it runs consistently independent of host system configuration.
 
-An alternative local workflow is provided for advanced users on Linux with Python 3.12+ and bash.
+The supported reviewer path for this submission is Docker. Local installation is optional and intended for development only; it is not required for reproducibility validation.
 
 ## What NOAA-Spec does
 
@@ -18,11 +18,7 @@ NOAA ISD observations contain fixed-width fields, comma-encoded substructures, s
 
 ## Installation
 
-`requirements-review.txt` is the exact tested reviewer dependency set for this revision.
-
-`pip install -e .` installs the `noaa_spec` package from this repository checkout.
-
-Tested in a fresh environment with no pre-installed package.
+`requirements-review.txt` is the exact tested dependency set for the reviewer container in this revision.
 
 For this revision, only the Reviewer Quickstart and `reproducibility/README.md` define the supported reproducibility path.
 
@@ -30,11 +26,11 @@ The canonical reviewer example is under `reproducibility/minimal/`.
 
 No archived release bundle is linked for this revision.
 
+Optional local development instructions are in [docs/LOCAL_DEV.md](docs/LOCAL_DEV.md).
+
 ## System Prerequisites
 
 The canonical reviewer path requires Docker on the host and no additional reviewer-managed OS packages inside the container.
-
-The alternative local workflow requires host system packages including `python3`, `python3-venv`, `git`, `bash`, and `sha256sum`.
 
 ## Reviewer Quickstart (Docker)
 
@@ -47,33 +43,17 @@ Expected output:
 
 - the minimal example runs
 - `PASS: reproducibility verification succeeded.`
-- `pytest` passes
+- `2194 passed, 15 skipped`
 
 Expected SHA256: `b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597`
 
 This is the canonical reviewer path. It requires no OS-level dependency installation by the reviewer and no `sudo` inside the container.
 
-## Alternative: Local Environment (Advanced Users)
-
-This path is not the primary reviewer path. It requires host system packages including `python3`, `python3-venv`, `git`, `bash`, and `sha256sum`.
-
-```bash
-bash scripts/check_reviewer_env.sh
-python3 -m venv .review-venv
-source .review-venv/bin/activate
-python -m pip install --upgrade pip
-pip install -r requirements-review.txt
-pip install -e .
-python reproducibility/run_pipeline_example.py --example minimal --out /tmp/noaa-spec-sample.csv
-bash scripts/verify_reproducibility.sh
-pytest -q
-```
+Local installation is optional and intended for development only. Reviewer-facing reproducibility validation should use the Docker workflow above.
 
 ## Reproducibility Boundary
 
-This revision demonstrates deterministic, specification-constrained cleaning at bounded scale using tracked reproducibility fixtures.
-
-Full release-scale artifacts are not bundled as reviewer evidence in this revision.
+This submission validates deterministic canonical cleaning using a bounded, checksum-verified example included in-repo. Broader publication artifacts (release bundles, manifests, and quality reports) are part of the system design but are not included in this review package.
 
 ## Contracts and Validation
 
@@ -84,7 +64,7 @@ NOAA-Spec is organized around explicit software surfaces:
 - deterministic serialization and checksum verification
 - tests that guard parser behavior and documentation integrity
 
-In the Docker reviewer path, `sha256sum` and `git` are provided inside the container. In the alternative local path, `sha256sum` is required for checksum verification and `git` is required by the test suite.
+In the Docker reviewer path, `sha256sum` and `git` are provided inside the container.
 
 ## When to use / when not to use
 
