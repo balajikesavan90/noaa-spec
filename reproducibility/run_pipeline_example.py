@@ -11,6 +11,18 @@ import pandas as pd
 from noaa_spec.cleaning import clean_noaa_dataframe
 
 
+EXAMPLES = {
+    "minimal": {
+        "raw_relpath": Path("reproducibility/minimal/station_raw.csv"),
+        "default_out": "noaa-spec-sample.csv",
+    },
+    "full_station": {
+        "raw_relpath": Path("reproducibility/full_station/station_raw.csv"),
+        "default_out": "noaa-spec-full-station.csv",
+    },
+}
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run the reproducibility cleaning example"
@@ -21,14 +33,21 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         help="Optional output path for the cleaned CSV",
     )
+    parser.add_argument(
+        "--example",
+        choices=sorted(EXAMPLES),
+        default="minimal",
+        help="Tracked reproducibility example to run",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = _parse_args()
     repo_root = Path(__file__).resolve().parents[1]
-    raw_path = repo_root / "reproducibility" / "sample_station_raw.txt"
-    cleaned_path = args.out or (Path(tempfile.gettempdir()) / "noaa-spec-sample.csv")
+    example = EXAMPLES[args.example]
+    raw_path = repo_root / example["raw_relpath"]
+    cleaned_path = args.out or (Path(tempfile.gettempdir()) / example["default_out"])
     cleaned_path.parent.mkdir(parents=True, exist_ok=True)
 
     raw = pd.read_csv(raw_path, dtype=str)

@@ -46,7 +46,7 @@ bash scripts/smoke_test_install.sh
 1. Run the bounded deterministic example:
 
 ```bash
-poetry run python reproducibility/run_pipeline_example.py --out /tmp/noaa-spec-sample.csv
+poetry run python reproducibility/run_pipeline_example.py --example minimal --out /tmp/noaa-spec-sample.csv
 ```
 
 2. Verify the installed CLI surface:

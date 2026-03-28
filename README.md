@@ -45,7 +45,7 @@ bash scripts/smoke_test_install.sh
 From a clean environment, the shortest reviewer path is:
 
 ```bash
-poetry run python reproducibility/run_pipeline_example.py --out /tmp/noaa-spec-sample.csv
+poetry run python reproducibility/run_pipeline_example.py --example minimal --out /tmp/noaa-spec-sample.csv
 ```
 
 Verify that the installed CLI is available:
@@ -56,7 +56,7 @@ poetry run noaa-spec --help
 
 This produces a cleaned CSV at `/tmp/noaa-spec-sample.csv` with normalized fields, resolved sentinel values, and quality-filtered observations. The sample run is the reproducible in-repo example. It is intentionally small and is not a substitute for larger external release builds.
 
-The reproducibility example reads [sample_station_raw.txt](reproducibility/sample_station_raw.txt) and writes a cleaned CSV using the same cleaning engine exposed by the `noaa_spec` library and the `noaa-spec` CLI. The reviewer path writes to `/tmp`, not to tracked repository files, and should exit without `[PARSE_STRICT]` warnings.
+The default reproducibility example reads [station_raw.csv](reproducibility/minimal/station_raw.csv) and writes a cleaned CSV using the same cleaning engine exposed by the `noaa_spec` library and the `noaa-spec` CLI. The reviewer path writes to `/tmp`, not to tracked repository files, and should exit without `[PARSE_STRICT]` warnings.
 
 ## Contracts and Validation
 

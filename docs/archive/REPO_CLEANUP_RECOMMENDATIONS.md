@@ -163,9 +163,14 @@ Cleanup/moves should avoid accidental overwrite or revert.
 
 ## 2) Tests expecting local generated file
 
-`tests/test_reproducibility_example.py` expects:
+`tests/test_reproducibility_example.py` previously expected a flat reproducibility fixture:
 
 - `reproducibility/sample_station_cleaned_expected.csv`
+
+The active reproducibility surface now uses tracked fixtures under:
+
+- `reproducibility/minimal/station_cleaned_expected.csv`
+- `reproducibility/full_station/station_cleaned_expected.csv`
 
 But it is currently ignored/untracked. This is a reproducibility-risk mismatch.
 
@@ -191,7 +196,7 @@ Recommendation:
 3. Move roadmap docs to `docs/roadmap/` and fix intra-doc links.
 4. Decide policy for tracked `output/` report artifacts (fixtures vs docs examples) and relocate.
 5. Prune/archive large ignored runtime outputs under `output/` and `noaa_file_index/`.
-6. Resolve reproducibility fixture tracking (`sample_station_cleaned_expected.csv`).
+6. Resolve reproducibility fixture tracking for the active `reproducibility/minimal/` and `reproducibility/full_station/` fixtures.
 7. Fix stale README references to missing docs.
 
 ## Decision Table
@@ -209,4 +214,3 @@ Recommendation:
 | `NEXT_STEPS.md`, `ARCHITECTURE_NEXT_STEPS.md`, `P3_EXPAND_RESEARCH_VALUE.md` | Move | High | Better in docs roadmap area |
 | Tracked report files in `output/<station>/` | Move | Medium-High | Better as fixtures/examples |
 | `old_r_files/` | Move/Delete partial | Medium | Legacy/historical content |
-

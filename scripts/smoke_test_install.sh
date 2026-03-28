@@ -5,8 +5,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 SMOKE_OUTPUT="${TMPDIR:-/tmp}/noaa-spec-smoke-test.csv"
-TRACKED_EXPECTED="${REPO_ROOT}/reproducibility/sample_station_cleaned_expected.csv"
-TRACKED_ANCHOR="${REPO_ROOT}/reproducibility/sample_station_cleaned.csv"
+TRACKED_EXPECTED="${REPO_ROOT}/reproducibility/minimal/station_cleaned_expected.csv"
+TRACKED_ANCHOR="${REPO_ROOT}/reproducibility/minimal/station_cleaned.csv"
 
 cd "${REPO_ROOT}"
 
@@ -20,7 +20,7 @@ anchor_before="$(sha256sum "${TRACKED_ANCHOR}" | cut -d' ' -f1)"
 
 poetry run python -c "import noaa_spec"
 poetry run noaa-spec --help >/dev/null
-poetry run python reproducibility/run_pipeline_example.py --out "${SMOKE_OUTPUT}"
+poetry run python reproducibility/run_pipeline_example.py --example minimal --out "${SMOKE_OUTPUT}"
 
 if [[ ! -s "${SMOKE_OUTPUT}" ]]; then
     echo "Smoke test failed: expected cleaned CSV at ${SMOKE_OUTPUT}." >&2

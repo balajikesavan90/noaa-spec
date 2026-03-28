@@ -67,7 +67,7 @@
 
 ### 4. Tests / Reproducibility Risks
 
-- `tests/test_reproducibility_example.py` expects `reproducibility/sample_station_cleaned_expected.csv`, but `.gitignore` ignores `*.csv`. The same area also uses `reproducibility/sample_station_cleaned.csv` as a default output in `reproducibility/run_pipeline_example.py`, and `reproducibility/README.md` tells readers it will overwrite that file. This is a tracked-reference mismatch against ignored fixtures. Confidence: High.
+- Historical note: this audit originally identified a mismatch around the flat reproducibility fixtures (`reproducibility/sample_station_cleaned_expected.csv` and related files). The active layout now uses tracked fixtures under `reproducibility/minimal/` and `reproducibility/full_station/`, so this specific flat-file mismatch has been superseded. Confidence: High.
 - The repository has a broad dependency surface on ignored root `spec_coverage.csv`:
   - `tests/test_documentation_integrity.py`
   - `tests/test_parser_spec_guardrails.py`

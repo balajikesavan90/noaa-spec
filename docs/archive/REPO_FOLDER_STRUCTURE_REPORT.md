@@ -157,8 +157,16 @@ Summary:
 │   ├── README.md
 │   ├── environment.txt
 │   ├── pipeline_snapshot.json
+│   ├── minimal/
+│   │   ├── station_cleaned.csv
+│   │   ├── station_cleaned_expected.csv
+│   │   └── station_raw.csv
+│   ├── full_station/
+│   │   ├── station_cleaned.csv
+│   │   ├── station_cleaned_expected.csv
+│   │   └── station_raw.csv
 │   ├── run_pipeline_example.py
-│   └── sample_station_raw.txt
+│   └── sample_station_raw.txt  [historical, removed from active layout]
 ├── scripts/
 │   ├── audit_build.py
 │   ├── convert_output_raw_csv_to_parquet.py

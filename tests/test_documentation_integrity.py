@@ -70,7 +70,7 @@ def test_reviewer_docs_use_pipx_poetry_install_path_and_poetry_run_commands() ->
         assert "python3 -m pipx ensurepath" in text
         assert "pipx install poetry" in text
         assert "python3 -m pip install --user poetry" not in text
-        assert "poetry run python reproducibility/run_pipeline_example.py --out /tmp/noaa-spec-sample.csv" in text
+        assert "poetry run python reproducibility/run_pipeline_example.py --example minimal --out /tmp/noaa-spec-sample.csv" in text
 
 
 def test_docs_index_and_archive_docs_exist() -> None:
