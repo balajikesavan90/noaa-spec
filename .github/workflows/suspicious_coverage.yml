@@ -56,13 +56,13 @@ jobs:
 
       - name: Generate suspicious coverage summary
         run: |
-          poetry run python tools/spec_coverage/export_suspicious_summary.py
+          poetry run python3 tools/spec_coverage/export_suspicious_summary.py
           echo "📊 Suspicious coverage summary generated"
       
       - name: Extract current count
         id: current
         run: |
-          COUNT=$(poetry run python -c "
+          COUNT=$(poetry run python3 -c "
           import csv
           from pathlib import Path
           
@@ -91,7 +91,7 @@ jobs:
           git checkout origin/${{ github.base_ref }} -- spec_coverage.csv 2>/dev/null || echo "No previous spec_coverage.csv"
           
           if [ -f spec_coverage.csv ]; then
-            PREV_COUNT=$(poetry run python -c "
+            PREV_COUNT=$(poetry run python3 -c "
             import csv
             from pathlib import Path
             

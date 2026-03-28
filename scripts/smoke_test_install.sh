@@ -11,16 +11,16 @@ TRACKED_ANCHOR="${REPO_ROOT}/reproducibility/minimal/station_cleaned.csv"
 cd "${REPO_ROOT}"
 
 if ! command -v poetry >/dev/null 2>&1; then
-    echo "Missing 'poetry' on PATH. Install Poetry with pipx, then rerun 'poetry install'." >&2
+    echo "Missing 'poetry' on PATH. Install Poetry with the official installer or the documented venv fallback, then rerun 'poetry install'." >&2
     exit 1
 fi
 
 expected_before="$(sha256sum "${TRACKED_EXPECTED}" | cut -d' ' -f1)"
 anchor_before="$(sha256sum "${TRACKED_ANCHOR}" | cut -d' ' -f1)"
 
-poetry run python -c "import noaa_spec"
+poetry run python3 -c "import noaa_spec"
 poetry run noaa-spec --help >/dev/null
-poetry run python reproducibility/run_pipeline_example.py --example minimal --out "${SMOKE_OUTPUT}"
+poetry run python3 reproducibility/run_pipeline_example.py --example minimal --out "${SMOKE_OUTPUT}"
 
 if [[ ! -s "${SMOKE_OUTPUT}" ]]; then
     echo "Smoke test failed: expected cleaned CSV at ${SMOKE_OUTPUT}." >&2

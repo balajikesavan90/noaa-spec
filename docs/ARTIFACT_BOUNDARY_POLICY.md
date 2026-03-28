@@ -68,7 +68,7 @@ The following locations are runtime/operational surfaces and are not the publica
 
 These paths are for local processing, debugging, or transient operational records.
 
-External or machine-local examples of these runtime surfaces may exist in archival notes with placeholders such as `<LOCAL_PATH>` or `<EXTERNAL_STORAGE>`. Those references document provenance only and are not required for reproduction.
+External or machine-local examples of these runtime surfaces may exist in archival notes. Those references document provenance only and are not required for reproduction.
 
 ## Fixture and Example Surface
 

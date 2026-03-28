@@ -24,7 +24,7 @@ def _parse_args() -> argparse.Namespace:
 def main() -> None:
     args = _parse_args()
     repo_root = Path(__file__).resolve().parents[1]
-    raw_path = repo_root / "reproducibility" / "sample_station_raw.txt"
+    raw_path = repo_root / "reproducibility" / "minimal" / "station_raw.csv"
     raw = pd.read_csv(raw_path, dtype=str)
     cleaned = clean_noaa_dataframe(raw, keep_raw=False, strict_mode=True)
     args.out.parent.mkdir(parents=True, exist_ok=True)

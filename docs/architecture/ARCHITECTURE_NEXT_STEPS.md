@@ -8,7 +8,7 @@ Use these documents for active evaluation instead:
 
 - `README.md`
 - `docs/REVIEWER_GUIDE.md`
-- `docs/CLEANING_RUN_MODES.md`
+- `docs/operations/CLEANING_RUN_MODES.md`
 - `docs/ARTIFACT_BOUNDARY_POLICY.md`
 - `docs/DOMAIN_DATASET_REGISTRY.md`
 - `docs/PIPELINE_VALIDATION_PLAN.md`

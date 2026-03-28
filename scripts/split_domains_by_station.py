@@ -7,7 +7,7 @@ set of domain contract logic outside package-governed modules.
 Use one of these instead:
 
 - `poetry run noaa-spec cleaning-run --write-domain-splits`
-- `poetry run python scripts/split_cleaned_by_domain.py <cleaned_csv>`
+- `poetry run python3 scripts/split_cleaned_by_domain.py <cleaned_csv>`
 """
 
 from __future__ import annotations

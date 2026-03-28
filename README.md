@@ -2,7 +2,7 @@
 
 ## What NOAA-Spec does
 
-NOAA-Spec converts raw NOAA Integrated Surface Database (ISD) / Global Hourly records into deterministic, publication-ready artifacts. It applies specification-driven cleaning, preserves lineage from raw observations to released outputs, and produces canonical datasets, domain datasets, quality evidence, and release manifests for reproducible scientific use.
+NOAA-Spec converts raw NOAA Integrated Surface Database (ISD) / Global Hourly records into deterministic, publication-ready artifacts. In this repository snapshot, the reviewer-verifiable surface is the canonical cleaning pipeline plus deterministic output verification on a tracked sample input.
 
 NOAA-Spec is intended for researchers and engineers working with NOAA ISD / Global Hourly data who need reproducible preprocessing pipelines.
 
@@ -12,51 +12,76 @@ NOAA ISD observations are structurally encoded rather than analysis-ready. Raw f
 
 ## Installation
 
+Tested on clean Linux (`Python 3.12`, `PEP 668`).
+
+This project relies on `poetry.lock` for deterministic dependency resolution. Do not regenerate it unless you are intentionally updating dependencies.
+
+Option A, primary reviewer path:
+
 ```bash
 python3 --version
-python3 -m pip install --user pipx
-python3 -m pipx ensurepath
-pipx install poetry
+curl -sSL https://install.python-poetry.org | python3 -
+export PATH="$HOME/.local/bin:$PATH"
 poetry install
 ```
 
-Requirements:
-
-- Python `>=3.12`
-- `pipx` used to install Poetry on a clean machine
-- Poetry available on `PATH`
-
-Recommended Poetry installation path:
-
-- install Poetry with `pipx`
-- if `pipx` is already installed, run `pipx install poetry`
-- the official Poetry installer is an acceptable alternative, but this repository documents `pipx` as the primary reviewer path
-
-All documented project commands below are run through Poetry. Do not rely on a global `noaa-spec` install or a repo-local `.venv/bin/python` path.
-
-Install smoke test:
+Option B, fallback when you prefer an isolated virtual environment first:
 
 ```bash
-bash scripts/smoke_test_install.sh
+python3 -m venv .venv
+source .venv/bin/activate
+pip install poetry
+poetry install
 ```
 
-## 5-minute example
+All documented project commands below are run through Poetry. Do not rely on a global `noaa-spec` install.
 
-From a clean environment, the shortest reviewer path is:
+## Reviewer Quickstart (3 Steps)
+
+1. Install dependencies using one of the two installation options above.
+
+2. Run the minimal reproducibility example:
 
 ```bash
-poetry run python reproducibility/run_pipeline_example.py --example minimal --out /tmp/noaa-spec-sample.csv
+poetry run python3 reproducibility/run_pipeline_example.py --example minimal --out /tmp/noaa-spec-sample.csv
 ```
 
-Verify that the installed CLI is available:
+3. Verify the output checksum against the tracked expected artifact:
+
+```bash
+bash scripts/verify_reproducibility.sh
+```
+
+Manual checksum verification is also available:
+
+```bash
+sha256sum /tmp/noaa-spec-sample.csv
+sha256sum reproducibility/minimal/station_cleaned_expected.csv
+```
+
+Expected SHA256: `b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597`
+
+The default reproducibility example reads [station_raw.csv](reproducibility/minimal/station_raw.csv) and writes a cleaned CSV using the same cleaning engine exposed by the `noaa_spec` library and the `noaa-spec` CLI. The reviewer path writes to `/tmp`, not to tracked repository files.
+
+## Guaranteed Working Commands
+
+These commands are executed in CI from a clean Linux runner:
 
 ```bash
 poetry run noaa-spec --help
+poetry run python3 reproducibility/run_pipeline_example.py --example minimal --out /tmp/noaa-spec-sample.csv
+bash scripts/verify_reproducibility.sh
 ```
 
-This produces a cleaned CSV at `/tmp/noaa-spec-sample.csv` with normalized fields, resolved sentinel values, and quality-filtered observations. The sample run is the reproducible in-repo example. It is intentionally small and is not a substitute for larger external release builds.
+## Reproducibility Artifacts (Post-Freeze)
 
-The default reproducibility example reads [station_raw.csv](reproducibility/minimal/station_raw.csv) and writes a cleaned CSV using the same cleaning engine exposed by the `noaa_spec` library and the `noaa-spec` CLI. The reviewer path writes to `/tmp`, not to tracked repository files, and should exit without `[PARSE_STRICT]` warnings.
+Full release artifacts are intentionally placeholders in this active development snapshot. Reviewers should rely on:
+
+- the minimal reproducibility example in `reproducibility/minimal/`
+- deterministic checksum verification
+- the test suite and documentation checks
+
+After final code freeze, the placeholders under `release/sample_build/` will be replaced by a frozen artifact set with manifests, checksums, quality reports, and commit-hash linkage.
 
 ## Contracts and Validation
 
@@ -68,10 +93,6 @@ NOAA-Spec is organized around concrete software surfaces:
 - validation tests that protect active documentation and publication-surface behavior.
 
 The visible GitHub Actions surface is intentionally small; fuller validation expectations are documented in [docs/PIPELINE_VALIDATION_PLAN.md](docs/PIPELINE_VALIDATION_PLAN.md) and are primarily run locally before release-oriented work.
-
-## Reviewer path
-
-Start with [docs/REVIEWER_GUIDE.md](docs/REVIEWER_GUIDE.md). It gives the exact install, sample run, verification, and artifact-boundary path for reviewers working from a clean checkout.
 
 ## When to use / when not to use
 
@@ -95,17 +116,5 @@ Do not use NOAA-Spec when you need:
 - Docs index: [docs/README.md](docs/README.md)
 - Reproducibility notes: [reproducibility/README.md](reproducibility/README.md)
 - Minimal examples: [examples/README.md](examples/README.md)
-
-What is reproducible from this repository:
-
-- `poetry install`
-- the bounded sample run in `reproducibility/`
-- the test suite and validation docs
-
-What is not bundled as part of this active-development checkout:
-
-- large external release builds
-- machine-local archives
-- reviewer-irrelevant runtime leftovers
 
 Not every station necessarily emits every domain artifact. A domain dataset may be absent when no rows survive that projection or when a station has no valid data for that domain after cleaning. This is expected behavior, especially for sparse domains such as precipitation.

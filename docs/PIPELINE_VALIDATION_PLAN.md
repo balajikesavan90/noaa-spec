@@ -75,10 +75,10 @@ poetry run pytest tests/test_domain_split.py -v
 Regenerate the rule/coverage artifacts with current tooling:
 
 ```bash
-poetry run python tools/spec_coverage/generate_spec_coverage.py
-poetry run python tools/spec_coverage/export_suspicious_summary.py
-poetry run python tools/spec_coverage/generate_rule_provenance_ledger.py
-poetry run python tools/rule_impact/generate_rule_impact_report.py
+poetry run python3 tools/spec_coverage/generate_spec_coverage.py
+poetry run python3 tools/spec_coverage/export_suspicious_summary.py
+poetry run python3 tools/spec_coverage/generate_rule_provenance_ledger.py
+poetry run python3 tools/rule_impact/generate_rule_impact_report.py
 ```
 
 If any generated artifact changes unexpectedly, review and explain the diff

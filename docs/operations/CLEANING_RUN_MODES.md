@@ -1,5 +1,7 @@
 # Cleaning Run Modes
 
+Warning: This section is NOT part of reviewer reproducibility.
+
 This document defines the production-safe cleaning runner:
 
 ```bash
