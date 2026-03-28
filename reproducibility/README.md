@@ -2,6 +2,8 @@
 
 This folder contains the minimal deterministic cleaning example used for local verification and reviewer orientation.
 
+The NOAA ISD specification snapshot used for rule provenance and spec-coverage generation is stored separately under `spec_sources/isd-format-document-parts/`; it is not part of the reviewer sample-run surface.
+
 ## Reviewer flow
 
 1. Install the project:

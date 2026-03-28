@@ -71,7 +71,7 @@ This audit was limited to tracked files only.
 | [README.md](README.md), [LICENSE](LICENSE), [pyproject.toml](pyproject.toml), [poetry.lock](poetry.lock), [poetry.toml](poetry.toml), [.gitignore](.gitignore) | Core project metadata, packaging, licensing, and repository policy files. |
 | [src/noaa_spec](src/noaa_spec) | Primary package implementation and public code surface. |
 | [tests](tests) | Regression protection, documentation integrity checks, schema validation, and reproducibility verification. |
-| [isd-format-document-parts](isd-format-document-parts) | Authoritative NOAA specification source material used to derive rule coverage and provenance. |
+| [spec_sources/isd-format-document-parts](../../spec_sources/isd-format-document-parts) | Authoritative NOAA specification source material used to derive rule coverage and provenance. |
 | [tools](tools) and [scripts](scripts) | Active tooling for reproducibility, rule coverage, and data reshaping that supports documented workflows. |
 | [docs/ARTIFACT_BOUNDARY_POLICY.md](docs/ARTIFACT_BOUNDARY_POLICY.md), [docs/CLEANING_RUN_MODES.md](docs/CLEANING_RUN_MODES.md), [docs/DOMAIN_DATASET_REGISTRY.md](docs/DOMAIN_DATASET_REGISTRY.md), [docs/PARSER_ENGINEERING_GUARDS.md](docs/PARSER_ENGINEERING_GUARDS.md), [docs/PIPELINE_DESIGN_RATIONALE.md](docs/PIPELINE_DESIGN_RATIONALE.md), [docs/PIPELINE_VALIDATION_PLAN.md](docs/PIPELINE_VALIDATION_PLAN.md), [docs/reports/validation_artifacts/suspicious_coverage/suspicious_summary.md](docs/reports/validation_artifacts/suspicious_coverage/suspicious_summary.md) | These are the strongest canonical design, policy, and validation documents. |
 | [paper/README.md](paper/README.md), [paper/paper.md](paper/paper.md), [paper/paper.bib](paper/paper.bib) | Source manuscript materials needed for academic citation and paper review. |
@@ -129,7 +129,7 @@ Keep the repository root focused on public entrypoints and project metadata:
 - [archive](archive)
 - [paper](paper)
 - [reproducibility](reproducibility)
-- [isd-format-document-parts](isd-format-document-parts)
+- [spec_sources/isd-format-document-parts](../../spec_sources/isd-format-document-parts)
 
 ### Recommended docs structure
 

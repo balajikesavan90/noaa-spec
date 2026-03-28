@@ -3,7 +3,9 @@
 ## How to run
 
 ```bash
-poetry run python tools/spec_coverage/generate_spec_coverage.py
+python tools/spec_coverage/generate_spec_coverage.py
+# Fallback in environments without `python` alias:
+python3 tools/spec_coverage/generate_spec_coverage.py
 ```
 
 ## Overall coverage

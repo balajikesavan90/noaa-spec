@@ -132,7 +132,7 @@ The following standard public-release files are missing from the tracked tree:
 ## Non-Issues / Things Intentionally Left Alone
 
 - `README.md`, `LICENSE`, `pyproject.toml`, `poetry.lock`, `poetry.toml`, and `.gitignore` are standard root files and were not flagged.
-- `src/`, `tests/`, `paper/`, `reproducibility/`, `docs/examples/`, `tests/fixtures/`, and `isd-format-document-parts/` are legitimate repository surfaces for code, manuscript, curated examples, and reproducibility support.
+- `src/`, `tests/`, `paper/`, `reproducibility/`, `docs/examples/`, `tests/fixtures/`, and `spec_sources/isd-format-document-parts/` are legitimate repository surfaces for code, manuscript, curated examples, and specification provenance support.
 - `docs/examples/station_reports/` and `docs/examples/noaa_demo/` are already in a documentation/example area rather than ignored runtime roots; they should not be treated as clutter.
 - No tracked files were found under ignored runtime roots such as `output/`, `artifacts/test_runs/`, or `release/`; those locations were treated as out of scope except where tracked references point into them.
 - `tests/fixtures/release_manifest_v1_snapshot.csv` appears to be an intentional tracked fixture and is correctly covered by the `.gitignore` exception for `tests/fixtures/**/*.csv`.

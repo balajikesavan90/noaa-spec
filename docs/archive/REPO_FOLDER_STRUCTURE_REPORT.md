@@ -107,7 +107,7 @@ Summary:
 │   ├── REPO_CLEANUP_RECOMMENDATIONS.md
 │   ├── UNSPECIFIED_RULES_ANALYSIS.md
 │   └── spec_coverage_unspecified_fix.md
-├── isd-format-document-parts/
+├── spec_sources/isd-format-document-parts/
 │   ├── isd-format-document.deterministic.md
 │   ├── isd-format-document.pdf
 │   ├── isd-format-document.txt

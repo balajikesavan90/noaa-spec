@@ -61,15 +61,13 @@ This output-oriented design is important for scientific reuse. Researchers can i
 
 # Validation and Reproducibility
 
-The repository includes a deterministic sample run, contract validation tests, parser/spec guardrails, documentation integrity checks, and publication-surface schema tests. These checks are intended to verify that the software continues to emit stable artifacts and that active documentation remains aligned with the implemented interfaces.
+The repository provides a bounded reproducibility path for review: a tracked sample input in `reproducibility/` can be processed through the cleaning engine to produce a deterministic cleaned CSV with a corresponding expected-output fixture. This gives reviewers a concrete way to confirm installation, execute the software on a known input, and compare the emitted artifact against a version-controlled reference result.
 
-NOAA-Spec also separates descriptive quality evidence from publication-integrity checks. Quality reports describe observed completeness, sentinel frequency, and exclusion patterns in cleaned data, while manifest and checksum validation focus on artifact integrity and lineage using portable content checksums. This distinction helps reviewers and downstream users understand both what the software produced and how reliably it was packaged.
+Automated validation complements this sample run. The test and validation surface checks parser behavior, schema and artifact contracts, spec-derived guardrails, and manifest or checksum integrity so that changes affecting publication outputs are caught as software regressions rather than discovered only in downstream analysis. NOAA-Spec also separates descriptive quality evidence from publication-integrity checks: quality reports describe observed completeness, sentinel frequency, and exclusion patterns in cleaned data, while manifest-level validation focuses on artifact identity, integrity, and lineage. Larger bounded batch builds are used separately for broader validation, but they are not required to verify the in-repository software submission and should be paired with a frozen revision when cited as formal release evidence.
 
 # Limitations and Rule Provenance
 
 NOAA-Spec does not claim that every enforced behavior maps to an equally strong level of documentation support. Current repository provenance materials distinguish among rules that are documented exactly, documented by inference from NOAA materials, and engineering guards added for deterministic parsing or artifact safety. Some stricter cleaning behaviors remain under review and may eventually be weakened to flag-only or evidence-only handling when documentation support is insufficient. The software therefore aims for transparent, versioned preprocessing rather than a claim of complete specification closure.
-
-Larger bounded batch builds are used for validation outside the minimal tracked sample example, but those builds are separate from the repository's day-to-day development state and should be paired with a frozen submission revision when used as formal submission evidence.
 
 # Acknowledgements
 

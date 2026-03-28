@@ -3168,7 +3168,7 @@ def build_report(
 def main() -> None:
     repo_root = Path(__file__).resolve().parents[2]
 
-    spec_path = repo_root / "reproducibility" / "isd-format-document-parts" / SPEC_DOC_NAME
+    spec_path = repo_root / "spec_sources" / "isd-format-document-parts" / SPEC_DOC_NAME
     constants_path = repo_root / "src" / "noaa_spec" / "constants.py"
     cleaning_path = repo_root / "src" / "noaa_spec" / "cleaning.py"
     tests_path = repo_root / "tests" / "test_cleaning.py"

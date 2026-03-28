@@ -446,7 +446,7 @@ def test_segment_spec_doc_lines_detects_expected_order_on_real_document() -> Non
     repo_root = Path(__file__).resolve().parents[1]
     module = _load_generator_module(repo_root)
 
-    spec_path = repo_root / "reproducibility/isd-format-document-parts" / module.SPEC_DOC_NAME
+    spec_path = repo_root / "spec_sources/isd-format-document-parts" / module.SPEC_DOC_NAME
     lines = spec_path.read_text(encoding="utf-8").splitlines()
     segments = module.segment_spec_doc_lines(lines)
 

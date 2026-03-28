@@ -20,7 +20,7 @@ The cleaning pipeline is organized into **specification-driven rule extraction**
 
 ### 1. Specification Parsing & Rule Extraction (`tools/spec_coverage/generate_spec_coverage.py`)
 
-The spec coverage generator parses the deterministic NOAA markdown source at `reproducibility/isd-format-document-parts/isd-format-document.deterministic.md` and extracts a structured **rule inventory** with deterministic identifiers and provenance. A segmentation pass first derives the legacy Part 02-30 slices from exact anchor lines in document order, then the extractor applies rule heuristics within those slices. Extraction recognizes four rule types — **range** (min/max numeric bounds), **sentinel** (missing-value indicators), **domain** (allowed code sets), and **width** (fixed-field length) — plus two quality-specific types, **allowed_quality** and **arity** (expected comma-separated part count).
+The spec coverage generator parses the deterministic NOAA markdown source at `spec_sources/isd-format-document-parts/isd-format-document.deterministic.md` and extracts a structured **rule inventory** with deterministic identifiers and provenance. A segmentation pass first derives the legacy Part 02-30 slices from exact anchor lines in document order, then the extractor applies rule heuristics within those slices. Extraction recognizes four rule types — **range** (min/max numeric bounds), **sentinel** (missing-value indicators), **domain** (allowed code sets), and **width** (fixed-field length) — plus two quality-specific types, **allowed_quality** and **arity** (expected comma-separated part count).
 
 Each extracted rule becomes a `SpecRuleRow` with:
 - **rule_id**: Deterministic identifier formed from `spec_file::stable_id::identifier::rule_type::payload_hash`, where `stable_id` is content-based and does not depend on line positions.
@@ -80,7 +80,7 @@ The **progress KPI** is **test_covered_strict** only; wildcard-only tests do not
 ## Data Flow & Boundaries
 
 ```
-Deterministic spec markdown (reproducibility/isd-format-document-parts/isd-format-document.deterministic.md)
+Deterministic spec markdown (spec_sources/isd-format-document-parts/isd-format-document.deterministic.md)
     ↓ [Fail-fast segmentation by exact section anchors]
 Derived Part 02-30 slices with global line provenance
     ↓ [Regex extraction + heuristic identifier detection]
@@ -243,7 +243,7 @@ spec_coverage.csv | docs/reports/SPEC_COVERAGE_REPORT.md
 ### Prerequisites
 - Python ≥ 3.12
 - Poetry
-- Repository structure: `tools/spec_coverage/`, `src/noaa_spec/`, `tests/`, `reproducibility/isd-format-document-parts/`
+- Repository structure: `tools/spec_coverage/`, `src/noaa_spec/`, `tests/`, `spec_sources/isd-format-document-parts/`
 
 ### Generate the Rule Inventory & Coverage Report
 
@@ -295,7 +295,7 @@ Filter by `implemented=FALSE` to find unimplemented rules. Filter by `enforcemen
 
 Extract the `rule_id` from the CSV, e.g., `isd-format-document.deterministic.md::4c2d8e1f0a6b::WND::range::abc123def4`.
 
-1. Open `reproducibility/isd-format-document-parts/isd-format-document.deterministic.md`.
+1. Open `spec_sources/isd-format-document-parts/isd-format-document.deterministic.md`.
 2. Navigate to the row's `spec_line_start` and `spec_line_end` values.
 3. Confirm that the rule text matches the rule_id's assertion.
 
