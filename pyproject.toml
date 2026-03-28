@@ -20,7 +20,7 @@ dependencies = [
 noaa-spec = "noaa_spec.cli:main"
 
 [build-system]
-requires = ["setuptools>=69", "wheel"]
+requires = ["setuptools==80.10.2", "wheel==0.46.3"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]

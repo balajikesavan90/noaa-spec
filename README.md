@@ -24,6 +24,8 @@ NOAA ISD observations contain fixed-width fields, comma-encoded substructures, s
 
 For this revision, only the Reviewer Quickstart and `reproducibility/README.md` define the supported reproducibility path.
 
+The canonical reviewer example is under `reproducibility/minimal/`.
+
 No archived release bundle is linked for this revision.
 
 ## System Prerequisites

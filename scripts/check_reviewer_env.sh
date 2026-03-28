@@ -30,7 +30,7 @@ trap 'rm -rf "${tmpdir}"' EXIT
 
 if ! python3 -m venv "${tmpdir}/review-venv" >/dev/null 2>&1; then
     echo "FAIL: python3 cannot create a virtual environment." >&2
-    echo "python3-venv is required on Ubuntu/Debian reviewer systems." >&2
+    echo "Run: sudo apt-get install python3-venv" >&2
     print_fix
     exit 1
 fi

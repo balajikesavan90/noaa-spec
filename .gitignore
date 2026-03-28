@@ -6,8 +6,10 @@ noaa_file_index/state/
 
 *.csv
 *.parquet
-!reproducibility/sample_station_cleaned.csv
-!reproducibility/sample_station_cleaned_expected.csv
+!reproducibility/minimal/
+!reproducibility/minimal/**
+!reproducibility/full_station/
+!reproducibility/full_station/**
 
 # Runtime outputs remain ignored by default.
 output/

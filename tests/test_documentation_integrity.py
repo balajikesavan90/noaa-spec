@@ -110,21 +110,25 @@ def test_reviewer_docs_use_single_linux_quickstart() -> None:
     readme_text = README_PATH.read_text(encoding="utf-8")
     assert CANONICAL_QUICKSTART in readme_text
     assert readme_text.count("## Reviewer Quickstart") == 1
+    assert "The canonical reviewer example is under `reproducibility/minimal/`." in readme_text
     assert "## Supported Reviewer Commands" not in readme_text
     assert "Poetry" not in readme_text
     assert "poetry" not in readme_text
 
     reproducibility_text = REPRODUCIBILITY_README_PATH.read_text(encoding="utf-8")
     assert "The supported reproducibility path for this revision is the Linux reviewer workflow in the root [README.md](../README.md)." in reproducibility_text
+    assert "The canonical reviewer example is under `reproducibility/minimal/`." in reproducibility_text
     assert "requirements-review.txt" in reproducibility_text
     assert "pip install -e ." in reproducibility_text
     assert "sha256sum" in reproducibility_text
+    assert "Additional tracked non-canonical fixture coverage:" in reproducibility_text
+    assert "reproducibility/full_station/station_cleaned_expected.csv" in reproducibility_text
     assert "No archived release bundle is linked for this revision." in reproducibility_text
     assert "poetry" not in reproducibility_text.lower()
-    assert "full_station" not in reproducibility_text
 
     guide_text = REVIEWER_GUIDE_PATH.read_text(encoding="utf-8")
     assert "Use the root [README.md](../README.md) line-by-line." in guide_text
+    assert "The canonical reviewer example is under `reproducibility/minimal/`." in guide_text
     assert "No archived release bundle is linked for this revision." in guide_text
     assert "poetry" not in guide_text.lower()
 
@@ -147,12 +151,34 @@ def test_reviewer_scripts_enforce_linux_prerequisites_and_checksum_verification(
     assert "for command_name in python3 git bash sha256sum; do" in env_text
     assert "command -v \"${command_name}\"" in env_text
     assert "python3 -m venv" in env_text
+    assert "Run: sudo apt-get install python3-venv" in env_text
     assert "sudo apt-get install -y python3 python3-venv git coreutils bash" in env_text
 
     assert "command -v sha256sum" in verify_text
     assert "FAIL: sha256sum is required for reproducibility verification." in verify_text
     assert "python reproducibility/run_pipeline_example.py --example minimal --out" in verify_text
     assert "PASS: reproducibility verification succeeded." in verify_text
+
+
+def test_reproducibility_fixtures_are_tracked_and_legacy_flat_samples_are_removed() -> None:
+    _require_git()
+
+    tracked_reproducibility = subprocess.run(
+        ["git", "ls-files", "reproducibility"],
+        cwd=PROJECT_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+
+    assert "reproducibility/minimal/station_raw.csv" in tracked_reproducibility
+    assert "reproducibility/minimal/station_cleaned.csv" in tracked_reproducibility
+    assert "reproducibility/minimal/station_cleaned_expected.csv" in tracked_reproducibility
+    assert "reproducibility/full_station/station_raw.csv" in tracked_reproducibility
+    assert "reproducibility/full_station/station_cleaned.csv" in tracked_reproducibility
+    assert "reproducibility/full_station/station_cleaned_expected.csv" in tracked_reproducibility
+    assert "reproducibility/sample_station_cleaned.csv" not in tracked_reproducibility
+    assert "reproducibility/sample_station_cleaned_expected.csv" not in tracked_reproducibility
 
 
 def test_readme_includes_expected_reproducibility_hash() -> None:

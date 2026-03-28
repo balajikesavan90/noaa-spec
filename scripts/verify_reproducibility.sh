@@ -4,7 +4,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-OUTPUT_PATH="${1:-${TMPDIR:-/tmp}/noaa-spec-sample.csv}"
+OUTPUT_PATH="${1:-/tmp/noaa-spec-sample.csv}"
 EXPECTED_PATH="${REPO_ROOT}/reproducibility/minimal/station_cleaned_expected.csv"
 EXPECTED_HASH="b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597"
 
@@ -61,4 +61,5 @@ if [[ "${expected_before}" != "${expected_after}" ]]; then
 fi
 
 echo "PASS: reproducibility verification succeeded."
+echo "Output: ${OUTPUT_PATH}"
 echo "SHA256: ${actual_hash}"
