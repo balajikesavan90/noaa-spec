@@ -1,0 +1,3 @@
+STATION,DATE,temperature_c,temperature_quality_code,TMP__qc_pass,TMP__qc_status,TMP__qc_reason,dew_point_c,dew_point_quality_code,DEW__qc_pass,DEW__qc_status,DEW__qc_reason,sea_level_pressure_hpa,sea_level_pressure_quality_code,SLP__qc_pass,SLP__qc_status,SLP__qc_reason,qc_control_invalid_date,qc_domain_invalid_CONTROL,row_has_any_usable_metric,usable_metric_count,usable_metric_fraction
+00000099999,2026-01-01T00:00:00,12.3,1,True,PASS,,0.5,1,True,PASS,,1013.2,1,True,PASS,,True,True,True,3,1.0
+00000099999,2026-01-01T01:00:00,11.8,1,True,PASS,,0.2,1,True,PASS,,1012.8,1,True,PASS,,True,True,True,3,1.0
