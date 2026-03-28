@@ -4,6 +4,8 @@ Use the root [README.md](../README.md) line-by-line.
 
 The supported reviewer path for this submission is the Docker workflow in the root [README.md](../README.md).
 
+The supported reviewer interpreter requirement is Python 3.12+.
+
 The canonical reviewer example is under `reproducibility/minimal/`.
 
 This submission validates deterministic canonical cleaning using a bounded, checksum-verified example included in-repo.

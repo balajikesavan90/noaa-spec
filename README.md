@@ -4,6 +4,8 @@
 
 The canonical reviewer workflow is containerized with Docker so it runs consistently independent of host system configuration.
 
+An alternative local workflow is provided for advanced users on Linux with Python 3.12+ and bash.
+
 The supported reviewer path for this submission is Docker. Local installation is optional and intended for development only; it is not required for reproducibility validation.
 
 ## What NOAA-Spec does
@@ -18,7 +20,11 @@ NOAA ISD observations contain fixed-width fields, comma-encoded substructures, s
 
 ## Installation
 
-`requirements-review.txt` is the exact tested dependency set for the reviewer container in this revision.
+`requirements-review.txt` is the exact tested reviewer dependency set for this revision.
+
+`pip install -e .` installs the `noaa_spec` package from this repository checkout.
+
+Tested in a fresh environment with no pre-installed package.
 
 For this revision, only the Reviewer Quickstart and `reproducibility/README.md` define the supported reproducibility path.
 
@@ -31,6 +37,8 @@ Optional local development instructions are in [docs/LOCAL_DEV.md](docs/LOCAL_DE
 ## System Prerequisites
 
 The canonical reviewer path requires Docker on the host and no additional reviewer-managed OS packages inside the container.
+
+The alternative local workflow requires host system packages including `python3`, `python3-venv`, `git`, `bash`, and `sha256sum`.
 
 ## Reviewer Quickstart (Docker)
 

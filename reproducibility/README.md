@@ -8,7 +8,9 @@ The containerized reviewer environment uses Python 3.12.
 
 The canonical reviewer example is under `reproducibility/minimal/`.
 
-`requirements-review.txt` is the exact tested dependency set used inside the reviewer container.
+`requirements-review.txt` is the exact tested dependency set used inside the reviewer container and in the optional local workflow.
+
+`pip install -e .` installs the `noaa_spec` package from this repository checkout.
 
 Local installation is optional and intended for development only; it is not required for reproducibility validation. See [docs/LOCAL_DEV.md](../docs/LOCAL_DEV.md).
 
