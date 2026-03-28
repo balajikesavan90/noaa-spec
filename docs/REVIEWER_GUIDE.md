@@ -4,12 +4,14 @@ Use the root [README.md](../README.md) line-by-line.
 
 The supported reviewer path for this submission is the Docker workflow in the root [README.md](../README.md).
 
-The supported reviewer interpreter requirement is Python 3.12+.
+That supported path requires a working Docker installation with daemon access; the `docker` CLI alone is not sufficient.
+
+Python 3.12+ applies only to the optional local development path, not to the supported reviewer workflow.
 
 The canonical reviewer example is under `reproducibility/minimal/`.
 
-This submission validates deterministic canonical cleaning using a bounded, checksum-verified example included in-repo.
+This submission validates the bounded, checksum-backed canonical cleaning example included in-repo.
 
-Broader publication artifacts (release bundles, manifests, and quality reports) are part of the system design but are not included in this review package.
+Broader publication artifacts (release bundles, manifests, and quality reports) are part of the broader system design but are not included as reviewer-verifiable artifacts in this submission.
 
 No archived release bundle is linked for this revision.

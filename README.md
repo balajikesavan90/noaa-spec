@@ -28,6 +28,8 @@ Tested in a fresh environment with no pre-installed package.
 
 For this revision, only the Reviewer Quickstart and `reproducibility/README.md` define the supported reproducibility path.
 
+The supported reviewer path requires a working Docker installation with daemon access; the `docker` CLI alone is not sufficient.
+
 The canonical reviewer example is under `reproducibility/minimal/`.
 
 No archived release bundle is linked for this revision.
@@ -41,6 +43,8 @@ The canonical reviewer path requires Docker on the host and no additional review
 The alternative local workflow requires host system packages including `python3`, `python3-venv`, `git`, `bash`, and `sha256sum`.
 
 ## Reviewer Quickstart (Docker)
+
+This supported reviewer path requires a working Docker installation with daemon access.
 
 ```bash
 docker build -t noaa-spec .
@@ -61,7 +65,7 @@ Local installation is optional and intended for development only. Reviewer-facin
 
 ## Reproducibility Boundary
 
-This submission validates deterministic canonical cleaning using a bounded, checksum-verified example included in-repo. Broader publication artifacts (release bundles, manifests, and quality reports) are part of the system design but are not included in this review package.
+This submission validates the bounded, checksum-backed canonical cleaning example included in-repo. Release manifests and quality reports are part of the broader system design, but they are not included as reviewer-verifiable artifacts in this submission.
 
 ## Contracts and Validation
 
