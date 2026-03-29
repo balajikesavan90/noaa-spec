@@ -9,11 +9,14 @@ NOAA-Spec cleans NOAA Integrated Surface Database (ISD) / Global Hourly records 
 User quickstart for Python 3.12+:
 
 ```bash
+bash scripts/check_reviewer_env.sh
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .
 python3 -m noaa_spec.quickstart
 ```
+
+Run `bash scripts/check_reviewer_env.sh` first to confirm your local Python installation includes the required `venv` support. If `venv` support is missing, install `python3-venv` with your system package manager and rerun the check.
 
 This writes a cleaned sample CSV to:
 
@@ -30,6 +33,7 @@ Quickstart for users:
 - local virtual environment
 - `pip install -e .`
 - `python3 -m noaa_spec.quickstart`
+- for most ordinary users, `noaa-spec clean ...` is the only CLI command you need
 
 Development:
 
@@ -49,11 +53,14 @@ After the bundled sample runs, clean a user-owned NOAA file:
 noaa-spec clean my_station.csv --out cleaned.csv
 ```
 
-`my_station.csv` should be a raw NOAA ISD / Global Hourly CSV in the same general structure as the bundled sample. For reference, inspect the bundled sample at [`reproducibility/minimal/station_raw.csv`](/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/reproducibility/minimal/station_raw.csv).
+`my_station.csv` should be a raw NOAA ISD / Global Hourly CSV in the same general structure as the bundled sample. For reference, inspect the bundled sample at [reproducibility/minimal/station_raw.csv](reproducibility/minimal/station_raw.csv).
+
+Most ordinary users only need the `clean` command. The other CLI commands support batch, pipeline, or advanced workflows.
 
 ## One realistic local workflow
 
 ```bash
+bash scripts/check_reviewer_env.sh
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .
@@ -80,12 +87,25 @@ The cleaned output keeps NOAA context while making core values usable:
 
 What changed:
 
-- sentinel values such as `+9999,9` become empty values instead of fake numbers
+- sentinel values such as `+9999,9` become missing values (`NaN`) instead of fake numbers
 - QC codes are preserved in separate columns instead of being discarded
 - numeric weather fields are normalized into consistent units and column names
 - the output is written deterministically so reruns produce the same artifact
 
-Start by reading the measurement columns such as `temperature_c`, `dew_point_c`, `wind_speed_ms`, and `visibility_m`. Many `*_QC` and `__qc_*` columns can be ignored at first unless you need quality-based filtering or want to inspect why a cleaned value is empty. A fuller explanation is in [docs/UNDERSTANDING_OUTPUT.md](docs/UNDERSTANDING_OUTPUT.md).
+Start by reading the measurement columns such as `temperature_c`, `dew_point_c`, `wind_speed_ms`, and `visibility_m`. Many `*_QC` and `__qc_*` columns can be ignored at first unless you need quality-based filtering or want to inspect why a cleaned value is missing (`NaN`). A fuller explanation is in [docs/UNDERSTANDING_OUTPUT.md](docs/UNDERSTANDING_OUTPUT.md).
+
+## Docker reproducibility
+
+Docker is the supported reviewer and reproducibility path, not the main ordinary-user install path.
+
+Build and run the bundled reproducibility example:
+
+```bash
+docker build -f reproducibility/Dockerfile -t noaa-spec-review .
+docker run --rm noaa-spec-review bash scripts/verify_reproducibility.sh
+```
+
+This reruns the canonical minimal example inside the reviewer container and checks it against the tracked expected artifact and checksum. For details, see [reproducibility/README.md](reproducibility/README.md).
 
 ## When to use this
 

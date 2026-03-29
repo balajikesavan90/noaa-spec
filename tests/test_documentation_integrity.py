@@ -34,8 +34,10 @@ def test_readme_is_user_first() -> None:
     assert "python3 -m venv .venv" in text
     assert "source .venv/bin/activate" in text
     assert "python3 -m noaa_spec.quickstart" in text
+    assert "bash scripts/check_reviewer_env.sh" in text
     assert "noaa-spec clean my_station.csv --out cleaned.csv" in text
     assert "/tmp/noaa-spec-quickstart/station_cleaned.csv" in text
+    assert "docker build -f reproducibility/Dockerfile -t noaa-spec-review ." in text
     assert "## Reviewer Quickstart" not in text
     assert "## Supported Platform" not in text
 
@@ -59,6 +61,7 @@ def test_quickstart_and_output_docs_exist() -> None:
     assert "python3 -m venv .venv" in quickstart_text
     assert "source .venv/bin/activate" in quickstart_text
     assert "python3 -m noaa_spec.quickstart" in quickstart_text
+    assert "bash scripts/check_reviewer_env.sh" in quickstart_text
     assert "noaa-spec clean my_station.csv --out cleaned.csv" in quickstart_text
     assert "python3 examples/run_minimal_cleaning.py --out /tmp/noaa-spec-example.csv" in quickstart_text
 
@@ -70,6 +73,7 @@ def test_quickstart_and_output_docs_exist() -> None:
     assert "BEFORE -> AFTER example" in output_text
     assert "temperature_c" in output_text
     assert "TMP__qc_reason=SENTINEL_MISSING" in output_text
+    assert "missing values (`NaN`)" in output_text
 
 
 def test_examples_are_easy_to_run() -> None:

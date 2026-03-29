@@ -71,7 +71,7 @@ def main() -> None:
     print("- wind_speed_ms and visibility_m: normalized numeric weather fields.")
     print()
     print("Example transformation:")
-    print("- Raw TMP token +9999,9 becomes an empty temperature_c value with QC code 9 preserved.")
+    print("- Raw TMP token +9999,9 becomes a missing temperature_c value (NaN) with QC code 9 preserved.")
     print()
     print("Preview:")
     print(cleaned[existing_preview_columns].head().to_string(index=False))

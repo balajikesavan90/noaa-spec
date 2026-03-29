@@ -28,7 +28,7 @@ Start with the measurement columns:
 - `wind_speed_ms`
 - `visibility_m`
 
-Many `*_quality_code`, `*_QC`, and `__qc_*` columns can be ignored initially unless you are filtering by quality or investigating why a cleaned value is empty.
+Many `*_quality_code`, `*_QC`, and `__qc_*` columns can be ignored initially unless you are filtering by quality or investigating why a cleaned value is missing (`NaN`).
 
 ## Sentinel handling
 
@@ -36,7 +36,7 @@ NOAA raw files use encoded missing-value sentinels such as `+9999,9` or `999999,
 
 NOAA-Spec does not leave those as misleading numbers.
 
-- sentinel numeric values become empty values in the cleaned dataset
+- sentinel numeric values become missing values (`NaN`) in the cleaned dataset
 - the related NOAA quality code is still preserved
 - the row itself is kept unless the underlying parser rules require something stricter
 
@@ -55,7 +55,7 @@ This lets you decide later whether to filter, inspect, or stratify by data quali
 
 ## Missing values
 
-In the cleaned CSV, missing cleaned values appear as empty cells.
+In the cleaned CSV, missing cleaned values appear as empty cells and will typically be read by pandas as missing values (`NaN`).
 
 That usually means one of these:
 
@@ -80,16 +80,16 @@ After cleaning:
 
 ```text
 DATE=2000-03-17T09:00:00
-temperature_c=
+temperature_c=NaN
 temperature_quality_code=9
-dew_point_c=
-visibility_m=
+dew_point_c=NaN
+visibility_m=NaN
 TMP__qc_reason=SENTINEL_MISSING
 ```
 
 What happened:
 
-- `+9999` is a sentinel, so `temperature_c` becomes empty
+- `+9999` is a sentinel, so `temperature_c` becomes a missing value (`NaN`)
 - the NOAA quality code `9` is preserved in `temperature_quality_code`
 - the row remains available for downstream analysis
 - QC sidecar columns explain why the cleaned value is missing
