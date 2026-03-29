@@ -12,7 +12,9 @@ It covers:
 
 ## Minimal Install and First Run
 
-Requires Python 3.11 or newer with `venv` available.
+Local installation requires a working Python 3.12 environment with `venv` support.
+
+On some Linux systems, `venv` support is provided by a separate OS package. If local `venv` setup is unavailable, use the Docker clean-room path below instead of improvising a local install.
 
 ```bash
 python3 -m venv .venv
@@ -23,6 +25,24 @@ noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv
 ```
 
 This writes the canonical NOAA-Spec representation for the tracked sample input.
+
+Inspect a small subset of the output:
+
+```bash
+python3 - <<'PY'
+import pandas as pd
+
+cols = [
+    "STATION",
+    "DATE",
+    "temperature_c",
+    "temperature_quality_code",
+    "visibility_m",
+    "TMP__qc_reason",
+]
+print(pd.read_csv("/tmp/station_cleaned.csv", usecols=cols).head(5).to_string(index=False))
+PY
+```
 
 ## Deterministic Fixture Verification
 

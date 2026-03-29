@@ -6,9 +6,9 @@ This guide is for first-time users who want to understand what the canonical out
 
 The canonical CSV is intentionally wide. It is a canonical, loss-preserving normalized representation of NOAA observations: cleaned measurement fields, preserved QC context, and supporting observation metadata live together in one deterministic source-of-truth layer.
 
-NOAA ISD is structurally rich and heavily encoded. Width in the canonical table is therefore intentional, not accidental. Normalized canonicalization preserves reusable semantics that would otherwise remain buried in compact field tokens and project-local parsing rules.
+NOAA ISD is structurally rich and heavily encoded. The width is intentional because canonicalization preserves reusable semantics that would otherwise remain buried in compact field tokens and project-local parsing rules.
 
-That means most downstream workflows will not use every column. Analysts will usually select a relevant subset for a task and treat the canonical table as the stable intermediate contract rather than the final analysis surface for every use case.
+Most users will work with a subset of fields or a domain-specific projection. Treat the canonical table as the stable intermediate contract rather than the final analysis surface for every task.
 
 ## A 10-column subset
 
@@ -37,6 +37,13 @@ Start with the measurement columns:
 - `visibility_m`
 
 Many `*_quality_code`, `*_QC`, and `__qc_*` columns can be ignored initially unless you are filtering by quality or investigating why a cleaned value is missing (`NaN`).
+
+For the bundled reviewer fixture, this subset is usually enough for a first read:
+
+| `STATION` | `DATE` | `temperature_c` | `temperature_quality_code` | `visibility_m` | `TMP__qc_reason` |
+| --- | --- | --- | --- | --- | --- |
+| `40435099999` | `2000-01-10T06:00:00` | `18.0` | `1` | `10000.0` | |
+| `40435099999` | `2000-03-17T09:00:00` | | `9` | | `SENTINEL_MISSING` |
 
 ## How most users should approach this output
 

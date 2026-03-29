@@ -1,5 +1,7 @@
 # NOAA Climate Data Publication System
 
+Public reviewer-facing scope is narrower than the full repository. For JOSS-facing work, treat the public identity of this project as the deterministic NOAA-Spec canonicalization layer, its `noaa-spec clean` CLI, and the bundled reproducibility fixture. Broader publication workflows in this repository are maintainer-facing unless a task explicitly targets them.
+
 ## Purpose
 
 This repository produces **publication-grade scientific data artifacts** derived from the NOAA Integrated Surface Database (ISD) / Global Hourly dataset.

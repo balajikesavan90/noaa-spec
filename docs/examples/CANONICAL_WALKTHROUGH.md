@@ -1,6 +1,6 @@
 # Canonical Walkthrough
 
-This walkthrough shows what NOAA-Spec adds beyond ad hoc row handling.
+This walkthrough shows how a user can move from an encoded NOAA row to the canonical normalized row and then to a small practical subset.
 
 It is illustrative only. It uses embedded raw and canonical snippets so the explanation does not depend on local `output/` artifacts. The reproducible reviewer path remains the tracked fixture in [../../REPRODUCIBILITY.md](../../REPRODUCIBILITY.md).
 
@@ -20,6 +20,16 @@ STATION,DATE,temperature_c,temperature_quality_code,TMP__qc_reason,dew_point_c,v
 40435099999,2000-03-17T09:00:00,,9,SENTINEL_MISSING,,,,
 ```
 
+## Practical Subset
+
+The full canonical row is intentionally wider than this snippet. A reviewer can usually start with a small subset:
+
+```text
+STATION,DATE,temperature_c,temperature_quality_code,visibility_m,TMP__qc_reason
+40435099999,2000-01-10T06:00:00,18.0,1,10000.0,
+40435099999,2000-03-17T09:00:00,,9,,SENTINEL_MISSING
+```
+
 ## What Changed
 
 1. `TMP=+0180,1` becomes `temperature_c=18.0` with `temperature_quality_code=1`.
@@ -30,7 +40,7 @@ STATION,DATE,temperature_c,temperature_quality_code,TMP__qc_reason,dew_point_c,v
 
 ## Why This Matters
 
+- raw encoded tokens become stable named columns before downstream analysis begins
 - sentinel handling becomes deterministic instead of project-local
 - NOAA QC semantics stay visible instead of being dropped during cleaning
-- normalized columns give downstream code a stable contract
-- different projects can start from the same observation-level interpretation layer
+- users can inspect a small subset first, then expand to the full canonical row only when needed
