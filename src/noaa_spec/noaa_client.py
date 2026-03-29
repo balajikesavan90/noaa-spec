@@ -129,7 +129,6 @@ def read_csv_url_with_retries(
     low_memory: bool = False,
 ) -> pd.DataFrame | None:
     """Read a remote CSV with bounded request time and retry behavior."""
-    requests = _requests_module()
     for attempt in range(retries + 1):
         try:
             response = requests.get(url, timeout=timeout)
@@ -279,7 +278,6 @@ def _url_exists(
     backoff_base: float = 0.5,
     backoff_max: float = 8.0,
 ) -> bool:
-    requests = _requests_module()
     for attempt in range(retries + 1):
         try:
             response = requests.head(url, timeout=timeout)
