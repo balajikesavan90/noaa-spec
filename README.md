@@ -2,11 +2,19 @@
 
 ## What this does
 
-This package provides a reusable, deterministic canonical cleaning layer for NOAA ISD / Global Hourly data, standardizing sentinel handling, QC semantics, and output schema beyond existing parsing-focused tools.
+NOAA-Spec is a narrow, deterministic cleaning layer for NOAA ISD / Global Hourly observations. It turns raw NOAA observation rows into a cleaned CSV with explicit nulls, preserved quality codes, and stable column names that downstream analysis can rely on.
 
-We are not aware of any existing reusable NOAA ISD cleaning layer that provides a stable observation-level contract.
+Existing NOAA tools help users parse or access ISD data, but raw NOAA rows still contain compact encodings, sentinel values, and field-specific QC behavior that are not analysis-ready. NOAA-Spec packages those observation-cleaning decisions into one reusable contract so different projects can start from the same documented output.
 
-NOAA-Spec is a focused cleaning tool. It turns raw NOAA observation rows into a deterministic cleaned CSV with explicit nulls, preserved quality codes, and stable column names that downstream analysis can rely on.
+## Public Scope
+
+The reviewed public contribution consists only of:
+
+- the public `noaa-spec clean` CLI
+- the deterministic observation-level cleaning contract
+- the bundled reproducibility fixture and checksum-backed example
+
+Other materials in this repository may support internal development, validation, or future work, but they are not part of the narrow reviewed software claim.
 
 ## Environment
 
@@ -19,11 +27,11 @@ python3 -m pip install --upgrade pip
 python3 -m pip install -e .
 ```
 
-## Minimal Real Workflow
+## Minimal Workflow
 
-Use the bundled raw NOAA sample in [reproducibility/minimal/station_raw.csv](/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/reproducibility/minimal/station_raw.csv). It is tracked in the repository, so the workflow is runnable without finding outside data first.
+Use the bundled raw NOAA sample in [reproducibility/minimal/station_raw.csv](reproducibility/minimal/station_raw.csv). It is tracked in the repository, so the workflow is runnable without finding outside data first.
 
-Clean it with the public CLI:
+Run the public CLI:
 
 ```bash
 noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv
@@ -51,39 +59,27 @@ Key transformations:
 - NOAA QC semantics are preserved in separate fields such as `temperature_quality_code`.
 - Output columns are normalized into a stable observation-level schema such as `temperature_c`, `dew_point_c`, and `visibility_m`.
 
-## Reproducible Example
+For a column-level explanation of the cleaned output, see [docs/UNDERSTANDING_OUTPUT.md](docs/UNDERSTANDING_OUTPUT.md).
 
-The curated reproducibility fixture is fully tracked in-repo:
+## Reproducibility Verification
 
-- Raw input: [reproducibility/minimal/station_raw.csv](/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/reproducibility/minimal/station_raw.csv)
+The same tracked fixture is also used for reproducibility verification:
+
+- Raw input: [reproducibility/minimal/station_raw.csv](reproducibility/minimal/station_raw.csv)
 - Raw input SHA256: `50e8bfb9ffae8278652bb7410cfbc9683a48711c35cfcf9e9dd3c38bbc403d47`
-- Expected cleaned output: [reproducibility/minimal/station_cleaned_expected.csv](/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/reproducibility/minimal/station_cleaned_expected.csv)
+- Expected cleaned output: [reproducibility/minimal/station_cleaned_expected.csv](reproducibility/minimal/station_cleaned_expected.csv)
 - Expected cleaned SHA256: `b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597`
 
-Exact command used:
+For ordinary usage, prefer the `noaa-spec clean` CLI above. For reviewer-oriented checksum verification, run:
 
 ```bash
 python3 reproducibility/run_pipeline_example.py --example minimal --out /tmp/noaa-spec-sample.csv
 ```
 
-The reproducibility workflow and checksum verification are documented in [reproducibility/README.md](/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/reproducibility/README.md).
-
-## Why this exists
-
-Existing NOAA tools help users parse or access ISD data, but raw NOAA rows still contain compact encodings, sentinel values, and field-specific QC behavior that are not analysis-ready. NOAA-Spec packages those cleaning decisions into one reusable surface so different projects can start from the same documented observation-level output.
-
-## Scope
-
-The public surface is intentionally small:
-
-- library cleaning code under [src/noaa_spec](/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/src/noaa_spec)
-- the public `noaa-spec clean` command
-- the reproducible example under [reproducibility/](/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/reproducibility)
-
-Batch orchestration, domain splitting, manifests, and report-generation material are maintainer-facing and live behind internal docs or the internal CLI.
+That verification path, including the Docker-based clean-environment check for reviewers, is documented in [reproducibility/README.md](reproducibility/README.md).
 
 ## Docs
 
-- Output guide: [docs/UNDERSTANDING_OUTPUT.md](/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/docs/UNDERSTANDING_OUTPUT.md)
-- Reproducibility: [reproducibility/README.md](/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/reproducibility/README.md)
-- Internal maintainer docs: [docs/internal/README.md](/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/docs/internal/README.md)
+- Documentation index: [docs/README.md](docs/README.md)
+- Reproducibility: [reproducibility/README.md](reproducibility/README.md)
+- Internal maintainer docs: [docs/internal/README.md](docs/internal/README.md)

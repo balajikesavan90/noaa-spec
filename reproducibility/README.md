@@ -2,9 +2,11 @@
 
 This directory contains the bounded reproducibility example for NOAA-Spec's public contribution: deterministic observation-level cleaning for NOAA ISD / Global Hourly data.
 
-## Environment
+## Authority
 
-Requires Python 3.12 with `python3.12-venv` installed.
+For ordinary usage, use the Python install and public `noaa-spec clean` CLI documented in the root [README.md](../README.md).
+
+For reviewer verification in a clean environment, use the Docker workflow below. That is the authoritative reviewer path for confirming the tracked example and expected checksum.
 
 ## Tracked Example
 
@@ -31,12 +33,18 @@ Expected checksum:
 b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597
 ```
 
-## Docker Verification
+## Python Validation Path
+
+Requires Python 3.12 with `python3.12-venv` installed. This path is useful for local inspection after following the install steps in the root [README.md](../README.md).
+
+## Docker Verification Path
 
 ```bash
 docker build -f Dockerfile -t noaa-spec-review .
 docker run --rm noaa-spec-review bash scripts/verify_reproducibility.sh
 ```
+
+This is the supported reviewer workflow for verifying the example in a clean environment.
 
 ## Boundary
 

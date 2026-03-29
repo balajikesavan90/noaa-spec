@@ -1,25 +1,27 @@
 # Reviewer Guide
 
-Use [reproducibility/README.md](../../reproducibility/README.md) for the complete reviewer workflow. The root [README.md](../README.md) only summarizes that path.
+Use [reproducibility/README.md](../../reproducibility/README.md) for the complete reviewer workflow. The root [README.md](../../README.md) documents ordinary CLI usage, not the clean-environment reviewer path.
 
 That supported path requires a working Docker installation with daemon access; the `docker` CLI alone is not sufficient.
 
-Python 3.12+ applies only to the optional local development path, not to the supported reviewer workflow.
+Python 3.12+ applies only to optional local development, not to the supported reviewer workflow.
 
 The canonical reviewer example is under `reproducibility/minimal/`.
 
 This submission validates the bounded, checksum-backed canonical cleaning example included in-repo.
 
-The software contribution under review is a reusable NOAA-specific preprocessing package that makes ISD cleaning behavior easier to inspect, compare, and rerun than common local script workflows.
+The software contribution under review is the narrow public cleaning surface: the `noaa-spec clean` CLI, the deterministic observation-level cleaning contract, and the bundled reproducibility fixture.
 
 The failure mode it addresses is silent divergence in preprocessing: different local scripts can interpret sentinel values, field encodings, or quality-code semantics differently while starting from the same raw ISD records.
 
-A concrete committed repository example comes from station `16754399999` (KARPATHOS, GR). Reviewers can verify in `docs/examples/stations/16754399999/LocationData_QualityReport.json` that `temperature_c` has tracked sentinel replacements, and in `docs/examples/stations/16754399999/LocationData_AggregationReport.json` that the canonical output preserves separate fields such as `temperature_quality_code`, `TMP__qc_pass`, `TMP__qc_reason`, and `TMP__qc_status`. The reviewer-visible software surface is the canonical cleaner that makes those choices explicit and stable.
+The reviewer task is intentionally narrow:
 
-The reviewer-visible capability is therefore not only deterministic execution. It is a reusable preprocessing surface that makes those NOAA-specific decisions explicit, so cleaned outputs are easier to audit and compare across reuse.
+1. Build the Docker image.
+2. Run the reproducibility verification script.
+3. Confirm that the produced CSV matches the tracked expected output and checksum.
 
-Broader publication artifacts (release bundles, manifests, domain publication outputs, and quality reports) are part of the broader documented system design but are not included as reviewer-verifiable artifacts in this submission.
+That bounded example is enough to evaluate the public claim: the same raw NOAA input produces the same cleaned observation-level output with stable handling of sentinels and preserved QC semantics.
 
-NOAA-Spec should therefore be evaluated here as NOAA-specific preprocessing software with a bounded reproducibility example, not as a fully reviewer-reproduced end-to-end publication release system.
+Broader publication artifacts, domain outputs, manifests, tests beyond this path, and maintainer-facing quality reports are not part of the primary reviewer proof for this submission.
 
-No archived release bundle is linked for this revision.
+NOAA-Spec should therefore be evaluated here as a deterministic NOAA-specific cleaning layer with a bounded reproducibility example, not as a fully reviewer-reproduced end-to-end release workflow.

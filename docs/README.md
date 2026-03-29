@@ -1,9 +1,7 @@
 # Documentation
 
-Start with [README.md](/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/README.md) for the first run.
+Start with the root [README.md](../README.md) for installation and the canonical `noaa-spec clean` workflow.
 
-Use [UNDERSTANDING_OUTPUT.md](UNDERSTANDING_OUTPUT.md) to interpret cleaned columns.
-
-Use [../reproducibility/README.md](../reproducibility/README.md) for checksum-backed reruns.
-
-Maintainer-only material lives under [internal/README.md](internal/README.md).
+- Use [UNDERSTANDING_OUTPUT.md](UNDERSTANDING_OUTPUT.md) to interpret cleaned columns.
+- Use [../reproducibility/README.md](../reproducibility/README.md) for checksum-backed verification and the Docker reviewer path.
+- Maintainer-only material lives under [internal/README.md](internal/README.md).
