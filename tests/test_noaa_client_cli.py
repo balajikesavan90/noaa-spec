@@ -171,6 +171,30 @@ class TestNoaaClient:
 
 
 class TestCliCommands:
+    def test_cli_clean_writes_cleaned_csv(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        input_csv = repo_root / "reproducibility" / "minimal" / "station_raw.csv"
+        output_csv = tmp_path / "station_cleaned.csv"
+
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            ["prog", "clean", str(input_csv), "--out", str(output_csv)],
+        )
+        cli.main()
+
+        assert output_csv.exists()
+        cleaned = pd.read_csv(output_csv, low_memory=False)
+        assert "temperature_c" in cleaned.columns
+        assert "temperature_quality_code" in cleaned.columns
+        assert float(cleaned.iloc[0]["temperature_c"]) == 18.0
+        assert pd.isna(cleaned.iloc[1]["temperature_c"])
+        assert str(cleaned.iloc[1]["temperature_quality_code"]) == "9"
+
     def test_cli_file_list_invokes_builders(
         self,
         tmp_path: Path,

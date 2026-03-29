@@ -16,7 +16,7 @@ The canonical reviewer example is under `reproducibility/minimal/`.
 
 `pip install -e .` installs the `noaa_spec` package from this repository checkout.
 
-Local installation is optional and intended for development only; it is not required for reproducibility validation. See [docs/LOCAL_DEV.md](../docs/LOCAL_DEV.md).
+Local installation is optional and intended for development only; it is not required for reproducibility validation. See [docs/internal/LOCAL_DEV.md](../docs/internal/LOCAL_DEV.md).
 
 Tracked reviewer fixtures:
 

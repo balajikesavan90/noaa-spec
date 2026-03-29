@@ -62,3 +62,29 @@ def test_full_station_reproducibility_example_output_matches_expected(tmp_path: 
         example="full_station",
         output_name="full_station_cleaned.csv",
     )
+
+
+def test_quickstart_module_runs_and_writes_output(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    output_dir = tmp_path / "quickstart-output"
+
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "noaa_spec.quickstart",
+            "--output-dir",
+            str(output_dir),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+
+    output_path = output_dir / "station_cleaned.csv"
+    assert output_path.exists()
+
+    output_text = output_path.read_text(encoding="utf-8")
+    expected_text = (repo_root / "reproducibility" / "minimal" / "station_cleaned_expected.csv").read_text(
+        encoding="utf-8"
+    )
+    assert output_text == expected_text

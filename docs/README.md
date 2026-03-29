@@ -1,18 +1,9 @@
 # Documentation
 
-This folder contains the active documentation surface for NOAA-Spec.
+Start here if you are new to the repository:
 
-- Reviewer guide: [docs/REVIEWER_GUIDE.md](REVIEWER_GUIDE.md)
-- Artifact contracts and boundaries: [docs/ARTIFACT_BOUNDARY_POLICY.md](ARTIFACT_BOUNDARY_POLICY.md)
-- Domain dataset registry: [docs/DOMAIN_DATASET_REGISTRY.md](DOMAIN_DATASET_REGISTRY.md)
-- Validation expectations: [docs/PIPELINE_VALIDATION_PLAN.md](PIPELINE_VALIDATION_PLAN.md)
-- Operations: [docs/operations](operations)
-- Examples: [docs/examples](examples)
-- Internal development reports: [docs/reports](reports)
-- Archive: [docs/archive](archive)
+- [QUICKSTART.md](QUICKSTART.md)
+- [UNDERSTANDING_OUTPUT.md](UNDERSTANDING_OUTPUT.md)
+- [examples/README.md](examples/README.md)
 
-Reviewer-facing evaluation should start with the root [README.md](../README.md) and [docs/REVIEWER_GUIDE.md](REVIEWER_GUIDE.md). Operational documentation is intentionally separated under `docs/operations/` and is not part of reviewer reproducibility.
-
-`docs/reports/` contains internal development records and audit notes. Those files are not reviewer evidence.
-
-For this revision, only the Reviewer Quickstart in the root [README.md](../README.md) and [reproducibility/README.md](../reproducibility/README.md) define the supported reproducibility path.
+Internal and maintainer-focused material lives under [internal/README.md](internal/README.md).

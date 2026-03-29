@@ -15,6 +15,7 @@ def write_deterministic_csv(
     output_path: Path,
     *,
     sort_by: tuple[str, ...] = (),
+    float_format: str | None = None,
 ) -> None:
     """Write CSV with deterministic ordering and serialization settings."""
     prepared = _prepare_frame(frame, sort_by=sort_by)
@@ -26,6 +27,7 @@ def write_deterministic_csv(
             lineterminator="\n",
             na_rep="",
             encoding="utf-8",
+            float_format=float_format,
         )
 
     _atomic_replace(output_path, _writer)

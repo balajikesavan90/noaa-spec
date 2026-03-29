@@ -11,6 +11,7 @@ import time
 
 import pandas as pd
 
+from .cleaning import clean_noaa_dataframe
 from .cleaning_runner import (
     CleaningRunConfig,
     RunWriteFlags,
@@ -47,6 +48,18 @@ from .research_reports import build_reports_for_station_dir
 
 DEFAULT_CLEANING_BATCH_STAGING_DIRNAME = "NOAA_CLEANING_STAGING"
 DEFAULT_CLEANING_BATCH_RELEASE_DIRNAME = "NOAA_CLEANED_DATA"
+
+
+def _clean_csv_to_csv(input_csv: Path, output_csv: Path) -> Path:
+    raw = pd.read_csv(input_csv, dtype=str)
+    cleaned = clean_noaa_dataframe(raw, keep_raw=False, strict_mode=True)
+    write_deterministic_csv(
+        cleaned,
+        output_csv,
+        sort_by=("STATION", "DATE"),
+        float_format="%.1f",
+    )
+    return output_csv
 
 
 def _coerce_boolean_series(series: pd.Series) -> pd.Series:
@@ -671,11 +684,23 @@ def _parse_args() -> argparse.Namespace:
     )
 
     clean_parser = subparsers.add_parser(
+        "clean",
+        help="Clean a NOAA raw CSV into a cleaned CSV with minimal arguments",
+    )
+    clean_parser.add_argument("input_csv", type=Path, help="Input NOAA raw CSV path")
+    clean_parser.add_argument(
+        "--out",
+        type=Path,
+        required=True,
+        help="Output path for the cleaned CSV",
+    )
+
+    clean_parquet_parser = subparsers.add_parser(
         "clean-parquet",
         help="Clean a raw parquet file and write cleaned parquet",
     )
-    clean_parser.add_argument("raw_parquet", type=Path)
-    clean_parser.add_argument(
+    clean_parquet_parser.add_argument("raw_parquet", type=Path)
+    clean_parquet_parser.add_argument(
         "--output-dir",
         type=Path,
         default=None,
@@ -1250,6 +1275,11 @@ def main() -> None:
             input_path=args.input_path,
             result_path=args.result_path,
         )
+        return
+
+    if args.command == "clean":
+        output_path = _clean_csv_to_csv(args.input_csv, args.out)
+        print(f"Wrote cleaned CSV to {output_path.resolve()}")
         return
 
     if args.command == "clean-parquet":

@@ -3,7 +3,7 @@
 
 Outputs:
 - spec_coverage.csv
-- docs/reports/SPEC_COVERAGE_REPORT.md
+- docs/internal/reports/SPEC_COVERAGE_REPORT.md
 
 Test-coverage semantics:
 - `test_covered_any` is TRUE for any non-`none` test match strength.
@@ -3176,7 +3176,7 @@ def main() -> None:
     tests_path = repo_root / "tests" / "test_cleaning.py"
 
     csv_output = repo_root / "spec_coverage.csv"
-    report_output = repo_root / "docs" / "reports" / "SPEC_COVERAGE_REPORT.md"
+    report_output = repo_root / "docs" / "internal" / "reports" / "SPEC_COVERAGE_REPORT.md"
 
     constants_ast = parse_constants_ast(constants_path)
     cleaning_index = parse_cleaning_index(cleaning_path)

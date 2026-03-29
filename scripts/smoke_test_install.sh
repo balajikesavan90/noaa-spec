@@ -10,16 +10,16 @@ TRACKED_ANCHOR="${REPO_ROOT}/reproducibility/minimal/station_cleaned.csv"
 
 cd "${REPO_ROOT}"
 
-if ! command -v python >/dev/null 2>&1; then
-    echo "Missing 'python' on PATH. Activate the reviewer virtual environment, then rerun this smoke test." >&2
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "Missing 'python3' on PATH. Activate the reviewer virtual environment, then rerun this smoke test." >&2
     exit 1
 fi
 
 expected_before="$(sha256sum "${TRACKED_EXPECTED}" | cut -d' ' -f1)"
 anchor_before="$(sha256sum "${TRACKED_ANCHOR}" | cut -d' ' -f1)"
 
-python -c "import noaa_spec"
-python reproducibility/run_pipeline_example.py --example minimal --out "${SMOKE_OUTPUT}"
+python3 -c "import noaa_spec"
+python3 reproducibility/run_pipeline_example.py --example minimal --out "${SMOKE_OUTPUT}"
 
 if [[ ! -s "${SMOKE_OUTPUT}" ]]; then
     echo "Smoke test failed: expected cleaned CSV at ${SMOKE_OUTPUT}." >&2

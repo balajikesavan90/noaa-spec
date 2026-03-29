@@ -7,7 +7,9 @@ from pathlib import Path
 
 import pandas as pd
 
+from noaa_spec.quickstart import bundled_sample_path
 from noaa_spec.cleaning import clean_noaa_dataframe
+from noaa_spec.deterministic_io import write_deterministic_csv
 
 
 def _parse_args() -> argparse.Namespace:
@@ -23,12 +25,29 @@ def _parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = _parse_args()
-    repo_root = Path(__file__).resolve().parents[1]
-    raw_path = repo_root / "reproducibility" / "minimal" / "station_raw.csv"
+    raw_path = bundled_sample_path()
     raw = pd.read_csv(raw_path, dtype=str)
     cleaned = clean_noaa_dataframe(raw, keep_raw=False, strict_mode=True)
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    cleaned.to_csv(args.out, index=False, float_format="%.1f")
+    write_deterministic_csv(
+        cleaned,
+        args.out,
+        sort_by=("STATION", "DATE"),
+        float_format="%.1f",
+    )
+
+    preview_columns = [
+        "STATION",
+        "DATE",
+        "temperature_c",
+        "temperature_quality_code",
+        "wind_speed_ms",
+        "visibility_m",
+    ]
+    existing_preview_columns = [column for column in preview_columns if column in cleaned.columns]
+
+    print(f"Wrote cleaned example to: {args.out.resolve()}")
+    print("Preview:")
+    print(cleaned[existing_preview_columns].head().to_string(index=False))
 
 
 if __name__ == "__main__":

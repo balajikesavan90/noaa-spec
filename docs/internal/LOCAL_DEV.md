@@ -12,10 +12,10 @@ Host requirements typically include `python3`, `python3-venv`, `git`, `bash`, an
 bash scripts/check_reviewer_env.sh
 python3 -m venv .review-venv
 source .review-venv/bin/activate
-python -m pip install --upgrade pip
+python3 -m pip install --upgrade pip
 pip install -r requirements-review.txt
 pip install -e .
-python reproducibility/run_pipeline_example.py --example minimal --out /tmp/noaa-spec-sample.csv
+python3 reproducibility/run_pipeline_example.py --example minimal --out /tmp/noaa-spec-sample.csv
 bash scripts/verify_reproducibility.sh
 pytest -q
 ```

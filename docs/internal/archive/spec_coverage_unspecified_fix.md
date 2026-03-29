@@ -59,7 +59,7 @@ Also updated one control-header strict test expectation where deterministic reje
 
 ## Coverage Outcome
 
-After regeneration (`poetry run python tools/spec_coverage/generate_spec_coverage.py`):
+After regeneration (`poetry run python3 tools/spec_coverage/generate_spec_coverage.py`):
 
 - 29-row metric `UNSPECIFIED` bucket is eliminated.
 - `SPEC_COVERAGE_REPORT.md` no longer contains `| UNSPECIFIED | 29 | ... |`.

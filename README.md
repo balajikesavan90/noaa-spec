@@ -1,112 +1,74 @@
 # NOAA-Spec
 
-## Supported Platform
+## What this does
 
-The canonical reviewer workflow is containerized with Docker so it runs consistently independent of host system configuration.
+NOAA-Spec cleans NOAA Integrated Surface Database (ISD) / Global Hourly records into a stable, analysis-ready canonical dataset. It is for researchers and engineers who want NOAA-specific cleaning rules handled consistently instead of rebuilding them in notebooks. The package exists to make sentinel handling, quality-code preservation, and output reproducibility explicit.
 
-An alternative local workflow is provided for advanced users on Linux with Python 3.12+ and bash.
+## 2-minute quickstart
 
-The supported reviewer path for this submission is Docker. Local installation is optional and intended for development only; it is not required for reproducibility validation.
-
-## What NOAA-Spec does
-
-NOAA-Spec is a reusable NOAA-specific preprocessing package for NOAA Integrated Surface Database (ISD) / Global Hourly records. Its contribution in this repository snapshot is a canonical cleaning layer that turns encoded observations into stable cleaned outputs with explicit handling of field semantics, sentinel values, and quality codes. The practical purpose is to replace project-local ISD cleaning logic with one inspectable preprocessing surface so analysts using the same raw NOAA input are less likely to produce silently different cleaned datasets. In this revision, the reviewer-verifiable surface is the canonical cleaning example in `reproducibility/`, plus checksum verification and tests.
-
-NOAA-Spec is intended for researchers and engineers who need reproducible preprocessing of NOAA ISD / Global Hourly observations before downstream analysis.
-
-## Why NOAA ISD is not analysis-ready
-
-NOAA ISD observations contain fixed-width fields, comma-encoded substructures, sentinel values, quality flags, and section-dependent semantics that must be interpreted from NOAA documentation before downstream use is reproducible.
-
-## Current practice vs NOAA-Spec
-
-Many NOAA ISD workflows rely on project-specific scripts or notebook preprocessing to interpret encoded fields, remove sentinels, and decide how quality flags affect usable values. That approach can work for one study, but it often leaves the preprocessing contract implicit and can produce silently different cleaned outputs from the same raw records.
-
-NOAA-Spec packages those NOAA-specific steps into an inspectable software surface with deterministic cleaned outputs, explicit contracts, preserved quality context, and bounded reproducibility fixtures. A concrete committed repository example is station `16754399999` (KARPATHOS, GR): its tracked quality report records sentinel replacements for `temperature_c`, and its tracked aggregation report records separate canonical temperature-quality/status fields. In the minimal reproducibility fixture, raw `TMP` tokens such as `+9999,9` become null `temperature_c` values with explicit QC-status fields preserved, while valid tokens such as `+0180,1` become numeric cleaned temperatures. NOAA-Spec makes that handling explicit instead of leaving it implicit in local script logic. The goal is a stable NOAA-specific preprocessing handoff for downstream analysis, not a generic validation framework.
-
-## Installation
-
-`requirements-review.txt` is the exact tested reviewer dependency set for this revision.
-
-`pip install -e .` installs the `noaa_spec` package from this repository checkout.
-
-Tested in a fresh environment with no pre-installed package.
-
-For this revision, only the Reviewer Quickstart and `reproducibility/README.md` define the supported reproducibility path.
-
-The supported reviewer path requires a working Docker installation with daemon access; the `docker` CLI alone is not sufficient.
-
-The canonical reviewer example is under `reproducibility/minimal/`.
-
-No archived release bundle is linked for this revision.
-
-Optional local development instructions are in [docs/LOCAL_DEV.md](docs/LOCAL_DEV.md).
-
-## System Prerequisites
-
-The canonical reviewer path requires Docker on the host and no additional reviewer-managed OS packages inside the container.
-
-The alternative local workflow requires host system packages including `python3`, `python3-venv`, `git`, `bash`, and `sha256sum`.
-
-## Reviewer Quickstart (Docker)
-
-This supported reviewer path requires a working Docker installation with daemon access.
+Install from a fresh clone:
 
 ```bash
-docker build -t noaa-spec .
-docker run --rm noaa-spec
+pip install -e .
+python3 -m noaa_spec.quickstart
 ```
 
-Expected output:
+This writes a cleaned sample CSV to:
 
-- the minimal example runs
-- `PASS: reproducibility verification succeeded.`
-- `2194 passed, 15 skipped`
+```text
+/tmp/noaa-spec-quickstart/station_cleaned.csv
+```
 
-Expected SHA256: `b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597`
+If you want to clean your own raw NOAA CSV next:
 
-This is the canonical reviewer path. It requires no OS-level dependency installation by the reviewer and no `sudo` inside the container.
+```bash
+noaa-spec clean reproducibility/minimal/station_raw.csv --out ./output/station_cleaned.csv
+```
 
-Local installation is optional and intended for development only. Reviewer-facing reproducibility validation should use the Docker workflow above.
+## What you get
 
-## Reproducibility Boundary
+Small before vs after example:
 
-This submission validates the bounded, checksum-backed canonical cleaning example included in-repo. Release manifests, domain publication outputs, and repository-level quality-report publication are part of the broader documented system design, but they are not included as reviewer-verifiable artifacts in this submission and should not be treated as evidence for this revision.
+```text
+Before: TMP="+9999,9", DEW="+9999,9", VIS="999999,9,N,1"
+After:  temperature_c=, temperature_quality_code=9, dew_point_c=, visibility_m=
+```
 
-## Contracts and Validation
+The cleaned output keeps NOAA context while making core values usable:
 
-NOAA-Spec is organized around explicit software surfaces:
+- `STATION`: NOAA station identifier.
+- `DATE`: observation timestamp from the source row.
+- `temperature_c`: cleaned Celsius temperature.
+- `temperature_quality_code`: original NOAA QC code for temperature.
+- `wind_speed_ms`: cleaned wind speed in meters per second.
 
-- the canonical cleaning pipeline
-- artifact contracts and schema validation
-- deterministic serialization and checksum verification
-- tests that guard parser behavior and documentation integrity
+What changed:
 
-These are means to user-facing ends: reproducible cleaned outputs, inspectable output columns and semantics, and a canonical preprocessing path that can be audited instead of remaining hidden in ad hoc scripts.
+- sentinel values such as `+9999,9` become empty values instead of fake numbers
+- QC codes are preserved in separate columns instead of being discarded
+- numeric weather fields are normalized into consistent units and column names
+- the output is written deterministically so reruns produce the same artifact
 
-In the Docker reviewer path, `sha256sum` and `git` are provided inside the container.
+The bundled quickstart prints a preview so you can see this immediately. A fuller explanation is in [docs/UNDERSTANDING_OUTPUT.md](docs/UNDERSTANDING_OUTPUT.md).
 
-## Reusability Boundary
+## When to use this
 
-NOAA-Spec is NOAA-specific software, not a general-purpose ETL or validation framework. The substantive parsing and cleaning logic is tied to NOAA ISD / Global Hourly field structure and documentation. Some engineering patterns used here, such as contracts, provenance tracking, and deterministic fixtures, may transfer to other datasets, but that is not the primary claim of this repository snapshot.
+Use NOAA-Spec when you need repeatable NOAA cleaning across stations, explicit QC handling, and a stable cleaned dataset you can cite, compare, or reuse.
 
-## When to use / when not to use
+## Why not just use pandas?
 
-Use NOAA-Spec when you need:
+- raw NOAA fields embed sentinel values and subfield encodings that are easy to handle inconsistently
+- QC semantics vary by field, and this package keeps them aligned with the cleaned values
+- using one documented cleaning surface reduces station-to-station drift in downstream work
+- deterministic output writing helps with reproducibility and release workflows
 
-- deterministic preprocessing of NOAA ISD / Global Hourly data
-- explicit handling of sentinel and quality semantics
-- a reproducible cleaning surface that can be verified with fixtures and tests
+This is overkill when you only need a quick one-off exploration of a tiny sample, are comfortable interpreting NOAA encoded fields yourself, or do not care about preserving QC context.
 
-Do not use NOAA-Spec when you need:
+## Full docs
 
-- downstream climate analysis or modeling workflows
-- a generic ETL framework for unrelated datasets
-- proof of full archived release outputs from this repository snapshot
-
-## Paper and docs links
-
-- Reviewer guide: [docs/REVIEWER_GUIDE.md](docs/REVIEWER_GUIDE.md)
+- Quickstart details: [docs/QUICKSTART.md](docs/QUICKSTART.md)
+- Understand the output: [docs/UNDERSTANDING_OUTPUT.md](docs/UNDERSTANDING_OUTPUT.md)
+- Examples: [docs/examples/README.md](docs/examples/README.md)
+- Minimal example script: [examples/run_minimal_cleaning.py](examples/run_minimal_cleaning.py)
 - Reproducibility notes: [reproducibility/README.md](reproducibility/README.md)
-- JOSS paper source: [paper/paper.md](paper/paper.md)
-- Docs index: [docs/README.md](docs/README.md)
+- Internal architecture, reviewer, validation, and operations docs: [docs/internal/README.md](docs/internal/README.md)
