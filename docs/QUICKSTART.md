@@ -2,9 +2,11 @@
 
 ## Fastest path
 
-From a fresh clone:
+User quickstart for Python 3.12+ from a fresh clone:
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -e .
 python3 -m noaa_spec.quickstart
 ```
@@ -15,15 +17,29 @@ Expected result:
 - the command prints a small preview of the cleaned data
 - the command explains one concrete transformation: `TMP=+9999,9` becomes an empty `temperature_c` value with QC code `9` preserved
 
+Use Poetry for development workflows. Use Docker for reviewer reproducibility checks.
+
 ## Clean your own file
 
 Use the simplified CLI when you already have a raw NOAA CSV:
 
 ```bash
-noaa-spec clean path/to/raw_station.csv --out ./output/station_cleaned.csv
+noaa-spec clean my_station.csv --out cleaned.csv
 ```
 
-This wraps the existing cleaner without requiring batch-run arguments or release-layout knowledge.
+`my_station.csv` should be a raw NOAA ISD / Global Hourly CSV in the same general structure as the bundled sample. You can inspect the bundled sample at `reproducibility/minimal/station_raw.csv` for reference.
+
+## One realistic local workflow
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+python3 -m noaa_spec.quickstart
+noaa-spec clean my_station.csv --out cleaned.csv
+```
+
+This bridges the bundled sample to a user-owned raw NOAA file without requiring batch-run arguments or release-layout knowledge.
 
 ## Run the example script
 

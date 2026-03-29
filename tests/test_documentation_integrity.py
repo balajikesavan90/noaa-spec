@@ -22,6 +22,8 @@ def test_readme_is_user_first() -> None:
     for section in (
         "## What this does",
         "## 2-minute quickstart",
+        "## Which path should I use?",
+        "## Use this on your own NOAA data",
         "## What you get",
         "## When to use this",
         "## Why not just use pandas?",
@@ -29,8 +31,10 @@ def test_readme_is_user_first() -> None:
     ):
         assert section in text
 
+    assert "python3 -m venv .venv" in text
+    assert "source .venv/bin/activate" in text
     assert "python3 -m noaa_spec.quickstart" in text
-    assert "noaa-spec clean reproducibility/minimal/station_raw.csv --out ./output/station_cleaned.csv" in text
+    assert "noaa-spec clean my_station.csv --out cleaned.csv" in text
     assert "/tmp/noaa-spec-quickstart/station_cleaned.csv" in text
     assert "## Reviewer Quickstart" not in text
     assert "## Supported Platform" not in text
@@ -52,11 +56,14 @@ def test_quickstart_and_output_docs_exist() -> None:
     quickstart_text = DOCS_QUICKSTART_PATH.read_text(encoding="utf-8")
     output_text = DOCS_OUTPUT_GUIDE_PATH.read_text(encoding="utf-8")
 
+    assert "python3 -m venv .venv" in quickstart_text
+    assert "source .venv/bin/activate" in quickstart_text
     assert "python3 -m noaa_spec.quickstart" in quickstart_text
-    assert "noaa-spec clean path/to/raw_station.csv --out ./output/station_cleaned.csv" in quickstart_text
+    assert "noaa-spec clean my_station.csv --out cleaned.csv" in quickstart_text
     assert "python3 examples/run_minimal_cleaning.py --out /tmp/noaa-spec-example.csv" in quickstart_text
 
     assert "A 10-column subset" in output_text
+    assert "Where to start" in output_text
     assert "Sentinel handling" in output_text
     assert "QC flags" in output_text
     assert "Missing values" in output_text

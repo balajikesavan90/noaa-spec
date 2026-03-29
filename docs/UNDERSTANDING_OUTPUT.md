@@ -19,6 +19,17 @@ Here is a useful subset from the cleaned sample:
 | `wind_speed_ms` | cleaned wind speed in meters per second |
 | `visibility_m` | cleaned visibility in meters |
 
+## Where to start
+
+Start with the measurement columns:
+
+- `temperature_c`
+- `dew_point_c`
+- `wind_speed_ms`
+- `visibility_m`
+
+Many `*_quality_code`, `*_QC`, and `__qc_*` columns can be ignored initially unless you are filtering by quality or investigating why a cleaned value is empty.
+
 ## Sentinel handling
 
 NOAA raw files use encoded missing-value sentinels such as `+9999,9` or `999999,9,N,1`.
@@ -88,7 +99,7 @@ What happened:
 This cleaned dataset is a better starting point when you want:
 
 - consistent field handling across many stations
-- a reusable input to downstream analysis
+- a reusable cleaned, structured input to downstream analysis
 - QC-aware filtering after cleaning rather than ad hoc preprocessing before it
 
 If you only need a quick notebook exploration of one file, this may be more structure than you need.

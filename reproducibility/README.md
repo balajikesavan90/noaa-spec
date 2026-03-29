@@ -6,7 +6,7 @@ The purpose of these fixtures is to let reviewers and users rerun the demonstrat
 
 In other words, the fixtures support the software claim that NOAA-Spec can serve as one reusable preprocessing surface for ISD data instead of leaving sentinel handling, field interpretation, and quality-code treatment dispersed across project-local scripts.
 
-The supported reproducibility path for this revision is the Docker reviewer workflow in the root [README.md](../README.md).
+The supported reproducibility path for this revision is the Docker reviewer workflow described in the root [README.md](../README.md).
 
 The containerized reviewer environment uses Python 3.12.
 
@@ -16,7 +16,7 @@ The canonical reviewer example is under `reproducibility/minimal/`.
 
 `pip install -e .` installs the `noaa_spec` package from this repository checkout.
 
-Local installation is optional and intended for development only; it is not required for reproducibility validation. See [docs/internal/LOCAL_DEV.md](../docs/internal/LOCAL_DEV.md).
+Docker is the supported reviewer path for reproducibility validation. Local installation is optional and intended for development only; it is not required for reproducibility validation. See [docs/internal/LOCAL_DEV.md](../docs/internal/LOCAL_DEV.md).
 
 Tracked reviewer fixtures:
 

@@ -2,13 +2,15 @@
 
 ## What this does
 
-NOAA-Spec cleans NOAA Integrated Surface Database (ISD) / Global Hourly records into a stable, analysis-ready canonical dataset. It is for researchers and engineers who want NOAA-specific cleaning rules handled consistently instead of rebuilding them in notebooks. The package exists to make sentinel handling, quality-code preservation, and output reproducibility explicit.
+NOAA-Spec cleans NOAA Integrated Surface Database (ISD) / Global Hourly records into a stable, structured canonical dataset for downstream analysis. It is for researchers and engineers who want NOAA-specific cleaning rules handled consistently instead of rebuilding them in notebooks. The package exists to make sentinel handling, quality-code preservation, and output reproducibility explicit.
 
 ## 2-minute quickstart
 
-Install from a fresh clone:
+User quickstart for Python 3.12+:
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -e .
 python3 -m noaa_spec.quickstart
 ```
@@ -19,10 +21,44 @@ This writes a cleaned sample CSV to:
 /tmp/noaa-spec-quickstart/station_cleaned.csv
 ```
 
-If you want to clean your own raw NOAA CSV next:
+This is the ordinary user path. Use Poetry for development workflows. Use Docker for the reviewer/reproducibility workflow.
+
+## Which path should I use?
+
+Quickstart for users:
+
+- local virtual environment
+- `pip install -e .`
+- `python3 -m noaa_spec.quickstart`
+
+Development:
+
+- Poetry
+- see [docs/internal/LOCAL_DEV.md](docs/internal/LOCAL_DEV.md)
+
+Reproducibility / review:
+
+- Docker
+- see [reproducibility/README.md](reproducibility/README.md)
+
+## Use this on your own NOAA data
+
+After the bundled sample runs, clean a user-owned NOAA file:
 
 ```bash
-noaa-spec clean reproducibility/minimal/station_raw.csv --out ./output/station_cleaned.csv
+noaa-spec clean my_station.csv --out cleaned.csv
+```
+
+`my_station.csv` should be a raw NOAA ISD / Global Hourly CSV in the same general structure as the bundled sample. For reference, inspect the bundled sample at [`reproducibility/minimal/station_raw.csv`](/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/reproducibility/minimal/station_raw.csv).
+
+## One realistic local workflow
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+python3 -m noaa_spec.quickstart
+noaa-spec clean my_station.csv --out cleaned.csv
 ```
 
 ## What you get
@@ -49,7 +85,7 @@ What changed:
 - numeric weather fields are normalized into consistent units and column names
 - the output is written deterministically so reruns produce the same artifact
 
-The bundled quickstart prints a preview so you can see this immediately. A fuller explanation is in [docs/UNDERSTANDING_OUTPUT.md](docs/UNDERSTANDING_OUTPUT.md).
+Start by reading the measurement columns such as `temperature_c`, `dew_point_c`, `wind_speed_ms`, and `visibility_m`. Many `*_QC` and `__qc_*` columns can be ignored at first unless you need quality-based filtering or want to inspect why a cleaned value is empty. A fuller explanation is in [docs/UNDERSTANDING_OUTPUT.md](docs/UNDERSTANDING_OUTPUT.md).
 
 ## When to use this
 
