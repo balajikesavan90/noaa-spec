@@ -2,7 +2,7 @@
 
 This directory contains the tracked bounded reproducibility fixtures used for reviewer verification.
 
-The purpose of these fixtures is to let reviewers and users rerun the demonstrated NOAA-specific cleaning path and confirm that the same cleaned output is produced for the same input and configuration.
+The purpose of these fixtures is to let reviewers and users rerun the demonstrated NOAA-specific cleaning path and confirm that the same cleaned output is produced for the same input and configuration, rather than relying on undocumented local preprocessing differences.
 
 The supported reproducibility path for this revision is the Docker reviewer workflow in the root [README.md](../README.md).
 
