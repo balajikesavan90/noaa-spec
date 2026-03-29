@@ -10,7 +10,7 @@ The supported reviewer path for this submission is Docker. Local installation is
 
 ## What NOAA-Spec does
 
-NOAA-Spec is a reusable NOAA-specific preprocessing package for NOAA Integrated Surface Database (ISD) / Global Hourly records. It converts encoded observations into stable cleaned outputs with explicit handling of field semantics, sentinel values, quality codes, provenance, and bounded reproducibility. In this repository snapshot, the reviewer-verifiable surface is the canonical cleaning example in `reproducibility/`, plus checksum verification and tests.
+NOAA-Spec is a reusable NOAA-specific preprocessing package for NOAA Integrated Surface Database (ISD) / Global Hourly records. It converts encoded observations into stable cleaned outputs with explicit handling of field semantics, sentinel values, quality codes, provenance, and bounded reproducibility. Its practical purpose is to replace project-local ISD cleaning logic with one inspectable preprocessing surface so analysts using the same raw NOAA input are less likely to produce silently different cleaned datasets. In this repository snapshot, the reviewer-verifiable surface is the canonical cleaning example in `reproducibility/`, plus checksum verification and tests.
 
 NOAA-Spec is intended for researchers and engineers who need reproducible preprocessing of NOAA ISD / Global Hourly observations before downstream analysis.
 
@@ -22,7 +22,7 @@ NOAA ISD observations contain fixed-width fields, comma-encoded substructures, s
 
 Many NOAA ISD workflows rely on project-specific scripts or notebook preprocessing to interpret encoded fields, remove sentinels, and decide how quality flags affect usable values. That approach can work for one study, but it often leaves the preprocessing contract implicit and can produce silently different cleaned outputs from the same raw records.
 
-NOAA-Spec packages those NOAA-specific steps into an inspectable software surface with deterministic cleaned outputs, explicit contracts, preserved provenance, and bounded reproducibility fixtures. By ensuring that equivalent inputs and configurations yield identical cleaned outputs with explicitly defined semantics, it supports more consistent reuse, comparison, and audit of ISD-based analyses. The goal is a stable preprocessing handoff for downstream analysis, not a generic validation framework.
+NOAA-Spec packages those NOAA-specific steps into an inspectable software surface with deterministic cleaned outputs, explicit contracts, preserved provenance, and bounded reproducibility fixtures. By ensuring that equivalent inputs and configurations yield identical cleaned outputs with explicitly defined semantics, it supports more consistent reuse, comparison, and audit of ISD-based analyses. The goal is a stable NOAA-specific preprocessing handoff for downstream analysis, not a generic validation framework.
 
 ## Installation
 

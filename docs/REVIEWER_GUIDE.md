@@ -14,6 +14,10 @@ This submission validates the bounded, checksum-backed canonical cleaning exampl
 
 The software contribution under review is a reusable NOAA-specific preprocessing package that makes ISD cleaning behavior easier to inspect, compare, and rerun than common local script workflows.
 
+The failure mode it addresses is silent divergence in preprocessing: different local scripts can interpret sentinel values, field encodings, or quality-code semantics differently while starting from the same raw ISD records.
+
+The reviewer-visible capability is therefore not only deterministic execution. It is a reusable preprocessing surface that makes those NOAA-specific decisions explicit, so cleaned outputs are easier to audit and compare across reuse.
+
 Broader publication artifacts (release bundles, manifests, domain publication outputs, and quality reports) are part of the broader documented system design but are not included as reviewer-verifiable artifacts in this submission.
 
 NOAA-Spec should therefore be evaluated here as NOAA-specific preprocessing software with a bounded reproducibility example, not as a fully reviewer-reproduced end-to-end publication release system.

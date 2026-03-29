@@ -4,6 +4,8 @@ This directory contains the tracked bounded reproducibility fixtures used for re
 
 The purpose of these fixtures is to let reviewers and users rerun the demonstrated NOAA-specific cleaning path and confirm that the same cleaned output is produced for the same input and configuration, rather than relying on undocumented local preprocessing differences.
 
+In other words, the fixtures support the software claim that NOAA-Spec can serve as one reusable preprocessing surface for ISD data instead of leaving sentinel handling, field interpretation, and quality-code treatment dispersed across project-local scripts.
+
 The supported reproducibility path for this revision is the Docker reviewer workflow in the root [README.md](../README.md).
 
 The containerized reviewer environment uses Python 3.12.
