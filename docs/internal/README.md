@@ -1,6 +1,6 @@
 # Internal Documentation
 
-This section contains reviewer, architecture, validation, operations, and historical material that is useful for maintainers but not needed for a first successful run.
+This section contains maintainer material only. It is not part of the public JOSS review path, first-run workflow, or reproducibility boundary. Public reviewer instructions live in [../../REPRODUCIBILITY.md](../../REPRODUCIBILITY.md).
 
 - Reviewer guide: [REVIEWER_GUIDE.md](REVIEWER_GUIDE.md)
 - Local development: [LOCAL_DEV.md](LOCAL_DEV.md)

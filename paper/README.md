@@ -17,6 +17,6 @@ pandoc paper/paper.md --citeproc --bibliography=paper/paper.bib -o /tmp/noaa-spe
 
 The preview HTML is a local convenience artifact and is not tracked as part of the repository.
 
-For reviewer-facing context, use [docs/internal/REVIEWER_GUIDE.md](../docs/internal/REVIEWER_GUIDE.md) alongside the manuscript. No archived release bundle is linked for this revision.
+For reviewer-facing install and verification, use [../REPRODUCIBILITY.md](../REPRODUCIBILITY.md).
 
-The JOSS-facing software contribution is the bounded canonical cleaner and reproducibility path described in [../reproducibility/README.md](../reproducibility/README.md), not the repository's broader publication workflow.
+The JOSS-facing software contribution is the bounded canonical interpretation layer and reproducibility path described in [../REPRODUCIBILITY.md](../REPRODUCIBILITY.md), not the repository's broader maintainer workflows.

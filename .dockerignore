@@ -1,8 +1,15 @@
+.git
+.venv
 .pytest_cache
 .review-venv
 .vscode
 __pycache__
 .coverage
+data
+noaa_file_index
 artifacts
 output
 *.log
+paper/*.html
+reproducibility/__pycache__
+tests/__pycache__

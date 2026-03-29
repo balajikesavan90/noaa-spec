@@ -1,12 +1,14 @@
 # Understanding the Output
 
-This guide is for first-time users who want to understand what the canonical cleaned output contains and what the cleaner changed. The output described here is NOAA-Spec's stable cleaned representation for NOAA ISD / Global Hourly records, not a claim of community-wide standardization.
+This guide is for first-time users who want to understand what the canonical output contains and what NOAA-Spec changed. The output described here is NOAA-Spec's stable canonical representation for NOAA ISD / Global Hourly records, not a claim of community-wide standardization.
 
 ## What this file is
 
-The canonical cleaned CSV is intentionally wide. It is a loss-preserving normalized representation of NOAA observations: cleaned measurement fields, preserved QC context, and supporting observation metadata live together in one deterministic source-of-truth layer.
+The canonical CSV is intentionally wide. It is a canonical, loss-preserving normalized representation of NOAA observations: cleaned measurement fields, preserved QC context, and supporting observation metadata live together in one deterministic source-of-truth layer.
 
-That means most downstream workflows will not use every column. Analysts will usually select a relevant subset for a task, and broader repository workflows can also derive narrower domain datasets from the canonical layer.
+NOAA ISD is structurally rich and heavily encoded. Width in the canonical table is therefore intentional, not accidental. Normalized canonicalization preserves reusable semantics that would otherwise remain buried in compact field tokens and project-local parsing rules.
+
+That means most downstream workflows will not use every column. Analysts will usually select a relevant subset for a task and treat the canonical table as the stable intermediate contract rather than the final analysis surface for every use case.
 
 ## A 10-column subset
 
@@ -35,6 +37,13 @@ Start with the measurement columns:
 - `visibility_m`
 
 Many `*_quality_code`, `*_QC`, and `__qc_*` columns can be ignored initially unless you are filtering by quality or investigating why a cleaned value is missing (`NaN`).
+
+## How most users should approach this output
+
+- treat the canonical table as the source-of-truth intermediate representation
+- inspect a subset of relevant fields for your task
+- use the preserved QC columns when filtering or auditing missing values
+- derive narrower projections where appropriate instead of carrying all columns into every downstream step
 
 ## Sentinel handling
 
@@ -102,12 +111,12 @@ What happened:
 
 ## What this output is good for
 
-This canonical cleaned representation is a better starting point when you want:
+This canonical representation is a better starting point when you want:
 
 - consistent field handling across many stations
 - a reusable, deterministic source representation for downstream analysis
 - QC-aware filtering after cleaning rather than ad hoc preprocessing before it
 
-When you only need one part of the observational record, start from a subset of relevant columns. In broader repository workflows, NOAA-Spec can also emit narrower domain datasets for focused downstream use.
+When you only need one part of the observational record, start from a subset of relevant columns. In maintainer workflows, narrower domain projections can also be derived from the canonical layer, but the defended public contribution is the canonical contract itself.
 
 If you only need a quick notebook exploration of one file, this may be more structure than you need.
