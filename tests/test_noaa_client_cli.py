@@ -16,6 +16,7 @@ from noaa_spec.cleaning_runner import CleaningRunConfig
 import noaa_spec.pipeline as pipeline
 from noaa_spec.pipeline import LocationDataOutputs
 import noaa_spec.cli as cli
+import noaa_spec.internal.cli as internal_cli
 
 
 @dataclass(frozen=True)
@@ -201,7 +202,7 @@ class TestCliCommands:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.chdir(tmp_path)
-        monkeypatch.setattr(cli, "datetime", _FakeDateTime)
+        monkeypatch.setattr(internal_cli, "datetime", _FakeDateTime)
         called: dict[str, object] = {}
 
         def fake_build_data_file_list(output_csv: Path, **_: object) -> pd.DataFrame:
@@ -219,15 +220,15 @@ class TestCliCommands:
             called["end_year"] = end_year
             return pd.DataFrame()
 
-        monkeypatch.setattr(cli, "build_data_file_list", fake_build_data_file_list)
-        monkeypatch.setattr(cli, "build_year_counts", fake_build_year_counts)
+        monkeypatch.setattr(internal_cli, "build_data_file_list", fake_build_data_file_list)
+        monkeypatch.setattr(internal_cli, "build_year_counts", fake_build_year_counts)
 
         monkeypatch.setattr(
             sys,
             "argv",
             ["prog", "file-list", "--start-year", "2000", "--end-year", "2001"],
         )
-        cli.main()
+        internal_cli.main()
 
         output_csv = called["output_csv"]
         counts_csv = called["counts_csv"]
@@ -268,7 +269,7 @@ class TestCliCommands:
             called["resume"] = kwargs.get("resume")
             return pd.DataFrame()
 
-        monkeypatch.setattr(cli, "build_location_ids", fake_build_location_ids)
+        monkeypatch.setattr(internal_cli, "build_location_ids", fake_build_location_ids)
 
         monkeypatch.setattr(
             sys,
@@ -283,7 +284,7 @@ class TestCliCommands:
                 "--no-resume",
             ],
         )
-        cli.main()
+        internal_cli.main()
 
         assert called["counts_rows"] == 1
         assert called["output_csv"].resolve() == (base_dir / "Stations.csv").resolve()
@@ -308,7 +309,7 @@ class TestCliCommands:
                 yearly=sample,
             )
 
-        monkeypatch.setattr(cli, "process_location", fake_process_location)
+        monkeypatch.setattr(internal_cli, "process_location", fake_process_location)
         monkeypatch.setattr(
             sys,
             "argv",
@@ -324,7 +325,7 @@ class TestCliCommands:
                 str(output_dir),
             ],
         )
-        cli.main()
+        internal_cli.main()
 
         assert (output_dir / "LocationData_Raw.csv").exists()
         assert (output_dir / "LocationData_Cleaned.csv").exists()
@@ -356,7 +357,7 @@ class TestCliCommands:
             called.update(kwargs)
             return output_dir / "LocationData_Raw.parquet"
 
-        monkeypatch.setattr(cli, "pull_random_station_raw", fake_pull_random_station_raw)
+        monkeypatch.setattr(internal_cli, "pull_random_station_raw", fake_pull_random_station_raw)
 
         monkeypatch.setattr(
             sys,
@@ -374,7 +375,7 @@ class TestCliCommands:
                 "7",
             ],
         )
-        cli.main()
+        internal_cli.main()
 
         assert called["stations_csv"].resolve() == (base_dir / "Stations.csv").resolve()
         assert called["raw_pull_state_csv"].resolve() == (
@@ -404,7 +405,7 @@ class TestCliCommands:
             called.update(kwargs)
             return tmp_path / "LocationData_Cleaned.parquet"
 
-        monkeypatch.setattr(cli, "clean_parquet_file", fake_clean_parquet_file)
+        monkeypatch.setattr(internal_cli, "clean_parquet_file", fake_clean_parquet_file)
 
         monkeypatch.setattr(
             sys,
@@ -415,7 +416,7 @@ class TestCliCommands:
                 str(raw_path),
             ],
         )
-        cli.main()
+        internal_cli.main()
 
         assert called["raw_parquet"].resolve() == raw_path.resolve()
         assert called["output_dir"] is None
@@ -456,7 +457,7 @@ class TestCliCommands:
                 ]
             )
 
-        monkeypatch.setattr(cli, "materialize_raw_pull_state", fake_materialize_raw_pull_state)
+        monkeypatch.setattr(internal_cli, "materialize_raw_pull_state", fake_materialize_raw_pull_state)
 
         monkeypatch.setattr(
             sys,
@@ -466,7 +467,7 @@ class TestCliCommands:
                 "materialize-raw-pull-state",
             ],
         )
-        cli.main()
+        internal_cli.main()
 
         assert called["stations_csv"].resolve() == stations_csv.resolve()
         assert called["raw_pull_state_csv"].resolve() == (
@@ -534,7 +535,7 @@ class TestCliCommands:
             called["config"] = config
             return {"processed": 2}
 
-        monkeypatch.setattr(cli, "run_cleaning_run", fake_run_cleaning_run)
+        monkeypatch.setattr(internal_cli, "run_cleaning_run", fake_run_cleaning_run)
 
         monkeypatch.setattr(
             sys,
@@ -550,7 +551,7 @@ class TestCliCommands:
                 "20250101T000000Z",
             ],
         )
-        cli.main()
+        internal_cli.main()
 
         staging_input_root = (
             raw_root.parent / "NOAA_CLEANING_STAGING" / "20250101T000000Z" / "input"
@@ -621,7 +622,7 @@ class TestCliCommands:
             called["config"] = config
             return {"processed": 1}
 
-        monkeypatch.setattr(cli, "run_cleaning_run", fake_run_cleaning_run)
+        monkeypatch.setattr(internal_cli, "run_cleaning_run", fake_run_cleaning_run)
         monkeypatch.setattr(
             sys,
             "argv",
@@ -637,7 +638,7 @@ class TestCliCommands:
                 "--no-domain-splits",
             ],
         )
-        cli.main()
+        internal_cli.main()
 
         config = called["config"]
         assert config.write_flags.write_domain_splits is False
@@ -697,7 +698,7 @@ class TestCliCommands:
             called["config"] = config
             return {"processed": 3}
 
-        monkeypatch.setattr(cli, "run_cleaning_run", fake_run_cleaning_run)
+        monkeypatch.setattr(internal_cli, "run_cleaning_run", fake_run_cleaning_run)
         monkeypatch.setattr(
             sys,
             "argv",
@@ -712,7 +713,7 @@ class TestCliCommands:
                 "20250101T000000Z",
             ],
         )
-        cli.main()
+        internal_cli.main()
 
         selection_manifest = (
             raw_root.parent / "NOAA_CLEANING_STAGING" / "20250101T000000Z" / "selected_stations.csv"
@@ -735,7 +736,7 @@ class TestCliCommands:
             [{"station_id": "01234567891"}]
         ).to_csv(other_manifest_root / "run_manifest.csv", index=False)
 
-        excluded = cli._prior_batch_station_ids_from_release_manifests(
+        excluded = internal_cli._prior_batch_station_ids_from_release_manifests(
             release_base_root,
             current_run_id="20250101T000000Z",
         )
@@ -751,12 +752,12 @@ class TestCliCommands:
             }
         ).sort_values(["size_bytes", "station_id"], kind="stable").reset_index(drop=True)
         inventory["global_size_rank"] = range(1, len(inventory) + 1)
-        inventory["global_size_percentile"] = cli._distribution_percentiles(len(inventory))
-        inventory["size_quartile"] = cli._quartile_labels(len(inventory))
+        inventory["global_size_percentile"] = internal_cli._distribution_percentiles(len(inventory))
+        inventory["size_quartile"] = internal_cli._quartile_labels(len(inventory))
         inventory["quartile_rank"] = inventory.groupby("size_quartile", sort=False).cumcount() + 1
         quartile_sizes = inventory.groupby("size_quartile", sort=False)["station_id"].transform("size")
         inventory["quartile_percentile"] = [
-            cli._position_percentile(int(rank) - 1, int(size))
+            internal_cli._position_percentile(int(rank) - 1, int(size))
             for rank, size in zip(
                 inventory["quartile_rank"].astype(int).tolist(),
                 quartile_sizes.astype(int).tolist(),
@@ -764,7 +765,7 @@ class TestCliCommands:
             )
         ]
 
-        selected = cli._select_cleaning_batch_station_inventory_by_size_quartiles(
+        selected = internal_cli._select_cleaning_batch_station_inventory_by_size_quartiles(
             inventory,
             explicit_station_ids=(),
             count=8,
@@ -1024,7 +1025,7 @@ class TestCliCommands:
             called.update(kwargs)
             return {}
 
-        monkeypatch.setattr(cli, "build_reports_for_station_dir", fake_build_reports_for_station_dir)
+        monkeypatch.setattr(internal_cli, "build_reports_for_station_dir", fake_build_reports_for_station_dir)
         monkeypatch.setattr(
             sys,
             "argv",
@@ -1038,7 +1039,7 @@ class TestCliCommands:
                 "Test Author",
             ],
         )
-        cli.main()
+        internal_cli.main()
 
         assert called["station_dir"].resolve() == station_dir.resolve()
         assert called["access_date"] == "2026-02-28"
@@ -1081,8 +1082,8 @@ class TestCliCommands:
             report_called.update(kwargs)
             return {}
 
-        monkeypatch.setattr(cli, "process_location_from_raw", fake_process_location_from_raw)
-        monkeypatch.setattr(cli, "build_reports_for_station_dir", fake_build_reports_for_station_dir)
+        monkeypatch.setattr(internal_cli, "process_location_from_raw", fake_process_location_from_raw)
+        monkeypatch.setattr(internal_cli, "build_reports_for_station_dir", fake_build_reports_for_station_dir)
 
         monkeypatch.setattr(
             sys,
@@ -1106,7 +1107,7 @@ class TestCliCommands:
                 "Test Author",
             ],
         )
-        cli.main()
+        internal_cli.main()
 
         assert process_called["rows"] == 1
         assert process_called["aggregation_strategy"] == "fixed_hour"
@@ -1152,9 +1153,9 @@ class TestCliCommands:
                 yearly=sample,
             )
 
-        monkeypatch.setattr(cli, "process_location_from_raw", fake_process_location_from_raw)
+        monkeypatch.setattr(internal_cli, "process_location_from_raw", fake_process_location_from_raw)
         monkeypatch.setattr(
-            cli,
+            internal_cli,
             "build_reports_for_station_dir",
             lambda *_args, **_kwargs: {},
         )
@@ -1171,7 +1172,7 @@ class TestCliCommands:
                 "2026-02-28",
             ],
         )
-        cli.main()
+        internal_cli.main()
 
         domains_root = output_root.parent / "domains"
         assert (domains_root / "station_split_manifest.csv").exists()
@@ -1183,7 +1184,7 @@ class TestCliCommands:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.chdir(tmp_path)
-        monkeypatch.setattr(cli, "datetime", _FakeDateTime)
+        monkeypatch.setattr(internal_cli, "datetime", _FakeDateTime)
         input_root = tmp_path / "inputs"
         input_root.mkdir(parents=True)
 
@@ -1193,7 +1194,7 @@ class TestCliCommands:
             called["config"] = config
             return {}
 
-        monkeypatch.setattr(cli, "run_cleaning_run", fake_run_cleaning_run)
+        monkeypatch.setattr(internal_cli, "run_cleaning_run", fake_run_cleaning_run)
         monkeypatch.setattr(
             sys,
             "argv",
@@ -1212,7 +1213,7 @@ class TestCliCommands:
                 "5",
             ],
         )
-        cli.main()
+        internal_cli.main()
 
         config = called["config"]
         assert str(config.mode) == "batch_parquet_dir"
@@ -1249,7 +1250,7 @@ class TestCliCommands:
             called["config"] = config
             return {}
 
-        monkeypatch.setattr(cli, "run_cleaning_run", fake_run_cleaning_run)
+        monkeypatch.setattr(internal_cli, "run_cleaning_run", fake_run_cleaning_run)
         monkeypatch.setattr(
             sys,
             "argv",
@@ -1269,7 +1270,7 @@ class TestCliCommands:
                 "--write-station-reports",
             ],
         )
-        cli.main()
+        internal_cli.main()
 
         config = called["config"]
         assert str(config.mode) == "test_csv_dir"
@@ -1288,7 +1289,7 @@ class TestCliCommands:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.chdir(tmp_path)
-        monkeypatch.setattr(cli, "datetime", _FakeDateTime)
+        monkeypatch.setattr(internal_cli, "datetime", _FakeDateTime)
         input_root = tmp_path / "inputs"
         input_root.mkdir(parents=True)
 
@@ -1298,7 +1299,7 @@ class TestCliCommands:
             called["config"] = config
             return {}
 
-        monkeypatch.setattr(cli, "run_cleaning_run", fake_run_cleaning_run)
+        monkeypatch.setattr(internal_cli, "run_cleaning_run", fake_run_cleaning_run)
         monkeypatch.setattr(
             sys,
             "argv",
@@ -1313,7 +1314,7 @@ class TestCliCommands:
                 "parquet",
             ],
         )
-        cli.main()
+        internal_cli.main()
 
         config = called["config"]
         assert str(config.mode) == "test_parquet_dir"
@@ -1355,7 +1356,7 @@ class TestCliCommands:
             called["include_page_headers"] = include_page_headers
             return out_path
 
-        monkeypatch.setattr(cli, "convert_pdf_to_markdown", fake_convert_pdf_to_markdown)
+        monkeypatch.setattr(internal_cli, "convert_pdf_to_markdown", fake_convert_pdf_to_markdown)
 
         monkeypatch.setattr(
             sys,
@@ -1369,7 +1370,7 @@ class TestCliCommands:
                 "--no-page-headers",
             ],
         )
-        cli.main()
+        internal_cli.main()
 
         assert called["input_pdf"].resolve() == pdf_path.resolve()
         assert called["output_md"].resolve() == out_path.resolve()

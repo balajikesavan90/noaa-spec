@@ -1,12 +1,5 @@
 # Examples
 
-These are the user-facing examples for understanding what the cleaner produces.
+These are curated example artifacts for inspection, not the primary first-run path.
 
-- [docs/examples/noaa_demo](noaa_demo) contains lightweight HTML overview material.
-- [docs/examples/stations](stations) contains curated cleaned station outputs and reports kept in git.
-
-Start with:
-
-- [../QUICKSTART.md](../QUICKSTART.md) for the fastest runnable path
-- [../UNDERSTANDING_OUTPUT.md](../UNDERSTANDING_OUTPUT.md) for column-level interpretation
-- [`../../examples/run_minimal_cleaning.py`](../../examples/run_minimal_cleaning.py) for a minimal local script
+Start with [README.md](/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/README.md) for the public workflow and [../UNDERSTANDING_OUTPUT.md](../UNDERSTANDING_OUTPUT.md) for column interpretation.

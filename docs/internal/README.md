@@ -9,6 +9,7 @@ This section contains reviewer, architecture, validation, operations, and histor
 - Pipeline rationale: [PIPELINE_DESIGN_RATIONALE.md](PIPELINE_DESIGN_RATIONALE.md)
 - Parser guards: [PARSER_ENGINEERING_GUARDS.md](PARSER_ENGINEERING_GUARDS.md)
 - Validation plan: [PIPELINE_VALIDATION_PLAN.md](PIPELINE_VALIDATION_PLAN.md)
+- Release placeholder: [release/README.md](release/README.md)
 - Operations: [operations/README.md](operations/README.md)
 - Architecture notes: [architecture](architecture)
 - Reports: [reports](reports)

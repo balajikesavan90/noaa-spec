@@ -1,10 +1,9 @@
 # Documentation
 
-Start here if you are new to the repository:
+Start with [README.md](/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/README.md) for the first run.
 
-- [QUICKSTART.md](QUICKSTART.md)
-- [UNDERSTANDING_OUTPUT.md](UNDERSTANDING_OUTPUT.md)
-- [../reproducibility/README.md](../reproducibility/README.md)
-- [examples/README.md](examples/README.md)
+Use [UNDERSTANDING_OUTPUT.md](UNDERSTANDING_OUTPUT.md) to interpret cleaned columns.
 
-The JOSS-facing contribution is the deterministic canonical cleaner for NOAA ISD / Global Hourly records. Internal maintainer material for broader publication, operations, and architecture workflows lives under [internal/README.md](internal/README.md).
+Use [../reproducibility/README.md](../reproducibility/README.md) for checksum-backed reruns.
+
+Maintainer-only material lives under [internal/README.md](internal/README.md).

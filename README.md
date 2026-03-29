@@ -2,119 +2,88 @@
 
 ## What this does
 
-NOAA-Spec is a reusable NOAA-specific cleaner for NOAA Integrated Surface Database (ISD) / Global Hourly observation records. It turns raw encoded rows into this package's canonical cleaned representation: deterministic observation-level output with explicit handling of sentinels, quality-code semantics, and stable column names. It is for researchers and engineers who want one inspectable cleaning surface instead of rebuilding NOAA-specific parsing logic in project-local scripts.
+This package provides a reusable, deterministic canonical cleaning layer for NOAA ISD / Global Hourly data, standardizing sentinel handling, QC semantics, and output schema beyond existing parsing-focused tools.
 
-## 2-minute quickstart
+We are not aware of any existing reusable NOAA ISD cleaning layer that provides a stable observation-level contract.
 
-User quickstart for Python 3.12+:
+NOAA-Spec is a focused cleaning tool. It turns raw NOAA observation rows into a deterministic cleaned CSV with explicit nulls, preserved quality codes, and stable column names that downstream analysis can rely on.
+
+## Environment
+
+Requires Python 3.12 with `python3.12-venv` installed.
 
 ```bash
-python3 -m venv .venv
+python3.12 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install --upgrade pip
 python3 -m pip install -e .
-python3 -m noaa_spec.quickstart
 ```
 
-This writes a cleaned sample CSV to:
+## Minimal Real Workflow
+
+Use the bundled raw NOAA sample in [reproducibility/minimal/station_raw.csv](/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/reproducibility/minimal/station_raw.csv). It is tracked in the repository, so the workflow is runnable without finding outside data first.
+
+Clean it with the public CLI:
+
+```bash
+noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv
+```
+
+Before:
 
 ```text
-/tmp/noaa-spec-quickstart/station_cleaned.csv
+DATE                 TMP      DEW      VIS
+2000-01-10T06:00:00  +0180,1  +0100,1  010000,1,N,1
+2000-03-17T09:00:00  +9999,9  +9999,9  999999,9,N,1
 ```
 
-This is the primary ordinary-user path. If `python3 -m venv .venv` fails because `venv` support is missing on your system, use the optional helper `bash scripts/check_reviewer_env.sh` to diagnose missing OS packages. Reviewer and maintainer workflows are separate and documented below.
-
-## Use this on your own NOAA data
-
-After the bundled sample runs, clean a user-owned NOAA file:
-
-```bash
-noaa-spec clean my_station.csv --out cleaned.csv
-```
-
-`my_station.csv` should be a raw NOAA ISD / Global Hourly CSV in the same general structure as the bundled sample. For reference, inspect the bundled sample at [reproducibility/minimal/station_raw.csv](reproducibility/minimal/station_raw.csv).
-
-Most ordinary users only need the `clean` command. The other CLI commands support batch, pipeline, or advanced workflows.
-
-## Reproducibility boundary
-
-Reviewer-verifiable from this repository alone:
-
-- the canonical cleaning command exposed through `noaa-spec clean ...`
-- the bundled quickstart sample
-- the tracked reproducibility fixture in `reproducibility/minimal/`
-- checksum-backed verification through [reproducibility/README.md](reproducibility/README.md)
-
-Included in the repository but not part of the bounded JOSS review surface:
-
-- broader release/publication layout under [release/README.md](release/README.md)
-- domain-split, reporting, and operations material under [docs/internal/README.md](docs/internal/README.md)
-- curated illustrative example artifacts under [docs/examples/README.md](docs/examples/README.md)
-
-## What you get
-
-Small before vs after example:
+After:
 
 ```text
-Before: TMP="+9999,9", DEW="+9999,9", VIS="999999,9,N,1"
-After:  temperature_c=, temperature_quality_code=9, dew_point_c=, visibility_m=
+DATE                 temperature_c  temperature_quality_code  dew_point_c  visibility_m  TMP__qc_reason
+2000-01-10T06:00:00  18.0           1                         10.0         10000.0       NaN
+2000-03-17T09:00:00  NaN            9                         NaN          NaN           SENTINEL_MISSING
 ```
 
-The cleaned output keeps NOAA context while making core values usable:
+Key transformations:
 
-- `STATION`: NOAA station identifier.
-- `DATE`: observation timestamp from the source row.
-- `temperature_c`: cleaned Celsius temperature.
-- `temperature_quality_code`: original NOAA QC code for temperature.
-- `wind_speed_ms`: cleaned wind speed in meters per second.
+- Sentinel-coded values such as `+9999,9` become nulls instead of fake measurements.
+- NOAA QC semantics are preserved in separate fields such as `temperature_quality_code`.
+- Output columns are normalized into a stable observation-level schema such as `temperature_c`, `dew_point_c`, and `visibility_m`.
 
-What changed:
+## Reproducible Example
 
-- sentinel values such as `+9999,9` become missing values (`NaN`) instead of fake numbers
-- QC codes are preserved in separate columns instead of being discarded
-- numeric weather fields are normalized into consistent units and column names
-- the output is written deterministically so reruns produce the same artifact
+The curated reproducibility fixture is fully tracked in-repo:
 
-Start by reading the measurement columns such as `temperature_c`, `dew_point_c`, `wind_speed_ms`, and `visibility_m`. Many `*_QC` and `__qc_*` columns can be ignored at first unless you need quality-based filtering or want to inspect why a cleaned value is missing (`NaN`). A fuller explanation is in [docs/UNDERSTANDING_OUTPUT.md](docs/UNDERSTANDING_OUTPUT.md).
+- Raw input: [reproducibility/minimal/station_raw.csv](/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/reproducibility/minimal/station_raw.csv)
+- Raw input SHA256: `50e8bfb9ffae8278652bb7410cfbc9683a48711c35cfcf9e9dd3c38bbc403d47`
+- Expected cleaned output: [reproducibility/minimal/station_cleaned_expected.csv](/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/reproducibility/minimal/station_cleaned_expected.csv)
+- Expected cleaned SHA256: `b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597`
 
-## Reviewer reproducibility
-
-Use this only for bounded review or reproducibility checks. It is intentionally separate from the ordinary-user quickstart above.
-
-Run from a clean checkout so the result does not depend on an existing editable install or active virtual environment.
-
-Build the reviewer image from the repository root:
+Exact command used:
 
 ```bash
-docker build -f Dockerfile -t noaa-spec-review .
+python3 reproducibility/run_pipeline_example.py --example minimal --out /tmp/noaa-spec-sample.csv
 ```
 
-Run the bounded reproducibility check inside the container:
+The reproducibility workflow and checksum verification are documented in [reproducibility/README.md](/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/reproducibility/README.md).
 
-```bash
-docker run --rm noaa-spec-review bash scripts/verify_reproducibility.sh
-```
+## Why this exists
 
-For the complete reviewer workflow, expected artifacts, and optional local debugging path, see [reproducibility/README.md](reproducibility/README.md).
+Existing NOAA tools help users parse or access ISD data, but raw NOAA rows still contain compact encodings, sentinel values, and field-specific QC behavior that are not analysis-ready. NOAA-Spec packages those cleaning decisions into one reusable surface so different projects can start from the same documented observation-level output.
 
-## When to use this
+## Scope
 
-Use NOAA-Spec when you need deterministic NOAA cleaning, explicit QC handling, and a stable cleaned observation-level dataset you can compare or reuse across downstream work.
+The public surface is intentionally small:
 
-## Why not just use pandas?
+- library cleaning code under [src/noaa_spec](/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/src/noaa_spec)
+- the public `noaa-spec clean` command
+- the reproducible example under [reproducibility/](/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/reproducibility)
 
-- raw NOAA fields embed sentinel values and subfield encodings that are easy to handle inconsistently
-- QC semantics vary by field, and this package keeps them aligned with the cleaned values
-- using one documented cleaning surface reduces station-to-station drift in downstream work
-- deterministic output writing helps reviewers and downstream users confirm that the cleaning path has not drifted
+Batch orchestration, domain splitting, manifests, and report-generation material are maintainer-facing and live behind internal docs or the internal CLI.
 
-This is overkill when you only need a quick one-off exploration of a tiny sample, are comfortable interpreting NOAA encoded fields yourself, or do not care about preserving QC context.
+## Docs
 
-## Full docs
-
-- Quickstart details: [docs/QUICKSTART.md](docs/QUICKSTART.md)
-- Understand the output: [docs/UNDERSTANDING_OUTPUT.md](docs/UNDERSTANDING_OUTPUT.md)
-- Reproducibility guide: [reproducibility/README.md](reproducibility/README.md)
-- Examples: [docs/examples/README.md](docs/examples/README.md)
-- Minimal example script: [examples/run_minimal_cleaning.py](examples/run_minimal_cleaning.py)
-- Internal maintainer docs for broader publication and operations workflows: [docs/internal/README.md](docs/internal/README.md)
+- Output guide: [docs/UNDERSTANDING_OUTPUT.md](/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/docs/UNDERSTANDING_OUTPUT.md)
+- Reproducibility: [reproducibility/README.md](/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/reproducibility/README.md)
+- Internal maintainer docs: [docs/internal/README.md](/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/docs/internal/README.md)
