@@ -422,7 +422,12 @@ def _release_roots_for_base(base_root: Path, run_id: str) -> dict[str, Path]:
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="NOAA Global Hourly pipeline")
+    parser = argparse.ArgumentParser(
+        description=(
+            "NOAA-Spec CLI for deterministic NOAA ISD / Global Hourly cleaning. "
+            "Most users should start with: noaa-spec clean INPUT.csv --out cleaned.csv"
+        )
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     file_list_parser = subparsers.add_parser("file-list", help="Build NOAA file list")
@@ -685,7 +690,7 @@ def _parse_args() -> argparse.Namespace:
 
     clean_parser = subparsers.add_parser(
         "clean",
-        help="Clean a NOAA raw CSV into a cleaned CSV with minimal arguments",
+        help="Primary entry point: clean a NOAA raw CSV into the canonical cleaned CSV",
     )
     clean_parser.add_argument("input_csv", type=Path, help="Input NOAA raw CSV path")
     clean_parser.add_argument(

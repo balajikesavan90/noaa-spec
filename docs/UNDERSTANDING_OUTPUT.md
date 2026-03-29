@@ -1,6 +1,6 @@
 # Understanding the Output
 
-This guide is for first-time users who want to understand what the cleaned dataset contains and what the cleaner changed.
+This guide is for first-time users who want to understand what the cleaned dataset contains and what the canonical cleaner changed. The output described here is NOAA-Spec's stable cleaned representation for NOAA ISD / Global Hourly records, not a claim of community-wide standardization.
 
 ## A 10-column subset
 

@@ -9,6 +9,7 @@ import tempfile
 import pandas as pd
 
 from noaa_spec.cleaning import clean_noaa_dataframe
+from noaa_spec.deterministic_io import write_deterministic_csv
 
 
 EXAMPLES = {
@@ -52,7 +53,12 @@ def main() -> None:
 
     raw = pd.read_csv(raw_path, dtype=str)
     cleaned = clean_noaa_dataframe(raw, keep_raw=False, strict_mode=True)
-    cleaned.to_csv(cleaned_path, index=False, float_format="%.1f")
+    write_deterministic_csv(
+        cleaned,
+        cleaned_path,
+        sort_by=("STATION", "DATE"),
+        float_format="%.1f",
+    )
 
 
 if __name__ == "__main__":

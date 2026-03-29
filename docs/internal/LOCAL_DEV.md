@@ -13,15 +13,13 @@ bash scripts/check_reviewer_env.sh
 python3 -m venv .review-venv
 source .review-venv/bin/activate
 python3 -m pip install --upgrade pip
-pip install -r requirements-review.txt
-pip install -e .
+python3 -m pip install -r requirements-review.txt
+python3 -m pip install -e .
 python3 reproducibility/run_pipeline_example.py --example minimal --out /tmp/noaa-spec-sample.csv
 bash scripts/verify_reproducibility.sh
 pytest -q
 ```
 
-Expected pytest result in the tested environment:
+The exact pytest count is expected to change as the repository evolves; use this path to confirm local success, not to assert a frozen reviewer count.
 
-- `2194 passed, 15 skipped`
-
-System package requirements may vary by host OS and are outside the supported reviewer workflow.
+System package requirements may vary by host OS and are outside the supported reviewer workflow. For the clean reviewer path, use the Docker commands in [reproducibility/README.md](../../reproducibility/README.md).

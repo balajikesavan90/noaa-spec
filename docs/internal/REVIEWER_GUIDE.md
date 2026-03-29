@@ -1,8 +1,6 @@
 # Reviewer Guide
 
-Use the root [README.md](../README.md) line-by-line.
-
-The supported reviewer path for this submission is the Docker workflow in the root [README.md](../README.md).
+Use [reproducibility/README.md](../../reproducibility/README.md) for the complete reviewer workflow. The root [README.md](../README.md) only summarizes that path.
 
 That supported path requires a working Docker installation with daemon access; the `docker` CLI alone is not sufficient.
 

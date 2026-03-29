@@ -2,21 +2,19 @@
 
 ## What this does
 
-NOAA-Spec cleans NOAA Integrated Surface Database (ISD) / Global Hourly records into a stable, structured canonical dataset for downstream analysis. It is for researchers and engineers who want NOAA-specific cleaning rules handled consistently instead of rebuilding them in notebooks. The package exists to make sentinel handling, quality-code preservation, and output reproducibility explicit.
+NOAA-Spec is a reusable NOAA-specific cleaner for NOAA Integrated Surface Database (ISD) / Global Hourly observation records. It turns raw encoded rows into this package's canonical cleaned representation: deterministic observation-level output with explicit handling of sentinels, quality-code semantics, and stable column names. It is for researchers and engineers who want one inspectable cleaning surface instead of rebuilding NOAA-specific parsing logic in project-local scripts.
 
 ## 2-minute quickstart
 
 User quickstart for Python 3.12+:
 
 ```bash
-bash scripts/check_reviewer_env.sh
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e .
+python3 -m pip install --upgrade pip
+python3 -m pip install -e .
 python3 -m noaa_spec.quickstart
 ```
-
-Run `bash scripts/check_reviewer_env.sh` first to confirm your local Python installation includes the required `venv` support. If `venv` support is missing, install `python3-venv` with your system package manager and rerun the check.
 
 This writes a cleaned sample CSV to:
 
@@ -24,26 +22,7 @@ This writes a cleaned sample CSV to:
 /tmp/noaa-spec-quickstart/station_cleaned.csv
 ```
 
-This is the ordinary user path. Use Poetry for development workflows. Use Docker for the reviewer/reproducibility workflow.
-
-## Which path should I use?
-
-Quickstart for users:
-
-- local virtual environment
-- `pip install -e .`
-- `python3 -m noaa_spec.quickstart`
-- for most ordinary users, `noaa-spec clean ...` is the only CLI command you need
-
-Development:
-
-- Poetry
-- see [docs/internal/LOCAL_DEV.md](docs/internal/LOCAL_DEV.md)
-
-Reproducibility / review:
-
-- Docker
-- see [reproducibility/README.md](reproducibility/README.md)
+This is the primary ordinary-user path. If `python3 -m venv .venv` fails because `venv` support is missing on your system, use the optional helper `bash scripts/check_reviewer_env.sh` to diagnose missing OS packages. Reviewer and maintainer workflows are separate and documented below.
 
 ## Use this on your own NOAA data
 
@@ -57,16 +36,20 @@ noaa-spec clean my_station.csv --out cleaned.csv
 
 Most ordinary users only need the `clean` command. The other CLI commands support batch, pipeline, or advanced workflows.
 
-## One realistic local workflow
+## Reproducibility boundary
 
-```bash
-bash scripts/check_reviewer_env.sh
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .
-python3 -m noaa_spec.quickstart
-noaa-spec clean my_station.csv --out cleaned.csv
-```
+Reviewer-verifiable from this repository alone:
+
+- the canonical cleaning command exposed through `noaa-spec clean ...`
+- the bundled quickstart sample
+- the tracked reproducibility fixture in `reproducibility/minimal/`
+- checksum-backed verification through [reproducibility/README.md](reproducibility/README.md)
+
+Included in the repository but not part of the bounded JOSS review surface:
+
+- broader release/publication layout under [release/README.md](release/README.md)
+- domain-split, reporting, and operations material under [docs/internal/README.md](docs/internal/README.md)
+- curated illustrative example artifacts under [docs/examples/README.md](docs/examples/README.md)
 
 ## What you get
 
@@ -94,29 +77,36 @@ What changed:
 
 Start by reading the measurement columns such as `temperature_c`, `dew_point_c`, `wind_speed_ms`, and `visibility_m`. Many `*_QC` and `__qc_*` columns can be ignored at first unless you need quality-based filtering or want to inspect why a cleaned value is missing (`NaN`). A fuller explanation is in [docs/UNDERSTANDING_OUTPUT.md](docs/UNDERSTANDING_OUTPUT.md).
 
-## Docker reproducibility
+## Reviewer reproducibility
 
-Docker is the supported reviewer and reproducibility path, not the main ordinary-user install path.
+Use this only for bounded review or reproducibility checks. It is intentionally separate from the ordinary-user quickstart above.
 
-Build and run the bundled reproducibility example:
+Run from a clean checkout so the result does not depend on an existing editable install or active virtual environment.
+
+Build the reviewer image from the repository root:
 
 ```bash
-docker build -f reproducibility/Dockerfile -t noaa-spec-review .
+docker build -f Dockerfile -t noaa-spec-review .
+```
+
+Run the bounded reproducibility check inside the container:
+
+```bash
 docker run --rm noaa-spec-review bash scripts/verify_reproducibility.sh
 ```
 
-This reruns the canonical minimal example inside the reviewer container and checks it against the tracked expected artifact and checksum. For details, see [reproducibility/README.md](reproducibility/README.md).
+For the complete reviewer workflow, expected artifacts, and optional local debugging path, see [reproducibility/README.md](reproducibility/README.md).
 
 ## When to use this
 
-Use NOAA-Spec when you need repeatable NOAA cleaning across stations, explicit QC handling, and a stable cleaned dataset you can cite, compare, or reuse.
+Use NOAA-Spec when you need deterministic NOAA cleaning, explicit QC handling, and a stable cleaned observation-level dataset you can compare or reuse across downstream work.
 
 ## Why not just use pandas?
 
 - raw NOAA fields embed sentinel values and subfield encodings that are easy to handle inconsistently
 - QC semantics vary by field, and this package keeps them aligned with the cleaned values
 - using one documented cleaning surface reduces station-to-station drift in downstream work
-- deterministic output writing helps with reproducibility and release workflows
+- deterministic output writing helps reviewers and downstream users confirm that the cleaning path has not drifted
 
 This is overkill when you only need a quick one-off exploration of a tiny sample, are comfortable interpreting NOAA encoded fields yourself, or do not care about preserving QC context.
 
@@ -124,7 +114,7 @@ This is overkill when you only need a quick one-off exploration of a tiny sample
 
 - Quickstart details: [docs/QUICKSTART.md](docs/QUICKSTART.md)
 - Understand the output: [docs/UNDERSTANDING_OUTPUT.md](docs/UNDERSTANDING_OUTPUT.md)
+- Reproducibility guide: [reproducibility/README.md](reproducibility/README.md)
 - Examples: [docs/examples/README.md](docs/examples/README.md)
 - Minimal example script: [examples/run_minimal_cleaning.py](examples/run_minimal_cleaning.py)
-- Reproducibility notes: [reproducibility/README.md](reproducibility/README.md)
-- Internal architecture, reviewer, validation, and operations docs: [docs/internal/README.md](docs/internal/README.md)
+- Internal maintainer docs for broader publication and operations workflows: [docs/internal/README.md](docs/internal/README.md)

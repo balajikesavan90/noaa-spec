@@ -22,9 +22,10 @@ def test_readme_is_user_first() -> None:
     for section in (
         "## What this does",
         "## 2-minute quickstart",
-        "## Which path should I use?",
         "## Use this on your own NOAA data",
+        "## Reproducibility boundary",
         "## What you get",
+        "## Reviewer reproducibility",
         "## When to use this",
         "## Why not just use pandas?",
         "## Full docs",
@@ -33,11 +34,13 @@ def test_readme_is_user_first() -> None:
 
     assert "python3 -m venv .venv" in text
     assert "source .venv/bin/activate" in text
+    assert "python3 -m pip install --upgrade pip" in text
     assert "python3 -m noaa_spec.quickstart" in text
-    assert "bash scripts/check_reviewer_env.sh" in text
+    assert "python3 -m pip install -e ." in text
     assert "noaa-spec clean my_station.csv --out cleaned.csv" in text
     assert "/tmp/noaa-spec-quickstart/station_cleaned.csv" in text
-    assert "docker build -f reproducibility/Dockerfile -t noaa-spec-review ." in text
+    assert "docker build -f Dockerfile -t noaa-spec-review ." in text
+    assert "clean checkout" in text
     assert "## Reviewer Quickstart" not in text
     assert "## Supported Platform" not in text
 
@@ -47,6 +50,7 @@ def test_docs_index_only_surfaces_user_relevant_entrypoints() -> None:
 
     assert "[QUICKSTART.md](QUICKSTART.md)" in text
     assert "[UNDERSTANDING_OUTPUT.md](UNDERSTANDING_OUTPUT.md)" in text
+    assert "[../reproducibility/README.md](../reproducibility/README.md)" in text
     assert "[examples/README.md](examples/README.md)" in text
     assert "[internal/README.md](internal/README.md)" in text
     assert "REVIEWER_GUIDE" not in text
@@ -60,10 +64,12 @@ def test_quickstart_and_output_docs_exist() -> None:
 
     assert "python3 -m venv .venv" in quickstart_text
     assert "source .venv/bin/activate" in quickstart_text
+    assert "python3 -m pip install --upgrade pip" in quickstart_text
     assert "python3 -m noaa_spec.quickstart" in quickstart_text
-    assert "bash scripts/check_reviewer_env.sh" in quickstart_text
+    assert "python3 -m pip install -e ." in quickstart_text
     assert "noaa-spec clean my_station.csv --out cleaned.csv" in quickstart_text
     assert "python3 examples/run_minimal_cleaning.py --out /tmp/noaa-spec-example.csv" in quickstart_text
+    assert "../reproducibility/README.md" in quickstart_text
 
     assert "A 10-column subset" in output_text
     assert "Where to start" in output_text
@@ -128,7 +134,10 @@ def test_internal_markdown_records_keep_banner() -> None:
 
 def test_reproducibility_doc_points_to_internal_local_dev_doc() -> None:
     text = REPRODUCIBILITY_README_PATH.read_text(encoding="utf-8")
-    assert "[docs/internal/LOCAL_DEV.md](../docs/internal/LOCAL_DEV.md)" in text
+    assert "docker build -f Dockerfile -t noaa-spec-review ." in text
+    assert "docker run --rm noaa-spec-review bash scripts/verify_reproducibility.sh" in text
+    assert "do not rely on an existing editable install" in text
+    assert "## Optional local debugging path" in text
 
 
 def test_release_surface_remains_stubbed() -> None:
