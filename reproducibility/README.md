@@ -2,6 +2,8 @@
 
 This directory contains the tracked bounded reproducibility fixtures used for reviewer verification.
 
+The purpose of these fixtures is to let reviewers and users rerun the demonstrated NOAA-specific cleaning path and confirm that the same cleaned output is produced for the same input and configuration.
+
 The supported reproducibility path for this revision is the Docker reviewer workflow in the root [README.md](../README.md).
 
 The containerized reviewer environment uses Python 3.12.
@@ -36,6 +38,6 @@ Expected pytest result in the reviewer container:
 
 - `2194 passed, 15 skipped`
 
-This submission validates deterministic canonical cleaning using a bounded, checksum-verified example included in-repo. Broader publication artifacts (release bundles, manifests, and quality reports) are part of the system design but are not included in this review package.
+This submission validates deterministic canonical cleaning using a bounded, checksum-verified example included in-repo. Broader publication artifacts (release bundles, manifests, domain publication outputs, and quality reports) are part of the documented system design but are not included in this review package.
 
 No archived release bundle is linked for this revision.

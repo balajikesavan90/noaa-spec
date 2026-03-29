@@ -4,6 +4,8 @@ This repository distinguishes publication artifacts from runtime artifacts.
 
 Reviewer note: the active development checkout does not bundle a frozen `release/build_<build_id>/` snapshot. The reviewer-facing reproducibility path is the bounded sample in `reproducibility/` plus the tracked tests and docs.
 
+This distinction matters for submission framing: the repository documents a broader publication architecture, but the reviewer-verifiable evidence in this revision is the bounded canonical cleaning example rather than a frozen end-to-end release bundle.
+
 ## Canonical Publication Surface
 
 Release artifacts must be written under:

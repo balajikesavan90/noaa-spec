@@ -10,13 +10,19 @@ The supported reviewer path for this submission is Docker. Local installation is
 
 ## What NOAA-Spec does
 
-NOAA-Spec converts raw NOAA Integrated Surface Database (ISD) / Global Hourly records into deterministic, specification-constrained cleaned outputs. In this repository snapshot, the reviewer-verifiable surface is a bounded cleaning example with checksum verification and tests.
+NOAA-Spec is a specification-constrained preprocessing system for NOAA Integrated Surface Database (ISD) / Global Hourly records that converts encoded observations into deterministic cleaned outputs with explicit quality semantics, provenance, and bounded reproducibility. In this repository snapshot, the reviewer-verifiable surface is the canonical cleaning example in `reproducibility/`, plus checksum verification and tests.
 
 NOAA-Spec is intended for researchers and engineers who need reproducible preprocessing of NOAA ISD / Global Hourly observations before downstream analysis.
 
 ## Why NOAA ISD is not analysis-ready
 
 NOAA ISD observations contain fixed-width fields, comma-encoded substructures, sentinel values, quality flags, and section-dependent semantics that must be interpreted from NOAA documentation before downstream use is reproducible.
+
+## Current practice vs NOAA-Spec
+
+Many NOAA ISD workflows rely on project-specific scripts or notebook preprocessing to interpret encoded fields, remove sentinels, and decide how quality flags affect usable values. That approach can work for one study, but it often leaves the preprocessing contract implicit.
+
+NOAA-Spec packages those NOAA-specific steps into an inspectable software surface with deterministic cleaned outputs, explicit contracts, preserved provenance, and bounded reproducibility fixtures. The goal is a stable preprocessing handoff for downstream analysis, not a generic validation framework.
 
 ## Installation
 
@@ -65,7 +71,7 @@ Local installation is optional and intended for development only. Reviewer-facin
 
 ## Reproducibility Boundary
 
-This submission validates the bounded, checksum-backed canonical cleaning example included in-repo. Release manifests and quality reports are part of the broader system design, but they are not included as reviewer-verifiable artifacts in this submission.
+This submission validates the bounded, checksum-backed canonical cleaning example included in-repo. Release manifests, domain publication outputs, and quality reports are part of the broader documented system design, but they are not included as reviewer-verifiable artifacts in this submission.
 
 ## Contracts and Validation
 
@@ -76,7 +82,13 @@ NOAA-Spec is organized around explicit software surfaces:
 - deterministic serialization and checksum verification
 - tests that guard parser behavior and documentation integrity
 
+These are means to user-facing ends: reproducible cleaned outputs, inspectable output columns and semantics, and a preprocessing path that can be audited instead of remaining hidden in ad hoc scripts.
+
 In the Docker reviewer path, `sha256sum` and `git` are provided inside the container.
+
+## Reusability Boundary
+
+NOAA-Spec is NOAA-specific software, not a general-purpose ETL or validation framework. The substantive parsing and cleaning logic is tied to NOAA ISD / Global Hourly field structure and documentation. Some engineering patterns used here, such as contracts, provenance tracking, and deterministic fixtures, may transfer to other datasets, but that is not the primary claim of this repository snapshot.
 
 ## When to use / when not to use
 

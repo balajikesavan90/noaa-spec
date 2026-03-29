@@ -3,6 +3,8 @@
 This document publishes researcher-facing domain dataset definitions from
 `src/noaa_spec/domains/`.
 
+These registry entries describe the intended public contract for NOAA-Spec domain outputs. In this revision, they document the broader software surface, but domain datasets are not part of the bounded reviewer reproducibility example under `reproducibility/`.
+
 All domain datasets are observation-level slices derived from canonical cleaned
 observations and are joinable using shared identity keys:
 
