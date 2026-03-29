@@ -10,7 +10,7 @@ The supported reviewer path for this submission is Docker. Local installation is
 
 ## What NOAA-Spec does
 
-NOAA-Spec is a reusable NOAA-specific preprocessing package for NOAA Integrated Surface Database (ISD) / Global Hourly records. It converts encoded observations into stable cleaned outputs with explicit handling of field semantics, sentinel values, quality codes, provenance, and bounded reproducibility. Its practical purpose is to replace project-local ISD cleaning logic with one inspectable preprocessing surface so analysts using the same raw NOAA input are less likely to produce silently different cleaned datasets. In this repository snapshot, the reviewer-verifiable surface is the canonical cleaning example in `reproducibility/`, plus checksum verification and tests.
+NOAA-Spec is a reusable NOAA-specific preprocessing package for NOAA Integrated Surface Database (ISD) / Global Hourly records. Its contribution in this repository snapshot is a canonical cleaning layer that turns encoded observations into stable cleaned outputs with explicit handling of field semantics, sentinel values, and quality codes. The practical purpose is to replace project-local ISD cleaning logic with one inspectable preprocessing surface so analysts using the same raw NOAA input are less likely to produce silently different cleaned datasets. In this revision, the reviewer-verifiable surface is the canonical cleaning example in `reproducibility/`, plus checksum verification and tests.
 
 NOAA-Spec is intended for researchers and engineers who need reproducible preprocessing of NOAA ISD / Global Hourly observations before downstream analysis.
 
@@ -22,7 +22,7 @@ NOAA ISD observations contain fixed-width fields, comma-encoded substructures, s
 
 Many NOAA ISD workflows rely on project-specific scripts or notebook preprocessing to interpret encoded fields, remove sentinels, and decide how quality flags affect usable values. That approach can work for one study, but it often leaves the preprocessing contract implicit and can produce silently different cleaned outputs from the same raw records.
 
-NOAA-Spec packages those NOAA-specific steps into an inspectable software surface with deterministic cleaned outputs, explicit contracts, preserved provenance, and bounded reproducibility fixtures. A concrete committed repository example is station `16754399999` (KARPATHOS, GR): its tracked quality report records sentinel replacements for `temperature_c`, and its tracked aggregation report records separate canonical temperature-quality/status fields. NOAA-Spec makes that handling explicit instead of leaving it implicit in local script logic. The goal is a stable NOAA-specific preprocessing handoff for downstream analysis, not a generic validation framework.
+NOAA-Spec packages those NOAA-specific steps into an inspectable software surface with deterministic cleaned outputs, explicit contracts, preserved quality context, and bounded reproducibility fixtures. A concrete committed repository example is station `16754399999` (KARPATHOS, GR): its tracked quality report records sentinel replacements for `temperature_c`, and its tracked aggregation report records separate canonical temperature-quality/status fields. In the minimal reproducibility fixture, raw `TMP` tokens such as `+9999,9` become null `temperature_c` values with explicit QC-status fields preserved, while valid tokens such as `+0180,1` become numeric cleaned temperatures. NOAA-Spec makes that handling explicit instead of leaving it implicit in local script logic. The goal is a stable NOAA-specific preprocessing handoff for downstream analysis, not a generic validation framework.
 
 ## Installation
 
@@ -71,7 +71,7 @@ Local installation is optional and intended for development only. Reviewer-facin
 
 ## Reproducibility Boundary
 
-This submission validates the bounded, checksum-backed canonical cleaning example included in-repo. Release manifests, domain publication outputs, and quality reports are part of the broader documented system design, but they are not included as reviewer-verifiable artifacts in this submission.
+This submission validates the bounded, checksum-backed canonical cleaning example included in-repo. Release manifests, domain publication outputs, and repository-level quality-report publication are part of the broader documented system design, but they are not included as reviewer-verifiable artifacts in this submission and should not be treated as evidence for this revision.
 
 ## Contracts and Validation
 

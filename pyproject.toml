@@ -1,7 +1,7 @@
 [project]
 name = "noaa-spec"
 version = "0.1.0"
-description = "Specification-constrained software for converting NOAA ISD / Global Hourly observations into deterministic cleaned datasets, quality reports, and release manifests."
+description = "Specification-constrained software for converting NOAA ISD / Global Hourly observations into deterministic canonical cleaned datasets with explicit quality semantics."
 authors = [
     {name = "Balaji Kesavan",email = "balajikesavan29@gmail.com"}
 ]
