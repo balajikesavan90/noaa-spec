@@ -1,10 +1,16 @@
 # Understanding the Output
 
-This guide is for first-time users who want to understand what the cleaned dataset contains and what the canonical cleaner changed. The output described here is NOAA-Spec's stable cleaned representation for NOAA ISD / Global Hourly records, not a claim of community-wide standardization.
+This guide is for first-time users who want to understand what the canonical cleaned output contains and what the cleaner changed. The output described here is NOAA-Spec's stable cleaned representation for NOAA ISD / Global Hourly records, not a claim of community-wide standardization.
+
+## What this file is
+
+The canonical cleaned CSV is intentionally wide. It is a loss-preserving normalized representation of NOAA observations: cleaned measurement fields, preserved QC context, and supporting observation metadata live together in one deterministic source-of-truth layer.
+
+That means most downstream workflows will not use every column. Analysts will usually select a relevant subset for a task, and broader repository workflows can also derive narrower domain datasets from the canonical layer.
 
 ## A 10-column subset
 
-Here is a useful subset from the cleaned sample:
+Here is a useful subset from the canonical cleaned sample:
 
 | Column | Meaning |
 | --- | --- |
@@ -36,7 +42,7 @@ NOAA raw files use encoded missing-value sentinels such as `+9999,9` or `999999,
 
 NOAA-Spec does not leave those as misleading numbers.
 
-- sentinel numeric values become missing values (`NaN`) in the cleaned dataset
+- sentinel numeric values become missing values (`NaN`) in the canonical cleaned output
 - the related NOAA quality code is still preserved
 - the row itself is kept unless the underlying parser rules require something stricter
 
@@ -55,7 +61,7 @@ This lets you decide later whether to filter, inspect, or stratify by data quali
 
 ## Missing values
 
-In the cleaned CSV, missing cleaned values appear as empty cells and will typically be read by pandas as missing values (`NaN`).
+In the canonical cleaned CSV, missing cleaned values appear as empty cells and will typically be read by pandas as missing values (`NaN`).
 
 That usually means one of these:
 
@@ -96,10 +102,12 @@ What happened:
 
 ## What this output is good for
 
-This cleaned dataset is a better starting point when you want:
+This canonical cleaned representation is a better starting point when you want:
 
 - consistent field handling across many stations
-- a reusable cleaned, structured input to downstream analysis
+- a reusable, deterministic source representation for downstream analysis
 - QC-aware filtering after cleaning rather than ad hoc preprocessing before it
+
+When you only need one part of the observational record, start from a subset of relevant columns. In broader repository workflows, NOAA-Spec can also emit narrower domain datasets for focused downstream use.
 
 If you only need a quick notebook exploration of one file, this may be more structure than you need.

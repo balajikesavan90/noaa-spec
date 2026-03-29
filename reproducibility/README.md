@@ -15,6 +15,8 @@ For reviewer verification in a clean environment, use the Docker workflow below.
 - Expected output: `reproducibility/minimal/station_cleaned_expected.csv`
 - Expected output SHA256: `b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597`
 
+The tracked output is the canonical cleaned representation for the sample input. It is intentionally wider than the preview shown in the README because it preserves normalized observation fields, QC context, and supporting metadata in one deterministic artifact.
+
 Exact command:
 
 ```bash

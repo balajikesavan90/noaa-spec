@@ -2,9 +2,9 @@
 
 ## What this does
 
-NOAA-Spec is a narrow, deterministic cleaning layer for NOAA ISD / Global Hourly observations. It turns raw NOAA observation rows into a cleaned CSV with explicit nulls, preserved quality codes, and stable column names that downstream analysis can rely on.
+NOAA-Spec is a narrow, deterministic cleaning layer for NOAA ISD / Global Hourly observations. It turns raw NOAA observation rows into a canonical cleaned CSV: a loss-preserving normalized representation with explicit nulls, preserved quality codes, and stable column names.
 
-Existing NOAA tools help users parse or access ISD data, but raw NOAA rows still contain compact encodings, sentinel values, and field-specific QC behavior that are not analysis-ready. NOAA-Spec packages those observation-cleaning decisions into one reusable contract so different projects can start from the same documented output.
+Existing NOAA tools help users parse or access ISD data, but raw NOAA rows still contain compact encodings, sentinel values, and field-specific QC behavior that are not analysis-ready. NOAA-Spec packages those observation-cleaning decisions into one reusable contract so different projects can start from the same documented canonical representation.
 
 ## Public Scope
 
@@ -58,6 +58,8 @@ Key transformations:
 - Sentinel-coded values such as `+9999,9` become nulls instead of fake measurements.
 - NOAA QC semantics are preserved in separate fields such as `temperature_quality_code`.
 - Output columns are normalized into a stable observation-level schema such as `temperature_c`, `dew_point_c`, and `visibility_m`.
+
+The canonical cleaned output is intentionally wide because it preserves observational structure, QC context, and normalized field semantics in one deterministic source-of-truth layer. Most downstream work will select a relevant subset of columns, and broader repository workflows can also project canonical observations into narrower domain datasets.
 
 For a column-level explanation of the cleaned output, see [docs/UNDERSTANDING_OUTPUT.md](docs/UNDERSTANDING_OUTPUT.md).
 
