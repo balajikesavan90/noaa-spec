@@ -4,17 +4,58 @@ This document is the authoritative public reviewer path for NOAA-Spec.
 
 It covers:
 
-- minimal install and first run
+- quick reviewer verification
+- minimal local install and first run
 - deterministic fixture verification
 - checksum verification
 - Docker clean-environment verification
 - the explicit reproducibility boundary
 
-## Minimal Install and First Run
+## Quick Reviewer Path
+
+Use Docker for the most reliable clean-environment review:
+
+```bash
+docker build -f Dockerfile -t noaa-spec-review .
+docker run --rm noaa-spec-review bash scripts/verify_reproducibility.sh
+```
+
+Successful verification prints:
+
+```text
+PASS: reproducibility verification succeeded.
+SHA256: b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597
+```
+
+Inspect a small subset from the tracked canonical fixture:
+
+```bash
+python3 - <<'PY'
+import csv
+
+cols = [
+    "STATION",
+    "DATE",
+    "temperature_c",
+    "temperature_quality_code",
+    "visibility_m",
+    "TMP__qc_reason",
+]
+
+with open("reproducibility/minimal/station_cleaned_expected.csv", newline="", encoding="utf-8") as handle:
+    reader = csv.DictReader(handle)
+    for row in list(reader)[:5]:
+        print({col: row[col] for col in cols})
+PY
+```
+
+Use [docs/UNDERSTANDING_OUTPUT.md](docs/UNDERSTANDING_OUTPUT.md) if you need help interpreting the canonical columns.
+
+## Local Python Path
 
 Local installation requires a working Python 3.12 environment with `venv` support.
 
-On some Linux systems, `venv` support is provided by a separate OS package. If local `venv` setup is unavailable, use the Docker clean-room path below instead of improvising a local install.
+On some Linux systems, `venv` support and `ensurepip` are provided by a separate OS package. If local `venv` setup is unavailable, use the Docker path above instead of improvising a local install.
 
 ```bash
 python3 -m venv .venv
@@ -30,7 +71,7 @@ Inspect a small subset of the output:
 
 ```bash
 python3 - <<'PY'
-import pandas as pd
+import csv
 
 cols = [
     "STATION",
@@ -40,7 +81,11 @@ cols = [
     "visibility_m",
     "TMP__qc_reason",
 ]
-print(pd.read_csv("/tmp/station_cleaned.csv", usecols=cols).head(5).to_string(index=False))
+
+with open("/tmp/station_cleaned.csv", newline="", encoding="utf-8") as handle:
+    reader = csv.DictReader(handle)
+    for row in list(reader)[:5]:
+        print({col: row[col] for col in cols})
 PY
 ```
 
@@ -69,21 +114,6 @@ Expected result:
 
 ```text
 b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597
-```
-
-## Docker Clean-Environment Verification
-
-This is the supported clean-environment reviewer path.
-
-```bash
-docker build -f Dockerfile -t noaa-spec-review .
-docker run --rm noaa-spec-review bash scripts/verify_reproducibility.sh
-```
-
-Successful verification prints:
-
-```text
-PASS: reproducibility verification succeeded.
 ```
 
 ## Reproducibility Boundary

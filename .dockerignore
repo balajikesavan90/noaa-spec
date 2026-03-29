@@ -18,6 +18,8 @@ dist/
 *.egg-info/
 *.log
 paper/*.html
+# Keep maintainer-only reports and archive material out of the review container.
+# Public reviewer checks should not depend on these paths.
 docs/internal/reports/
 docs/internal/archive/
 reproducibility/__pycache__/

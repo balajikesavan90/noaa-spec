@@ -52,6 +52,24 @@ For the bundled reviewer fixture, this subset is usually enough for a first read
 - use the preserved QC columns when filtering or auditing missing values
 - derive narrower projections where appropriate instead of carrying all columns into every downstream step
 
+## Practical downstream subset
+
+For a station-year comparison workflow, a first pass often needs only:
+
+- `STATION`
+- `DATE`
+- `temperature_c`
+- `temperature_quality_code`
+- `visibility_m`
+- `TMP__qc_reason`
+
+For example, two analyses can begin from the same canonical subset:
+
+- a looser pass that keeps rows where `temperature_c` is present
+- a stricter pass that also requires `temperature_quality_code == 1`
+
+The downstream choice changes, but the interpretation layer stays shared and explicit.
+
 ## Sentinel handling
 
 NOAA raw files use encoded missing-value sentinels such as `+9999,9` or `999999,9,N,1`.

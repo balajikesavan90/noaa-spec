@@ -1,6 +1,10 @@
 # Canonical Walkthrough
 
-This walkthrough shows how a user can move from an encoded NOAA row to the canonical normalized row and then to a small practical subset.
+This walkthrough shows the reviewer path explicitly:
+
+1. raw encoded NOAA row
+2. canonical normalized row
+3. small practical subset for downstream analysis
 
 It is illustrative only. It uses embedded raw and canonical snippets so the explanation does not depend on local `output/` artifacts. The reproducible reviewer path remains the tracked fixture in [../../REPRODUCIBILITY.md](../../REPRODUCIBILITY.md).
 
@@ -29,6 +33,11 @@ STATION,DATE,temperature_c,temperature_quality_code,visibility_m,TMP__qc_reason
 40435099999,2000-01-10T06:00:00,18.0,1,10000.0,
 40435099999,2000-03-17T09:00:00,,9,,SENTINEL_MISSING
 ```
+
+For a station-year comparison or QC-aware filtering workflow, this subset is often enough to decide whether to:
+
+- keep all non-null `temperature_c` rows, or
+- require a stricter quality condition before aggregation.
 
 ## What Changed
 

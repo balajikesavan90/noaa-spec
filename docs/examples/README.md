@@ -1,7 +1,11 @@
 # Examples
 
-These are curated example artifacts for inspection, not the primary first-run path.
+These are curated public example artifacts for inspection, not the primary first-run path.
 
-Start with the root [README.md](../../README.md) for the public workflow and [../UNDERSTANDING_OUTPUT.md](../UNDERSTANDING_OUTPUT.md) for column interpretation.
+Use [CANONICAL_WALKTHROUGH.md](CANONICAL_WALKTHROUGH.md) when you want one short, self-contained example of:
 
-For one public worked example, use [CANONICAL_WALKTHROUGH.md](CANONICAL_WALKTHROUGH.md).
+- a raw encoded NOAA row,
+- the corresponding canonical row,
+- and a practical downstream subset a researcher might actually inspect first.
+
+For installation and checksum verification, return to [../../README.md](../../README.md).
