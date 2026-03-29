@@ -16,6 +16,8 @@ The software contribution under review is a reusable NOAA-specific preprocessing
 
 The failure mode it addresses is silent divergence in preprocessing: different local scripts can interpret sentinel values, field encodings, or quality-code semantics differently while starting from the same raw ISD records.
 
+A concrete committed repository example comes from station `16754399999` (KARPATHOS, GR). Reviewers can verify in `docs/examples/stations/16754399999/LocationData_QualityReport.json` that `temperature_c` has tracked sentinel replacements, and in `docs/examples/stations/16754399999/LocationData_AggregationReport.json` that the canonical output preserves separate fields such as `temperature_quality_code`, `TMP__qc_pass`, `TMP__qc_reason`, and `TMP__qc_status`. The reviewer-visible software surface is the canonical cleaner that makes those choices explicit and stable.
+
 The reviewer-visible capability is therefore not only deterministic execution. It is a reusable preprocessing surface that makes those NOAA-specific decisions explicit, so cleaned outputs are easier to audit and compare across reuse.
 
 Broader publication artifacts (release bundles, manifests, domain publication outputs, and quality reports) are part of the broader documented system design but are not included as reviewer-verifiable artifacts in this submission.

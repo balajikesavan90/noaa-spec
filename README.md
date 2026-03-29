@@ -22,7 +22,7 @@ NOAA ISD observations contain fixed-width fields, comma-encoded substructures, s
 
 Many NOAA ISD workflows rely on project-specific scripts or notebook preprocessing to interpret encoded fields, remove sentinels, and decide how quality flags affect usable values. That approach can work for one study, but it often leaves the preprocessing contract implicit and can produce silently different cleaned outputs from the same raw records.
 
-NOAA-Spec packages those NOAA-specific steps into an inspectable software surface with deterministic cleaned outputs, explicit contracts, preserved provenance, and bounded reproducibility fixtures. By ensuring that equivalent inputs and configurations yield identical cleaned outputs with explicitly defined semantics, it supports more consistent reuse, comparison, and audit of ISD-based analyses. The goal is a stable NOAA-specific preprocessing handoff for downstream analysis, not a generic validation framework.
+NOAA-Spec packages those NOAA-specific steps into an inspectable software surface with deterministic cleaned outputs, explicit contracts, preserved provenance, and bounded reproducibility fixtures. A concrete committed repository example is station `16754399999` (KARPATHOS, GR): its tracked quality report records sentinel replacements for `temperature_c`, and its tracked aggregation report records separate canonical temperature-quality/status fields. NOAA-Spec makes that handling explicit instead of leaving it implicit in local script logic. The goal is a stable NOAA-specific preprocessing handoff for downstream analysis, not a generic validation framework.
 
 ## Installation
 
@@ -82,7 +82,7 @@ NOAA-Spec is organized around explicit software surfaces:
 - deterministic serialization and checksum verification
 - tests that guard parser behavior and documentation integrity
 
-These are means to user-facing ends: reproducible cleaned outputs, inspectable output columns and semantics, and a preprocessing path that can be audited instead of remaining hidden in ad hoc scripts.
+These are means to user-facing ends: reproducible cleaned outputs, inspectable output columns and semantics, and a canonical preprocessing path that can be audited instead of remaining hidden in ad hoc scripts.
 
 In the Docker reviewer path, `sha256sum` and `git` are provided inside the container.
 
