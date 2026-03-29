@@ -34,6 +34,12 @@ NOAA-Spec addresses that gap by making those interpretation decisions explicit a
 
 The practical benefit is comparability at the interpretation layer. When the same raw input yields the same canonical observation-level output, downstream analyses become easier to audit, compare, and reproduce across projects because a key preprocessing step is no longer hidden inside project-local scripts. Most users will work with a subset of fields or downstream projections derived from the canonical representation. The contribution is the deterministic shared interpretation layer, not a claim that the raw canonical table is the final analysis table for all use cases.
 
+# Reproducible Cross-Project Interpretation Scenario
+
+Consider two researchers studying the same NOAA station set for wind-speed trends. Both begin from the same ISD raw rows, but one leaves sentinel-coded wind tokens in place until late-stage filtering while the other converts them to nulls during import and drops the original QC context. Even if both use pandas correctly, their preprocessing rules are implicit, local, and difficult to compare. Their derived trend tables may differ because missingness and quality semantics were handled differently before analysis began.
+
+With NOAA-Spec, both researchers can start from the same canonical representation. Sentinel normalization is identical, wind-speed fields are emitted into the same stable columns, and NOAA QC semantics remain preserved in dedicated sidecar fields rather than disappearing inside notebook code. The resulting cleaned tables are reproducible at the interpretation layer and directly comparable before any project-specific modeling or aggregation begins.
+
 # Comparison With Existing Tools
 
 Existing NOAA tools help users obtain or parse ISD data, but they do not by themselves define a shared reusable interpretation contract.
@@ -70,7 +76,7 @@ The repository includes a tracked raw input, tracked expected canonical output, 
 
 # Limitations
 
-NOAA-Spec is NOAA-specific software, not a general-purpose data framework. The current contribution is the reusable canonical interpretation layer and its stable output contract. Broader batch orchestration, domain projection, release architecture, and report-generation code may exist in the repository for maintainer workflows, but those are outside the scoped JOSS claim of this submission.
+NOAA-Spec is NOAA-specific software, not a general-purpose data framework. The current contribution is the reusable canonical interpretation layer and its stable output contract. Broader batch orchestration, release architecture, and maintainer-only reporting code may exist in the repository, but those are outside the scoped JOSS claim of this submission.
 
 # Acknowledgements
 

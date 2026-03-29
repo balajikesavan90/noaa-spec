@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pandas as pd
 
-from noaa_spec.quickstart import bundled_sample_path
 from noaa_spec.cleaning import clean_noaa_dataframe
 from noaa_spec.deterministic_io import write_deterministic_csv
 
@@ -25,7 +24,7 @@ def _parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = _parse_args()
-    raw_path = bundled_sample_path()
+    raw_path = Path(__file__).resolve().parents[1] / "reproducibility" / "minimal" / "station_raw.csv"
     raw = pd.read_csv(raw_path, dtype=str)
     cleaned = clean_noaa_dataframe(raw, keep_raw=False, strict_mode=True)
     write_deterministic_csv(

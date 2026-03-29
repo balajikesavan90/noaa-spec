@@ -2,7 +2,6 @@
 
 __all__ = [
     "constants",
-    "noaa_client",
     "cleaning",
 ]
 

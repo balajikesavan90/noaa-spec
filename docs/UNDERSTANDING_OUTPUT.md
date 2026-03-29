@@ -117,6 +117,6 @@ This canonical representation is a better starting point when you want:
 - a reusable, deterministic source representation for downstream analysis
 - QC-aware filtering after cleaning rather than ad hoc preprocessing before it
 
-When you only need one part of the observational record, start from a subset of relevant columns. In maintainer workflows, narrower domain projections can also be derived from the canonical layer, but the defended public contribution is the canonical contract itself.
+When you only need one part of the observational record, start from a subset of relevant columns. Narrower downstream tables can be derived from the canonical layer, but the defended public contribution is the canonical contract itself.
 
 If you only need a quick notebook exploration of one file, this may be more structure than you need.

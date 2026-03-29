@@ -19,4 +19,4 @@ The preview HTML is a local convenience artifact and is not tracked as part of t
 
 For reviewer-facing install and verification, use [../REPRODUCIBILITY.md](../REPRODUCIBILITY.md).
 
-The JOSS-facing software contribution is the bounded canonical interpretation layer and reproducibility path described in [../REPRODUCIBILITY.md](../REPRODUCIBILITY.md), not the repository's broader maintainer workflows.
+The JOSS-facing software contribution is the bounded canonical interpretation layer and reproducibility path described in [../REPRODUCIBILITY.md](../REPRODUCIBILITY.md), not the repository's maintainer-only workflows.

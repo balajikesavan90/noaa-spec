@@ -12,10 +12,10 @@ It covers:
 
 ## Minimal Install and First Run
 
-Requires Python 3.12 with `python3.12-venv` installed.
+Requires Python 3.11 or newer with `venv` available.
 
 ```bash
-python3.12 -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install --upgrade pip
 python3 -m pip install -e .
@@ -74,9 +74,9 @@ This public reproducibility surface covers only the scoped JOSS contribution:
 - the specification-constrained canonical interpretation layer
 - the bundled tracked fixture and checksum-backed verification path
 
-It does not claim reviewer reproduction of broader maintainer workflows such as:
+It does not claim reviewer reproduction of maintainer-only workflows such as:
 
 - batch orchestration
 - domain dataset publication
 - release manifests
-- report-generation or internal validation workflows
+- internal validation or reporting workflows

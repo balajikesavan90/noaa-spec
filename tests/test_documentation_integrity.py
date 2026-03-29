@@ -33,7 +33,7 @@ def test_readme_locks_public_contribution_and_workflow() -> None:
     assert "deterministic canonicalization layer" in text
     assert "implicit project-local preprocessing" in text
     assert "stable intermediate representation" in text
-    assert "Requires Python 3.12 with `python3.12-venv` installed" in text
+    assert "Requires Python 3.11 or newer with `venv` available." in text
     assert "noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv" in text
     assert "TMP__qc_reason" in text
     assert "SENTINEL_MISSING" in text
@@ -58,8 +58,7 @@ def test_quickstart_is_reduced_to_readme_pointer() -> None:
 
     assert quickstart_text == (
         "# Quickstart\n\n"
-        "Quickstart is in [README.md]"
-        "(/home/balaji-kesavan/Documents/AI_Projects/noaa-climate-data/README.md)."
+        "Quickstart is in [README.md](../README.md)."
     )
 
     assert "A 10-column subset" in output_text
@@ -118,7 +117,7 @@ def test_reproducibility_doc_is_single_reproducibility_path() -> None:
     public_text = PUBLIC_REPRODUCIBILITY_PATH.read_text(encoding="utf-8")
     directory_text = REPRODUCIBILITY_README_PATH.read_text(encoding="utf-8")
 
-    assert "Requires Python 3.12 with `python3.12-venv` installed." in public_text
+    assert "Requires Python 3.11 or newer with `venv` available." in public_text
     assert "python3 reproducibility/run_pipeline_example.py --example minimal --out /tmp/noaa-spec-sample.csv" in public_text
     assert "50e8bfb9ffae8278652bb7410cfbc9683a48711c35cfcf9e9dd3c38bbc403d47" in public_text
     assert "b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597" in public_text

@@ -32,10 +32,10 @@ Other materials in this repository may support internal development, validation,
 
 ## Environment
 
-Requires Python 3.12 with `python3.12-venv` installed.
+Requires Python 3.11 or newer with `venv` available.
 
 ```bash
-python3.12 -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install --upgrade pip
 python3 -m pip install -e .
@@ -72,6 +72,17 @@ Key transformations:
 - Sentinel-coded values such as `+9999,9` become nulls instead of fake measurements.
 - NOAA QC semantics are preserved in separate fields such as `temperature_quality_code`.
 - Output columns are normalized into a stable observation-level schema such as `temperature_c`, `dew_point_c`, and `visibility_m`.
+
+Starter columns for a first pass:
+
+- `STATION`
+- `DATE`
+- `temperature_c`
+- `temperature_quality_code`
+- `dew_point_c`
+- `wind_speed_ms`
+- `visibility_m`
+- `TMP__qc_reason`
 
 The canonical output is intentionally wide because it preserves normalized structure and provenance-bearing semantics from the source format. This is a stable intermediate representation, not a claim that the full table is the ideal direct analysis surface for every use case. Most users will work with a subset of fields or downstream derived tables built from the canonical representation.
 

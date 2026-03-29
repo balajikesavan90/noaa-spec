@@ -13,6 +13,7 @@ noaa_file_index/state/
 
 # Runtime outputs remain ignored by default.
 output/
+logs/
 artifacts/test_runs/
 artifacts/parquet_runs/
 release/
@@ -165,7 +166,8 @@ celerybeat.pid
 # Environments
 .env
 .envrc
-.venv
+.venv/
+.review-venv/
 env/
 venv/
 ENV/
