@@ -10,11 +10,13 @@ NOAA ISD is structurally rich and heavily encoded. The width is intentional beca
 
 Most users will work with a subset of fields or a domain-specific projection. Treat the canonical table as the stable intermediate contract rather than the final analysis surface for every task.
 
-For lower-friction first use, start with `noaa-spec clean ... --view ...` when it matches your task. The public CLI exposes canonical-derived views such as `core`, `core_meteorology`, `wind`, `precipitation`, `clouds_visibility`, `pressure_temperature`, and `remarks`. Those narrower views are derived from the canonical table and exist to make common workflows easier to approach while keeping the canonical table as the authoritative source layer.
+The canonical dataset defines the reproducible interpretation contract. Optional `--view` outputs are derived projections for usability and do not modify the underlying contract.
 
-## Use a view first
+The public CLI also exposes optional canonical-derived views such as `core`, `core_meteorology`, `wind`, `precipitation`, `clouds_visibility`, `pressure_temperature`, and `remarks`. Those narrower views exist to make common workflows easier to approach while keeping the canonical table as the authoritative source layer.
 
-If the full canonical CSV feels too wide for a first pass, write a view directly:
+## Optional views
+
+If the full canonical CSV feels too wide after your canonical first pass, write a view directly:
 
 ```bash
 noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_pressure_temperature.csv --view pressure_temperature
@@ -65,7 +67,7 @@ For the bundled reviewer fixture, this subset is usually enough for a first read
 
 - treat the canonical table as the source-of-truth intermediate representation
 - inspect a subset of relevant fields for your task
-- start from a `--view` projection when you want a narrower first view for a common workflow
+- use a `--view` projection when you want a narrower convenience output for a common workflow
 - use the preserved QC columns when filtering or auditing missing values
 - derive narrower projections where appropriate instead of carrying all columns into every downstream step
 

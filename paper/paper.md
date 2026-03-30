@@ -38,9 +38,9 @@ In the tracked reproducibility fixture included with the repository, raw `TMP` v
 
 The difference between NOAA-Spec and a careful local preprocessing script is not that one can clean data and the other cannot. The difference is whether the interpretation step becomes shared and repeatable.
 
-Consider one raw row containing `TMP=+9999,9` and `VIS=999999,9,N,1`. A project-local script may leave the sentinel numerics in place until late filtering, convert one field to null but discard the quality code, or rename the resulting columns differently from another project. Each choice can be reasonable inside one analysis, but those analyses no longer start from the same interpretation layer.
+Consider one raw token: `TMP=+9999,9`. An ad hoc workflow may emit `temperature = NaN` and stop there, losing the associated QC context. NOAA-Spec emits `temperature_c = null`, preserves `temperature_quality_code = 9`, and records `TMP__qc_reason = SENTINEL_MISSING` in the canonical row.
 
-NOAA-Spec fixes that step by emitting one deterministic canonical row: sentinel-coded measurements become nulls, quality-control semantics remain preserved in dedicated fields, packed NOAA tokens are normalized into stable columns, and the serialized CSV is deterministic. Different downstream filters may still differ, but they begin from the same canonical interpretation rather than from incompatible project-local cleaning rules.
+That difference matters because downstream users can now apply stricter or looser filters from the same interpreted input instead of silently inheriting project-local missingness rules. The canonical dataset defines the reproducible interpretation contract. Optional derived views are usability projections from that canonical table and do not modify the contract itself.
 
 # Reproducible Cross-Project Interpretation Scenario
 
@@ -84,7 +84,7 @@ The public CLI is the `noaa-spec clean` command. The reviewer-visible example is
 
 # Reproducibility
 
-The repository includes a tracked raw input, tracked expected canonical output, and checksum-backed verification under `reproducibility/`. For independent reviewer verification, the authoritative path is the Docker workflow documented in the repository. Reviewers can rerun the example and confirm that the emitted CSV matches the expected checksum. This supports the main software claim: NOAA-Spec makes NOAA-specific interpretation behavior deterministic and inspectable at the observation level.
+The repository includes a tracked raw input, tracked expected canonical output, and checksum-backed verification under `reproducibility/`. For independent reviewer verification, the authoritative path is the Docker workflow documented in the repository. Reviewers can rerun the example and confirm that the emitted CSV matches the expected checksum. The included fixture is intentionally minimal (5 rows) and serves as a deterministic reproducibility proof; larger-scale processing is supported but not bundled in-repo. This supports the main software claim: NOAA-Spec makes NOAA-specific interpretation behavior deterministic and inspectable at the observation level.
 
 # Limitations
 

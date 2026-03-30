@@ -22,13 +22,14 @@ def test_readme_locks_public_contribution_and_workflow() -> None:
 
     for section in (
         "## Public Scope",
-        "## Quick Reviewer Path",
-        "## Getting Started (Recommended)",
-        "## Optional Local Install",
+        "## Install",
+        "## Run The Canonical Contract",
+        "## Optional Derived Views",
         "## Minimal Workflow",
         "## Why This Matters In Practice",
         "## Why The Canonical Contract Is Reusable",
         "## Repository Boundary",
+        "## Quick Reviewer Path",
         "## Reproducibility Verification",
         "## Docs",
     ):
@@ -37,20 +38,23 @@ def test_readme_locks_public_contribution_and_workflow() -> None:
     assert "deterministic canonicalization layer" in text
     assert "bundled checksum-backed reproducibility fixture" in text
     assert "loss-preserving normalized representation" in text
+    assert "For ordinary use, install NOAA-Spec locally." in text
     assert "For independent reviewer verification, use Docker" in text
     assert "working Python 3.12 environment" in text
-    assert "convenience path for users and developers" in text
     assert "noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv" in text
     assert "noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_core.csv --view core" in text
     assert "sha256sum /tmp/station_cleaned.csv" in text
     assert "docker build -f Dockerfile -t noaa-spec-review ." in text
     assert "TMP__qc_reason" in text
     assert "SENTINEL_MISSING" in text
-    assert "Two competent researchers can start from the same raw NOAA row and still diverge" in text
+    assert "The canonical dataset defines the reproducible interpretation contract." in text
+    assert "Raw NOAA token:" in text
+    assert "Ad hoc preprocessing often keeps the missing temperature but drops the associated QC context." in text
     assert "secondary views derived from the canonical output" in text
     assert "core_meteorology" in text
     assert "clouds_visibility" in text
     assert "Additional repository material may support broader maintenance and publication workflows" in text
+    assert "intentionally minimal (5 rows)" in text
 
 
 def test_docs_index_points_to_single_first_run_and_reproducibility_path() -> None:
@@ -62,7 +66,7 @@ def test_docs_index_points_to_single_first_run_and_reproducibility_path() -> Non
     assert "[examples/CANONICAL_WALKTHROUGH.md](examples/CANONICAL_WALKTHROUGH.md)" in text
     assert "[../maintainer/README.md](../maintainer/README.md)" in text
     assert "small public documentation set" in text
-    assert "--view" in text
+    assert "canonical `noaa-spec clean` workflow" in text
 
 
 def test_output_guide_provides_practical_subset_and_qc_context() -> None:
@@ -72,7 +76,7 @@ def test_output_guide_provides_practical_subset_and_qc_context() -> None:
     assert "Where to start" in output_text
     assert "How most users should approach this output" in output_text
     assert "Practical downstream subset" in output_text
-    assert "Use a view first" in output_text
+    assert "Optional views" in output_text
     assert "Sentinel handling" in output_text
     assert "QC flags" in output_text
     assert "Missing values" in output_text
@@ -81,6 +85,7 @@ def test_output_guide_provides_practical_subset_and_qc_context() -> None:
     assert "TMP__qc_reason=SENTINEL_MISSING" in output_text
     assert "`--view`" in output_text
     assert "derived from the canonical table" in output_text
+    assert "defines the reproducible interpretation contract" in output_text
 
 
 def test_examples_docs_no_longer_duplicate_first_run_commands() -> None:
@@ -89,8 +94,8 @@ def test_examples_docs_no_longer_duplicate_first_run_commands() -> None:
 
     assert "small supplemental examples" in examples_text
     assert "not a second installation guide" in examples_text
-    assert "noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv" in examples_text
-    assert "--view core" in examples_text
+    assert "Use [../README.md](../README.md) for installation and the canonical first run." in examples_text
+    assert "optional follow-on to the canonical workflow" in examples_text
     assert "python3 examples/run_minimal_cleaning.py --out /tmp/noaa-spec-example.csv" not in examples_text
 
     assert "curated public example artifacts" in docs_examples_text
@@ -145,3 +150,4 @@ def test_reproducibility_doc_is_single_reproducibility_path() -> None:
     assert "docker build -f Dockerfile -t noaa-spec-review ." in public_text
     assert "docker run --rm noaa-spec-review bash scripts/verify_reproducibility.sh" in public_text
     assert "tracked artifacts behind the public reproducibility claim" in directory_text
+    assert "The active reviewer workflow is documented in [../REPRODUCIBILITY.md](../REPRODUCIBILITY.md)." in directory_text
