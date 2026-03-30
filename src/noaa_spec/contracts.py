@@ -1,11 +1,14 @@
-"""Versioned artifact contract declarations for publication outputs."""
+"""Versioned contract declarations for public and release-facing artifacts."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
 
-SHARED_JOIN_KEYS: tuple[str, ...] = ("station_id", "DATE")
+PUBLIC_CANONICAL_JOIN_KEYS: tuple[str, ...] = ("STATION", "DATE")
+# Domain and release artifacts may normalize station identifiers for internal joins,
+# but the public canonical CSV contract remains the reviewer-visible STATION/DATE pair.
+DOMAIN_JOIN_KEYS: tuple[str, ...] = ("station_id", "DATE")
 
 REQUIRED_ARTIFACT_METADATA_FIELDS: tuple[str, ...] = (
     "artifact_id",
@@ -28,7 +31,7 @@ QUALITY_REPORT_TYPES: tuple[str, ...] = (
 )
 
 CANONICAL_CORE_COLUMN_TYPES: tuple[tuple[str, str], ...] = (
-    ("station_id", "string"),
+    ("STATION", "string"),
     ("DATE", "string"),
     ("YEAR", "integer"),
     ("row_has_any_usable_metric", "boolean"),
@@ -51,14 +54,14 @@ CANONICAL_DATASET_CONTRACT = ArtifactContract(
     artifact_type="canonical_dataset",
     schema_version="1.0.0",
     required_columns=(
-        "station_id",
+        "STATION",
         "DATE",
         "YEAR",
         "row_has_any_usable_metric",
         "usable_metric_count",
         "usable_metric_fraction",
     ),
-    join_keys=SHARED_JOIN_KEYS,
+    join_keys=PUBLIC_CANONICAL_JOIN_KEYS,
     required_metadata_fields=REQUIRED_ARTIFACT_METADATA_FIELDS,
     null_semantics=(
         "sentinel values are nullified; sentinel literals must not remain in cleaned numeric values",
@@ -73,7 +76,7 @@ DOMAIN_DATASET_CONTRACT = ArtifactContract(
         "station_id",
         "DATE",
     ),
-    join_keys=SHARED_JOIN_KEYS,
+    join_keys=DOMAIN_JOIN_KEYS,
     required_metadata_fields=REQUIRED_ARTIFACT_METADATA_FIELDS,
     null_semantics=(
         "domain values inherit canonical null semantics",

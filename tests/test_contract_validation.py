@@ -21,7 +21,7 @@ def test_sentinel_values_for_column_resolves_friendly_column_names() -> None:
 def test_find_sentinel_leakage_detects_leaked_values() -> None:
     cleaned = pd.DataFrame(
         {
-            "station_id": ["01234567890", "01234567890"],
+            "STATION": ["01234567890", "01234567890"],
             "DATE": ["2020-01-01T00:00:00", "2020-01-01T01:00:00"],
             "temperature_c": [999.9, 12.3],
             "wind_speed_ms": [1.2, 2.5],
@@ -46,7 +46,7 @@ def test_validate_no_sentinel_leakage_allows_clean_numeric_values() -> None:
 def test_validate_canonical_schema_contract_requires_core_columns() -> None:
     cleaned = pd.DataFrame(
         {
-            "station_id": ["01234567890"],
+            "STATION": ["01234567890"],
             "DATE": ["2020-01-01T00:00:00"],
             "YEAR": [2020],
             "row_has_any_usable_metric": [True],
@@ -60,7 +60,7 @@ def test_validate_canonical_schema_contract_requires_core_columns() -> None:
 def test_validate_canonical_schema_contract_rejects_invalid_core_types() -> None:
     cleaned = pd.DataFrame(
         {
-            "station_id": ["01234567890"],
+            "STATION": ["01234567890"],
             "DATE": ["2020-01-01T00:00:00"],
             "YEAR": ["bad_year"],
             "row_has_any_usable_metric": [True],
@@ -75,7 +75,7 @@ def test_validate_canonical_schema_contract_rejects_invalid_core_types() -> None
 def test_validate_canonical_schema_contract_accepts_valid_core_schema() -> None:
     cleaned = pd.DataFrame(
         {
-            "station_id": ["01234567890"],
+            "STATION": ["01234567890"],
             "DATE": ["2020-01-01T00:00:00"],
             "YEAR": [2020],
             "row_has_any_usable_metric": [True],

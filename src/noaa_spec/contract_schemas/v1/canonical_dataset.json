@@ -2,7 +2,7 @@
   "artifact_type": "canonical_dataset",
   "schema_version": "1.0.0",
   "required_columns": [
-    "station_id",
+    "STATION",
     "DATE",
     "YEAR",
     "row_has_any_usable_metric",
@@ -10,14 +10,14 @@
     "usable_metric_fraction"
   ],
   "column_types": {
-    "station_id": "string",
+    "STATION": "string",
     "DATE": "string",
     "YEAR": "integer",
     "row_has_any_usable_metric": "boolean",
     "usable_metric_count": "integer",
     "usable_metric_fraction": "float"
   },
-  "join_keys": ["station_id", "DATE"],
+  "join_keys": ["STATION", "DATE"],
   "required_metadata_fields": [
     "artifact_id",
     "schema_version",

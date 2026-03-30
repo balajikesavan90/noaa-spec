@@ -11,7 +11,7 @@ It covers:
 - Docker clean-environment verification
 - the public reproducibility boundary
 
-Views are available through the public `noaa-spec clean --view ...` CLI as optional usability projections, but reproducibility verification for the scoped JOSS claim remains the canonical output and checksum below.
+Views are available through the public `noaa-spec clean --view ...` CLI as optional usability projections, but reproducibility verification for the scoped JOSS claim remains the canonical output and checksum below. The reproducible public canonical contract is the emitted CSV shown by the bundled fixture, with `STATION` and `DATE` as the reviewer-visible identifier columns.
 
 ## Quick Reviewer Path
 

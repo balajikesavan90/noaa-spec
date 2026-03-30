@@ -7,8 +7,9 @@ from pathlib import Path
 
 from noaa_spec.contracts import (
     CANONICAL_CORE_COLUMN_TYPES,
+    PUBLIC_CANONICAL_JOIN_KEYS,
     REQUIRED_ARTIFACT_METADATA_FIELDS,
-    SHARED_JOIN_KEYS,
+    DOMAIN_JOIN_KEYS,
     QUALITY_REPORT_TYPES,
     publication_artifact_contracts,
 )
@@ -17,6 +18,7 @@ from noaa_spec.domains.registry import domain_definitions
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_CONTRACTS_DIR = PROJECT_ROOT / "src" / "noaa_spec" / "contract_schemas" / "v1"
+PUBLIC_CANONICAL_FIXTURE = PROJECT_ROOT / "reproducibility" / "minimal" / "station_cleaned_expected.csv"
 
 
 def test_publication_contract_registry_covers_all_artifact_types() -> None:
@@ -41,11 +43,20 @@ def test_all_contracts_require_release_metadata_fields() -> None:
 
 def test_shared_join_keys_are_standardized_across_canonical_and_domain_contracts() -> None:
     contracts_by_type = {contract.artifact_type: contract for contract in publication_artifact_contracts()}
-    assert contracts_by_type["canonical_dataset"].join_keys == SHARED_JOIN_KEYS
-    assert contracts_by_type["domain_dataset"].join_keys == SHARED_JOIN_KEYS
+    assert contracts_by_type["canonical_dataset"].join_keys == PUBLIC_CANONICAL_JOIN_KEYS
+    assert contracts_by_type["domain_dataset"].join_keys == DOMAIN_JOIN_KEYS
 
     for definition in domain_definitions():
-        assert definition.join_keys == SHARED_JOIN_KEYS
+        assert definition.join_keys == DOMAIN_JOIN_KEYS
+
+
+def test_public_canonical_contract_matches_tracked_reviewer_fixture_header() -> None:
+    header = PUBLIC_CANONICAL_FIXTURE.read_text(encoding="utf-8").splitlines()[0].split(",")
+    contracts_by_type = {contract.artifact_type: contract for contract in publication_artifact_contracts()}
+    canonical = contracts_by_type["canonical_dataset"]
+
+    assert canonical.join_keys == ("STATION", "DATE")
+    assert set(canonical.required_columns).issubset(header)
 
 
 def test_quality_contract_declares_required_quality_report_types() -> None:

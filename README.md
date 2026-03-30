@@ -14,6 +14,7 @@ The public contribution consists of:
 - the bundled reproducibility fixture and checksum-backed example
 
 The JOSS-facing contribution is a shared deterministic interpretation layer for NOAA rows and a reproducibility path reviewers can run directly from this repository.
+The reproducible public canonical contract is the CSV emitted by `noaa-spec clean` and exemplified by `reproducibility/minimal/station_cleaned_expected.csv`; its reviewer-visible identifier columns are `STATION` and `DATE`.
 
 ## Install
 
@@ -67,7 +68,7 @@ PY
 
 ## Run The Canonical Contract
 
-The canonical dataset defines the reproducible interpretation contract. Optional `--view` outputs are derived projections for usability and do not modify the underlying contract.
+The canonical dataset defines the reproducible interpretation contract. In that public canonical CSV, the station identifier remains `STATION`, matching the bundled fixture and CLI output. Optional `--view` outputs are derived projections for usability and do not modify the underlying contract.
 
 Run the canonical workflow first:
 

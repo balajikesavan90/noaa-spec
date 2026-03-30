@@ -48,6 +48,7 @@ def test_readme_locks_public_contribution_and_workflow() -> None:
     assert "TMP__qc_reason" in text
     assert "SENTINEL_MISSING" in text
     assert "The canonical dataset defines the reproducible interpretation contract." in text
+    assert "its reviewer-visible identifier columns are `STATION` and `DATE`" in text
     assert "Raw NOAA token:" in text
     assert "Ad hoc preprocessing often keeps only the missing temperature and discards the QC context" in text
     assert "optional views derived from the canonical output" in text
@@ -143,6 +144,7 @@ def test_reproducibility_doc_is_single_reproducibility_path() -> None:
     assert "Inspect a small subset from the tracked canonical fixture:" in public_text
     assert "python3 reproducibility/run_pipeline_example.py --out /tmp/noaa-spec-sample.csv" in public_text
     assert "Views are available through the public `noaa-spec clean --view ...` CLI" in public_text
+    assert "with `STATION` and `DATE` as the reviewer-visible identifier columns" in public_text
     assert "`--view metadata`" in public_text
     assert "50e8bfb9ffae8278652bb7410cfbc9683a48711c35cfcf9e9dd3c38bbc403d47" in public_text
     assert "b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597" in public_text

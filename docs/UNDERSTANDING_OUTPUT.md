@@ -10,7 +10,7 @@ NOAA ISD is structurally rich and heavily encoded. The width is intentional beca
 
 Most users will work with a subset of fields or a domain-specific projection. Treat the canonical table as the stable intermediate contract rather than the final analysis surface for every task.
 
-The canonical dataset defines the reproducible interpretation contract. Optional `--view` outputs are derived projections for usability and do not modify the underlying contract.
+The canonical dataset defines the reproducible interpretation contract. In that public canonical CSV, the identifier columns are `STATION` and `DATE`, matching the bundled reproducibility fixture and CLI output. Optional `--view` outputs are derived projections for usability and do not modify the underlying contract.
 
 The public CLI also exposes optional canonical-derived views such as `metadata`, `wind`, `precipitation`, `clouds_visibility`, `pressure_temperature`, and `remarks`. Those narrower views exist to make common workflows easier to approach while keeping the canonical table as the authoritative source layer.
 

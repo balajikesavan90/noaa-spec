@@ -18,7 +18,7 @@ bibliography: paper.bib
 
 # Abstract
 
-NOAA-Spec is open-source software for deterministic interpretation of NOAA Integrated Surface Database (ISD) / Global Hourly observations. It provides a specification-constrained canonical contract for raw NOAA rows: the software standardizes sentinel handling, preserves NOAA quality-control semantics in dedicated fields, emits a stable schema, and serializes a deterministic canonical representation so the same raw input yields the same observation-level CSV.
+NOAA-Spec is open-source software for deterministic interpretation of NOAA Integrated Surface Database (ISD) / Global Hourly observations. It provides a specification-constrained canonical contract for raw NOAA rows: the software standardizes sentinel handling, preserves NOAA quality-control semantics in dedicated fields, emits a stable schema, and serializes a deterministic canonical representation so the same raw input yields the same observation-level CSV. In the public canonical CSV exposed by the repository, the reviewer-visible identifier columns are `STATION` and `DATE`, matching the bundled reproducibility fixture.
 
 # Summary
 
