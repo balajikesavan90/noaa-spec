@@ -140,3 +140,61 @@ def test_check_station_sync_reports_stale_for_old_state(
 
     output = capsys.readouterr().out
     assert "Progress freshness status: stale" in output
+
+
+def test_check_station_sync_reports_stale_raw_path_metadata_when_parquet_was_moved(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    index_dir = tmp_path / "noaa_file_index" / "20250101"
+    index_dir.mkdir(parents=True)
+    pd.DataFrame([{"ID": "01234567890", "FileName": "01234567890.csv"}]).to_csv(
+        index_dir / "Stations.csv",
+        index=False,
+    )
+
+    state_dir = tmp_path / "noaa_file_index" / "state"
+    state_dir.mkdir(parents=True)
+    pd.DataFrame(
+        [
+            {
+                "station_id": "01234567890",
+                "FileName": "01234567890.csv",
+                "raw_data_pulled": True,
+                "raw_path": str(
+                    tmp_path
+                    / "legacy-output"
+                    / "01234567890"
+                    / "LocationData_Raw.parquet"
+                ),
+                "pulled_at": "2026-03-29T18:17:45.146341+00:00",
+                "registry_snapshot": str(index_dir / "Stations.csv"),
+            }
+        ]
+    ).to_csv(state_dir / "raw_pull_state.csv", index=False)
+
+    output_dir = tmp_path / "output"
+    station_dir = output_dir / "01234567890"
+    station_dir.mkdir(parents=True)
+    (station_dir / "LocationData_Raw.parquet").write_text("fake", encoding="utf-8")
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "prog",
+            "--output-dir",
+            str(output_dir),
+        ],
+    )
+
+    check_station_sync.main()
+
+    output = capsys.readouterr().out
+    assert "Missing parquet (should exist): 0" in output
+    assert "Stale raw_path metadata: 1" in output
+    assert "state:" in output
+    assert "current:" in output

@@ -101,6 +101,22 @@ def _station_parquet_path(output_dir: Path, file_name: str) -> Path:
     return _station_dir(output_dir, file_name) / "LocationData_Raw.parquet"
 
 
+def _resolve_expected_parquet_path(
+    output_dir: Path,
+    file_name: str,
+    raw_path: str,
+) -> tuple[Path, Path | None]:
+    state_path = Path(raw_path) if raw_path else None
+    default_path = _station_parquet_path(output_dir, file_name)
+    if state_path is not None and state_path.exists():
+        return state_path, None
+    if default_path.exists():
+        return default_path, state_path
+    if state_path is not None:
+        return state_path, None
+    return default_path, None
+
+
 def _infer_output_dir(raw_pull_state: pd.DataFrame) -> Path:
     candidate_roots: list[Path] = []
     for raw_path in raw_pull_state.get("raw_path", pd.Series(dtype=str)).fillna("").astype(str):
@@ -180,12 +196,13 @@ def main() -> None:
 
     missing_files: list[dict[str, object]] = []
     unexpected_files: list[dict[str, object]] = []
+    stale_state_paths: list[dict[str, object]] = []
     present_sizes: list[int] = []
 
     for _, row in expected_true.iterrows():
         file_name = str(row["FileName"])
         raw_path = raw_path_by_file.get(file_name, "")
-        parquet_path = Path(raw_path) if raw_path else _station_parquet_path(output_dir, file_name)
+        parquet_path, stale_state_path = _resolve_expected_parquet_path(output_dir, file_name, raw_path)
         if not parquet_path.exists():
             missing_files.append(
                 {
@@ -195,6 +212,15 @@ def main() -> None:
                 }
             )
         else:
+            if stale_state_path is not None:
+                stale_state_paths.append(
+                    {
+                        "FileName": file_name,
+                        "Expected": True,
+                        "ParquetPath": str(parquet_path),
+                        "StatePath": str(stale_state_path),
+                    }
+                )
             present_sizes.append(parquet_path.stat().st_size)
 
     for _, row in expected_false.iterrows():
@@ -240,6 +266,7 @@ def main() -> None:
         print("Progress freshness status: no_pulls")
     print(f"Missing parquet (should exist): {len(missing_files)}")
     print(f"Unexpected parquet (should not exist): {len(unexpected_files)}")
+    print(f"Stale raw_path metadata: {len(stale_state_paths)}")
     if present_sizes:
         size_series = pd.Series(present_sizes, dtype="float") / (1024 * 1024)
         avg_mb = size_series.mean()
@@ -285,6 +312,16 @@ def main() -> None:
 
     _print_rows("Missing parquet files:", missing_files)
     _print_rows("Unexpected parquet files:", unexpected_files)
+    if stale_state_paths:
+        print("")
+        print("Stale raw_path metadata:")
+        limit = args.max_mismatches
+        for item in stale_state_paths[:limit]:
+            print(
+                f"- {item['FileName']} -> state:{item['StatePath']} current:{item['ParquetPath']}"
+            )
+        if len(stale_state_paths) > limit:
+            print(f"... ({len(stale_state_paths) - limit} more)")
 
     if args.write_report is not None:
         report_rows = (
@@ -301,6 +338,13 @@ def main() -> None:
                     **row,
                 }
                 for row in unexpected_files
+            ]
+            + [
+                {
+                    "Issue": "stale_raw_path",
+                    **row,
+                }
+                for row in stale_state_paths
             ]
         )
         report_path = args.write_report

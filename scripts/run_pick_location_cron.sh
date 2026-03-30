@@ -15,7 +15,7 @@ if ! command -v poetry >/dev/null 2>&1; then
     exit 1
 fi
 
-exec poetry run python3 -m noaa_spec.cli pick-location \
+exec poetry run python3 -m noaa_spec.internal.cli pick-location \
     --start-year "${NOAA_PICK_START_YEAR:-1975}" \
     --end-year "${NOAA_PICK_END_YEAR:-2025}" \
     --sleep-seconds "${NOAA_PICK_SLEEP_SECONDS:-0.5}" \
