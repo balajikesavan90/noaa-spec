@@ -16,6 +16,24 @@ The public contribution consists of:
 The JOSS-facing contribution is a shared deterministic interpretation layer for NOAA rows and a reproducibility path reviewers can run directly from this repository.
 The reproducible public canonical contract is the CSV emitted by `noaa-spec clean` and exemplified by `reproducibility/minimal/station_cleaned_expected.csv`; its reviewer-visible identifier columns are `STATION` and `DATE`.
 
+## Repository Scope
+
+This repository contains both the public NOAA-Spec software surface and some maintainer-internal support material.
+
+For JOSS review and normal first-time use, the relevant surface is:
+
+- `src/noaa_spec/` — the installable package and `noaa-spec clean` CLI
+- `reproducibility/` — the tracked fixture and checksum-backed verification
+- `docs/` — output guide and worked example
+- `paper/` — the JOSS manuscript
+- `README.md` and `REPRODUCIBILITY.md`
+
+The following directories are **maintainer-internal** support material. They are not required for the reviewer path, not part of the public API, and not the subject of the JOSS submission:
+
+- `maintainer/` — internal planning docs, audit records, and operational guides
+- `tools/` — internal spec-coverage and rule-impact tooling
+- `spec_sources/` — reference copies of the NOAA ISD format specification used during development
+
 ## Docker First Run
 
 For independent reviewer verification and the cleanest first run, use Docker:
@@ -199,7 +217,7 @@ For one public worked example showing what a user gains from the canonical layer
 
 ## Repository Boundary
 
-Reviewer-facing materials are this README, [REPRODUCIBILITY.md](REPRODUCIBILITY.md), the tracked fixture under `reproducibility/minimal/`, the public docs under `docs/`, and the public package under `src/noaa_spec`.
+Reviewer-facing materials are this README, [REPRODUCIBILITY.md](REPRODUCIBILITY.md), the tracked fixture under `reproducibility/minimal/`, the public docs under `docs/`, and the public package under `src/noaa_spec`. See [Repository Scope](#repository-scope) above for the full public/maintainer-internal boundary.
 
 ## Quick Reviewer Inspection
 
