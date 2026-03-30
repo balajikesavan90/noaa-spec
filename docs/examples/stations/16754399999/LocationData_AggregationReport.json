@@ -7,7 +7,7 @@
     "report_type": "aggregation_assumptions",
     "generated_at_utc": "2026-03-06T05:18:11Z",
     "data_access_date": "2026-03-06",
-    "version": "0.1.0"
+    "version": "1.0.0"
   },
   "strategy": {
     "name": "best_hour",
@@ -1399,5 +1399,5 @@
     "wind_speed_quality_code",
     "wind_type_code"
   ],
-  "citation": "Balaji Kesavan. (2026). noaa-climate-data (Version 0.1.0). NOAA ISD Global Hourly data processed for station 16754399999. Retrieved 2026-03-06 from https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database"
+  "citation": "Balaji Kesavan. (2026). noaa-climate-data (Version 1.0.0). NOAA ISD Global Hourly data processed for station 16754399999. Retrieved 2026-03-06 from https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database"
 }

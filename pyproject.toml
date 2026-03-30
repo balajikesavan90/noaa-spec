@@ -1,6 +1,6 @@
 [project]
 name = "noaa-spec"
-version = "0.1.0"
+version = "1.0.0"
 description = "Deterministic cleaning for NOAA ISD / Global Hourly observations with stable observation-level output semantics."
 authors = [
     {name = "Balaji Kesavan",email = "balajikesavan29@gmail.com"}

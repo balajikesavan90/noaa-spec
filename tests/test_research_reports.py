@@ -64,7 +64,7 @@ def test_generate_quality_report_has_required_sections() -> None:
         station_name="TEST",
         access_date="2026-02-28",
         run_date_utc="2026-02-28T00:00:00Z",
-        version="0.1.0",
+        version="1.0.0",
         authors="Balaji Kesavan",
     )
     report, summary = generate_quality_report(_sample_raw(), _sample_cleaned(), context)
@@ -93,7 +93,7 @@ def test_generate_aggregation_report_includes_strategy_and_drop_columns() -> Non
         station_name="TEST",
         access_date="2026-02-28",
         run_date_utc="2026-02-28T00:00:00Z",
-        version="0.1.0",
+        version="1.0.0",
         authors="Balaji Kesavan",
     )
 
@@ -124,7 +124,7 @@ def test_write_research_reports_writes_expected_files(tmp_path: Path) -> None:
         station_name="TEST",
         access_date="2026-02-28",
         run_date_utc="2026-02-28T00:00:00Z",
-        version="0.1.0",
+        version="1.0.0",
         authors="Balaji Kesavan",
     )
     quality_report, quality_summary = generate_quality_report(
