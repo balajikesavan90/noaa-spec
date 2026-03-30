@@ -58,6 +58,8 @@ The closest comparators are project-local preprocessing scripts, parsing-oriente
 
 An ad hoc pandas workflow can clean one dataset successfully for one project. It does not by itself establish a shared interpretation contract that another project can rerun and compare against without reimplementing the same NOAA decoding decisions. NOAA-Spec's contribution is that reusable canonicalization layer: deterministic normalization, preserved semantics, stable column naming, and deterministic serialization for the same NOAA input rows.
 
+By externalizing NOAA row decoding into a deterministic canonical contract, NOAA-Spec allows multiple downstream analyses to begin from the same auditable interpretation layer, reducing duplicated preprocessing effort and improving cross-project comparability. That is more than convenience: sentinel handling, missingness semantics, and QC context remain explicit and consistent instead of being redefined separately in each project.
+
 | Capability / role | Ad hoc pandas or local preprocessing | `isdparser` / `isd` style parsing tools | NOAA-Spec |
 | --- | --- | --- | --- |
 | Primary role | Project-specific preprocessing | Parsing or access to NOAA structures | Canonical interpretation layer |

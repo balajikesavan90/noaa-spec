@@ -16,16 +16,29 @@ The public contribution consists of:
 The JOSS-facing contribution is a shared deterministic interpretation layer for NOAA rows and a reproducibility path reviewers can run directly from this repository.
 The reproducible public canonical contract is the CSV emitted by `noaa-spec clean` and exemplified by `reproducibility/minimal/station_cleaned_expected.csv`; its reviewer-visible identifier columns are `STATION` and `DATE`.
 
-## Install
+## Docker First Run
 
-For ordinary use, install NOAA-Spec locally. For independent reviewer verification in a clean environment, use the Docker path later in this README.
+For independent reviewer verification and the cleanest first run, use Docker:
 
-Local installation requires:
+```bash
+docker build -f Dockerfile -t noaa-spec-review .
+docker run --rm noaa-spec-review bash scripts/verify_reproducibility.sh
+```
 
-- a working Python 3.12 environment
-- `venv` support
+Expected verification result:
 
-On some Linux systems, `venv` support and `ensurepip` are provided by a separate OS package. If local `venv` setup is unavailable, use Docker instead of improvising a host-local reviewer path.
+```text
+PASS: reproducibility verification succeeded.
+SHA256: b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597
+```
+
+This is the recommended reviewer-safe path. It reruns the tracked reproducibility fixture and verifies the canonical contract checksum without depending on a host-local Python setup.
+
+## Optional Local Install
+
+For ordinary local use, install NOAA-Spec into a Python 3.12 environment with `venv` support.
+
+On some Linux systems, `venv` support and `ensurepip` are provided by a separate OS package. If local `venv` setup is unavailable, use the Docker path above instead of improvising a host-local reviewer path.
 
 ```bash
 python3 -m venv .venv
@@ -35,8 +48,6 @@ python3 -m pip install -e .
 noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv
 sha256sum /tmp/station_cleaned.csv
 ```
-
-This first command writes the canonical NOAA-Spec representation for the tracked sample input.
 
 Expected checksum:
 
@@ -76,13 +87,17 @@ Run the canonical workflow first:
 noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv
 ```
 
-## Optional Derived Views
-
-If you want NOAA-Spec to write a narrower derived projection directly, add `--view` after the canonical workflow above:
+For a first inspection path, many users begin with a smaller derived view:
 
 ```bash
 noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_metadata.csv --view metadata
 ```
+
+The canonical CSV is the full loss-preserving contract and is intentionally wide. Optional views are usability projections derived from that canonical output, so you can orient yourself quickly and then expand into the full canonical columns as needed.
+
+## Optional Derived Views
+
+If you want NOAA-Spec to write a narrower derived projection directly, add `--view` after the canonical workflow above.
 
 Other supported views:
 
@@ -186,21 +201,7 @@ For one public worked example showing what a user gains from the canonical layer
 
 Reviewer-facing materials are this README, [REPRODUCIBILITY.md](REPRODUCIBILITY.md), the tracked fixture under `reproducibility/minimal/`, the public docs under `docs/`, and the public package under `src/noaa_spec`.
 
-## Quick Reviewer Path
-
-For independent reviewer verification, use Docker:
-
-```bash
-docker build -f Dockerfile -t noaa-spec-review .
-docker run --rm noaa-spec-review bash scripts/verify_reproducibility.sh
-```
-
-Expected verification result:
-
-```text
-PASS: reproducibility verification succeeded.
-SHA256: b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597
-```
+## Quick Reviewer Inspection
 
 Inspect a small, reviewer-friendly subset from the tracked canonical fixture:
 

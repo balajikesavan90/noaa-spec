@@ -22,14 +22,15 @@ def test_readme_locks_public_contribution_and_workflow() -> None:
 
     for section in (
         "## Public Scope",
-        "## Install",
+        "## Docker First Run",
+        "## Optional Local Install",
         "## Run The Canonical Contract",
         "## Optional Derived Views",
         "## Minimal Workflow",
         "## Why This Matters In Practice",
         "## Why The Canonical Contract Is Reusable",
         "## Repository Boundary",
-        "## Quick Reviewer Path",
+        "## Quick Reviewer Inspection",
         "## Reproducibility Verification",
         "## Docs",
     ):
@@ -38,9 +39,9 @@ def test_readme_locks_public_contribution_and_workflow() -> None:
     assert "deterministic canonicalization layer" in text
     assert "bundled checksum-backed reproducibility fixture" in text
     assert "loss-preserving normalized representation" in text
-    assert "For ordinary use, install NOAA-Spec locally." in text
-    assert "For independent reviewer verification, use Docker" in text
-    assert "working Python 3.12 environment" in text
+    assert "For independent reviewer verification and the cleanest first run, use Docker" in text
+    assert "recommended reviewer-safe path" in text
+    assert "For ordinary local use, install NOAA-Spec into a Python 3.12 environment" in text
     assert "noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv" in text
     assert "noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_metadata.csv --view metadata" in text
     assert "sha256sum /tmp/station_cleaned.csv" in text
@@ -49,6 +50,8 @@ def test_readme_locks_public_contribution_and_workflow() -> None:
     assert "SENTINEL_MISSING" in text
     assert "The canonical dataset defines the reproducible interpretation contract." in text
     assert "its reviewer-visible identifier columns are `STATION` and `DATE`" in text
+    assert "many users begin with a smaller derived view" in text
+    assert "Optional views are usability projections derived from that canonical output" in text
     assert "Raw NOAA token:" in text
     assert "Ad hoc preprocessing often keeps only the missing temperature and discards the QC context" in text
     assert "optional views derived from the canonical output" in text

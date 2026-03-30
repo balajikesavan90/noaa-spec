@@ -4,11 +4,11 @@ This guide is for first-time users who want to understand what the canonical out
 
 ## What this file is
 
-The canonical CSV is intentionally wide. It is a canonical, loss-preserving normalized representation of NOAA observations: cleaned measurement fields, preserved QC context, and supporting observation metadata live together in one deterministic source-of-truth layer.
+The canonical CSV is comprehensive by design. It is a loss-preserving normalized representation of NOAA observations: cleaned measurement fields, preserved QC context, and supporting observation metadata live together in one deterministic source-of-truth layer.
 
-NOAA ISD is structurally rich and heavily encoded. The width is intentional because canonicalization preserves reusable semantics that would otherwise remain buried in compact field tokens and project-local parsing rules.
+NOAA ISD is structurally rich and heavily encoded. NOAA-Spec externalizes that structure into stable named columns so the decoded interpretation is reusable instead of staying buried in compact field tokens and project-local parsing rules.
 
-Most users will work with a subset of fields or a domain-specific projection. Treat the canonical table as the stable intermediate contract rather than the final analysis surface for every task.
+For orientation, first-time users should begin with a smaller view or a small subset of canonical columns. Treat the canonical table as the stable contract, then expand into the full column set when your workflow needs the additional detail.
 
 The canonical dataset defines the reproducible interpretation contract. In that public canonical CSV, the identifier columns are `STATION` and `DATE`, matching the bundled reproducibility fixture and CLI output. Optional `--view` outputs are derived projections for usability and do not modify the underlying contract.
 
