@@ -92,4 +92,4 @@
 
 ## Citation
 
-Balaji Kesavan. (2026). noaa-climate-data (Version 1.0.0). NOAA ISD Global Hourly data processed for station 16754399999. Retrieved 2026-03-06 from https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database
+Balaji Kesavan. (2026). NOAA-Spec (Version 1.0.0). NOAA ISD Global Hourly data processed for station 16754399999. Retrieved 2026-03-06 from https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database

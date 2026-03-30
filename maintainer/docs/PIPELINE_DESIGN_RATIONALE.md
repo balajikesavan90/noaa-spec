@@ -249,7 +249,7 @@ spec_coverage.csv | docs/reports/SPEC_COVERAGE_REPORT.md
 
 ```bash
 # From workspace root
-cd /path/to/noaa-climate-data
+cd /path/to/noaa-spec
 
 # Generate spec_coverage.csv and docs/reports/SPEC_COVERAGE_REPORT.md
 poetry run python3 tools/spec_coverage/generate_spec_coverage.py

@@ -86,7 +86,7 @@ Checklist for P3 workstream to make the pipeline more useful for researchers.
 - [ ] Include runtime citation template:
 
 ```
-Author(s). (YYYY). noaa-climate-data (Version X.Y.Z). NOAA ISD Global Hourly data processed for station {STATION_ID}. Retrieved {ACCESS_DATE} from https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database
+Author(s). (YYYY). NOAA-Spec (Version X.Y.Z). NOAA ISD Global Hourly data processed for station {STATION_ID}. Retrieved {ACCESS_DATE} from https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database
 ```
 
 - [ ] If applicable, include DOI (Zenodo) and a "How to cite" README section.

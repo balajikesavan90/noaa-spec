@@ -261,7 +261,7 @@ def _longest_missing_runs(
 def _citation_text(ctx: ResearchReportContext) -> str:
     station_ref = ctx.station_id
     return (
-        f"{ctx.authors}. ({ctx.run_date_utc[:4]}). noaa-climate-data (Version {ctx.version}). "
+        f"{ctx.authors}. ({ctx.run_date_utc[:4]}). NOAA-Spec (Version {ctx.version}). "
         f"NOAA ISD Global Hourly data processed for station {station_ref}. "
         f"Retrieved {ctx.access_date} from "
         "https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database"
