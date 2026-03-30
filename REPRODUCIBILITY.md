@@ -11,6 +11,8 @@ It covers:
 - Docker clean-environment verification
 - the public reproducibility boundary
 
+Views are available through the public `noaa-spec clean --view ...` CLI as optional usability projections, but reproducibility verification for the scoped JOSS claim remains the canonical output and checksum below.
+
 ## Quick Reviewer Path
 
 For independent reviewer verification, use Docker:
@@ -69,6 +71,8 @@ noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv
 
 This writes the canonical NOAA-Spec representation for the tracked sample input.
 
+For a narrower usability-oriented projection derived from the same canonical output, you can optionally add `--view core`, `--view wind`, `--view precipitation`, `--view clouds_visibility`, `--view pressure_temperature`, or `--view remarks`.
+
 Inspect a small subset of the output:
 
 ```bash
@@ -106,6 +110,8 @@ Run the tracked example:
 python3 reproducibility/run_pipeline_example.py --out /tmp/noaa-spec-sample.csv
 ```
 
+Run that command from an environment where `noaa_spec` is installed, such as the review container above or the local editable install in this document.
+
 Verify the checksum:
 
 ```bash
@@ -129,6 +135,5 @@ This reproducibility surface covers the scoped JOSS contribution:
 It does not cover broader repository workflows such as:
 
 - batch orchestration
-- domain dataset publication
 - release manifests
 - internal validation or reporting workflows under `maintainer/`

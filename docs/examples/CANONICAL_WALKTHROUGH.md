@@ -6,7 +6,7 @@ This walkthrough shows the reviewer path explicitly:
 2. canonical normalized row
 3. small practical subset for downstream analysis
 
-It is illustrative only. It uses embedded raw and canonical snippets so the explanation does not depend on local `output/` artifacts. The reproducible reviewer path remains the tracked fixture in [../../REPRODUCIBILITY.md](../../REPRODUCIBILITY.md).
+It is illustrative only. It uses embedded raw and canonical snippets so the explanation does not depend on local `output/` artifacts. The reproducible reviewer path remains the tracked fixture in [../../REPRODUCIBILITY.md](../../REPRODUCIBILITY.md), and the public CLI can also write canonical-derived views directly with `--view`.
 
 ## Raw Snippet
 

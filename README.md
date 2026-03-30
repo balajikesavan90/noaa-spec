@@ -2,7 +2,7 @@
 
 NOAA-Spec is a deterministic canonicalization layer for NOAA ISD / Global Hourly observations. It turns raw NOAA rows into a specification-constrained canonical CSV with explicit nulls, preserved quality codes, stable column names, and deterministic serialization.
 
-The public software surface is the `noaa-spec clean` CLI, the canonical observation-level output contract, and the bundled checksum-backed reproducibility fixture.
+The public software surface is the `noaa-spec clean` CLI, the canonical observation-level output contract, optional secondary views derived from the canonical output, and the bundled checksum-backed reproducibility fixture.
 
 ## Quick Reviewer Path
 
@@ -44,12 +44,36 @@ PY
 
 For column interpretation, start with [docs/UNDERSTANDING_OUTPUT.md](docs/UNDERSTANDING_OUTPUT.md).
 
+## Getting Started (Recommended)
+
+For first-time use, start with a view derived from the canonical output:
+
+```bash
+noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_core.csv --view core
+```
+
+Other supported views:
+
+- `core` (`core_meteorology`)
+- `wind`
+- `precipitation`
+- `clouds_visibility`
+- `pressure_temperature`
+- `remarks`
+
+How to think about them:
+
+- The canonical CSV remains the primary, loss-preserving contract.
+- Views are secondary projections derived from that canonical output for usability.
+- Most users can start with a view, then rerun without `--view` when they need the full canonical table.
+
 ## Public Scope
 
 The reviewed public contribution consists only of:
 
 - the public `noaa-spec clean` CLI
 - the deterministic observation-level canonical contract
+- secondary views derived from the canonical output
 - the bundled reproducibility fixture and checksum-backed example
 
 The JOSS-facing contribution is this deterministic interpretation layer and its reproducibility path.
@@ -169,6 +193,12 @@ Starter columns for a first pass:
 - `TMP__qc_reason`
 
 The canonical output is intentionally wide because it is a loss-preserving normalized representation of the source row. Most users should not begin by reading all columns at once. Start with a subset of fields or with one of the domain splits built from the canonical contract, such as `core_meteorology`, `wind`, `precipitation`, `clouds_visibility`, `pressure_temperature`, or `remarks`.
+
+If you want NOAA-Spec to write one of those narrower projections directly, use `--view`. For example:
+
+```bash
+noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_pressure_temperature.csv --view pressure_temperature
+```
 
 For a column-level explanation of the cleaned output, see [docs/UNDERSTANDING_OUTPUT.md](docs/UNDERSTANDING_OUTPUT.md).
 For one public worked example showing what a user gains from the canonical layer, see [docs/examples/CANONICAL_WALKTHROUGH.md](docs/examples/CANONICAL_WALKTHROUGH.md).

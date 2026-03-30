@@ -1,6 +1,6 @@
 # Understanding the Output
 
-This guide is for first-time users who want to understand what the canonical output contains and what NOAA-Spec changed. The output described here is NOAA-Spec's stable canonical representation for NOAA ISD / Global Hourly records, not a claim of community-wide standardization.
+This guide is for first-time users who want to understand what the canonical output contains, what NOAA-Spec changed, and when to use a narrower view instead of the full table. The output described here is NOAA-Spec's stable canonical representation for NOAA ISD / Global Hourly records, not a claim of community-wide standardization.
 
 ## What this file is
 
@@ -10,7 +10,21 @@ NOAA ISD is structurally rich and heavily encoded. The width is intentional beca
 
 Most users will work with a subset of fields or a domain-specific projection. Treat the canonical table as the stable intermediate contract rather than the final analysis surface for every task.
 
-For lower-friction first use, start from a domain split when it matches your task. The repository already defines domain views such as `core_meteorology`, `wind`, `precipitation`, `clouds_visibility`, `pressure_temperature`, and `remarks`. Those narrower views are intended to make common workflows easier to approach while keeping the canonical table as the authoritative source layer.
+For lower-friction first use, start with `noaa-spec clean ... --view ...` when it matches your task. The public CLI exposes canonical-derived views such as `core`, `core_meteorology`, `wind`, `precipitation`, `clouds_visibility`, `pressure_temperature`, and `remarks`. Those narrower views are derived from the canonical table and exist to make common workflows easier to approach while keeping the canonical table as the authoritative source layer.
+
+## Use a view first
+
+If the full canonical CSV feels too wide for a first pass, write a view directly:
+
+```bash
+noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_pressure_temperature.csv --view pressure_temperature
+```
+
+How the two layers relate:
+
+- canonical output: the primary, loss-preserving contract
+- `--view` output: an optional usability layer derived from the canonical table
+- reproducibility verification: still based on the canonical output, not on a view
 
 ## A 10-column subset
 
@@ -51,7 +65,7 @@ For the bundled reviewer fixture, this subset is usually enough for a first read
 
 - treat the canonical table as the source-of-truth intermediate representation
 - inspect a subset of relevant fields for your task
-- start from a domain split when you want a narrower first view for a common workflow
+- start from a `--view` projection when you want a narrower first view for a common workflow
 - use the preserved QC columns when filtering or auditing missing values
 - derive narrower projections where appropriate instead of carrying all columns into every downstream step
 
@@ -145,6 +159,6 @@ This canonical representation is a better starting point when you want:
 - a reusable, deterministic source representation for downstream analysis
 - QC-aware filtering after cleaning rather than ad hoc preprocessing before it
 
-When you only need one part of the observational record, start from a subset of relevant columns or from an existing domain split. Narrower downstream tables can be derived from the canonical layer, but the defended public contribution is the canonical contract itself.
+When you only need one part of the observational record, start from a subset of relevant columns or from an existing `--view` projection. Narrower downstream tables can be derived from the canonical layer, but the defended public contribution is the canonical contract itself.
 
 If you only need a quick notebook exploration of one file, this may be more structure than you need.

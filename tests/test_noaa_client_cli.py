@@ -196,6 +196,81 @@ class TestCliCommands:
         assert pd.isna(cleaned.iloc[1]["temperature_c"])
         assert str(cleaned.iloc[1]["temperature_quality_code"]) == "9"
 
+    def test_cli_clean_with_view_writes_domain_projection(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        input_csv = repo_root / "reproducibility" / "minimal" / "station_raw.csv"
+        output_csv = tmp_path / "station_wind.csv"
+
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            ["prog", "clean", str(input_csv), "--out", str(output_csv), "--view", "wind"],
+        )
+        cli.main()
+
+        assert output_csv.exists()
+        cleaned = pd.read_csv(output_csv, low_memory=False)
+        assert tuple(cleaned.columns[:2]) == ("station_id", "DATE")
+        assert "wind_speed_ms" in cleaned.columns
+        assert "wind_direction_deg" in cleaned.columns
+        assert "temperature_c" not in cleaned.columns
+        assert "STATION" not in cleaned.columns
+
+        output = capsys.readouterr().out
+        assert "wind" in output
+
+    def test_cli_clean_with_core_alias_writes_core_meteorology_projection(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        input_csv = repo_root / "reproducibility" / "minimal" / "station_raw.csv"
+        output_csv = tmp_path / "station_core.csv"
+
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            ["prog", "clean", str(input_csv), "--out", str(output_csv), "--view", "core"],
+        )
+        cli.main()
+
+        assert output_csv.exists()
+        cleaned = pd.read_csv(output_csv, low_memory=False)
+        assert tuple(cleaned.columns) == (
+            "station_id",
+            "DATE",
+            "YEAR",
+            "LATITUDE",
+            "LONGITUDE",
+            "ELEVATION",
+            "REPORT_TYPE",
+            "CALL_SIGN",
+        )
+
+    def test_cli_clean_with_invalid_view_lists_available_views(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        input_csv = repo_root / "reproducibility" / "minimal" / "station_raw.csv"
+        output_csv = tmp_path / "station_invalid.csv"
+
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            ["prog", "clean", str(input_csv), "--out", str(output_csv), "--view", "xyz"],
+        )
+
+        with pytest.raises(SystemExit, match="Invalid view 'xyz'\\. Available views:"):
+            cli.main()
+
     def test_cli_file_list_invokes_builders(
         self,
         tmp_path: Path,

@@ -80,7 +80,7 @@ NOAA-Spec exposes a small public surface:
 2. apply deterministic field interpretation based on NOAA semantics,
 3. write a canonical observation-level CSV with stable column names and preserved QC fields.
 
-The public CLI is the `noaa-spec clean` command. The reviewer-visible example is intentionally bounded to the tracked reproducibility fixture in the repository. This keeps the JOSS claim aligned with the software surface that users and reviewers can actually run. The canonical CSV is the reproducible source representation and stable intermediate contract; users will often work with selected columns from it or with downstream domain-specific projections derived from it. Domain splits provide the lower-friction entry point for many common workflows, while the canonical table remains the authoritative normalized source layer.
+The public CLI is the `noaa-spec clean` command. The reviewer-visible example is intentionally bounded to the tracked reproducibility fixture in the repository. This keeps the JOSS claim aligned with the software surface that users and reviewers can actually run. The canonical CSV is the reproducible source representation and stable intermediate contract. The same CLI also exposes optional derived views for usability, such as `core_meteorology`, `wind`, `precipitation`, `clouds_visibility`, `pressure_temperature`, and `remarks`, but those views do not redefine the underlying contract. They are secondary projections from the canonical table for users who do not want to begin with the full wide output.
 
 # Reproducibility
 

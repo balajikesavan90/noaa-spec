@@ -23,6 +23,7 @@ def test_readme_locks_public_contribution_and_workflow() -> None:
     for section in (
         "## Public Scope",
         "## Quick Reviewer Path",
+        "## Getting Started (Recommended)",
         "## Optional Local Install",
         "## Minimal Workflow",
         "## Why This Matters In Practice",
@@ -40,11 +41,13 @@ def test_readme_locks_public_contribution_and_workflow() -> None:
     assert "working Python 3.12 environment" in text
     assert "convenience path for users and developers" in text
     assert "noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv" in text
+    assert "noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_core.csv --view core" in text
     assert "sha256sum /tmp/station_cleaned.csv" in text
     assert "docker build -f Dockerfile -t noaa-spec-review ." in text
     assert "TMP__qc_reason" in text
     assert "SENTINEL_MISSING" in text
     assert "Two competent researchers can start from the same raw NOAA row and still diverge" in text
+    assert "secondary views derived from the canonical output" in text
     assert "core_meteorology" in text
     assert "clouds_visibility" in text
     assert "Additional repository material may support broader maintenance and publication workflows" in text
@@ -59,6 +62,7 @@ def test_docs_index_points_to_single_first_run_and_reproducibility_path() -> Non
     assert "[examples/CANONICAL_WALKTHROUGH.md](examples/CANONICAL_WALKTHROUGH.md)" in text
     assert "[../maintainer/README.md](../maintainer/README.md)" in text
     assert "small public documentation set" in text
+    assert "--view" in text
 
 
 def test_output_guide_provides_practical_subset_and_qc_context() -> None:
@@ -68,14 +72,15 @@ def test_output_guide_provides_practical_subset_and_qc_context() -> None:
     assert "Where to start" in output_text
     assert "How most users should approach this output" in output_text
     assert "Practical downstream subset" in output_text
+    assert "Use a view first" in output_text
     assert "Sentinel handling" in output_text
     assert "QC flags" in output_text
     assert "Missing values" in output_text
     assert "BEFORE -> AFTER example" in output_text
     assert "temperature_c" in output_text
     assert "TMP__qc_reason=SENTINEL_MISSING" in output_text
-    assert "The repository already defines domain views such as" in output_text
-    assert "start from a domain split" in output_text
+    assert "`--view`" in output_text
+    assert "derived from the canonical table" in output_text
 
 
 def test_examples_docs_no_longer_duplicate_first_run_commands() -> None:
@@ -85,6 +90,7 @@ def test_examples_docs_no_longer_duplicate_first_run_commands() -> None:
     assert "small supplemental examples" in examples_text
     assert "not a second installation guide" in examples_text
     assert "noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv" in examples_text
+    assert "--view core" in examples_text
     assert "python3 examples/run_minimal_cleaning.py --out /tmp/noaa-spec-example.csv" not in examples_text
 
     assert "curated public example artifacts" in docs_examples_text
@@ -133,6 +139,7 @@ def test_reproducibility_doc_is_single_reproducibility_path() -> None:
     assert "For independent reviewer verification, use Docker" in public_text
     assert "Inspect a small subset from the tracked canonical fixture:" in public_text
     assert "python3 reproducibility/run_pipeline_example.py --out /tmp/noaa-spec-sample.csv" in public_text
+    assert "Views are available through the public `noaa-spec clean --view ...` CLI" in public_text
     assert "50e8bfb9ffae8278652bb7410cfbc9683a48711c35cfcf9e9dd3c38bbc403d47" in public_text
     assert "b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597" in public_text
     assert "docker build -f Dockerfile -t noaa-spec-review ." in public_text

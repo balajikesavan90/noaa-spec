@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 
 import pandas as pd
@@ -9,6 +10,85 @@ import pandas as pd
 from ..contracts import DOMAIN_DATASET_CONTRACT
 from ..deterministic_io import write_deterministic_csv, write_deterministic_parquet
 from .registry import DomainDefinition, domain_definitions
+
+
+@dataclass(frozen=True)
+class ViewDefinition:
+    view_name: str
+    domain_name: str
+    description: str
+
+
+VIEW_DEFINITIONS: tuple[ViewDefinition, ...] = (
+    ViewDefinition(
+        view_name="core",
+        domain_name="core_meteorology",
+        description="alias for core_meteorology",
+    ),
+    ViewDefinition(
+        view_name="core_meteorology",
+        domain_name="core_meteorology",
+        description="station/time context and identifying metadata",
+    ),
+    ViewDefinition(
+        view_name="wind",
+        domain_name="wind",
+        description="wind speed, direction, gust, and wind QC fields",
+    ),
+    ViewDefinition(
+        view_name="precipitation",
+        domain_name="precipitation",
+        description="precipitation amount, period, snow depth, and precip QC fields",
+    ),
+    ViewDefinition(
+        view_name="clouds_visibility",
+        domain_name="clouds_visibility",
+        description="visibility, ceiling, cloud cover, and related QC fields",
+    ),
+    ViewDefinition(
+        view_name="pressure_temperature",
+        domain_name="pressure_temperature",
+        description="temperature, dew point, pressure, and related QC fields",
+    ),
+    ViewDefinition(
+        view_name="remarks",
+        domain_name="remarks",
+        description="free-text remarks associated with each observation",
+    ),
+)
+
+
+def available_view_names() -> tuple[str, ...]:
+    return tuple(definition.view_name for definition in VIEW_DEFINITIONS)
+
+
+def available_views_text() -> str:
+    return ", ".join(available_view_names())
+
+
+def get_view_definition(view_name: str) -> ViewDefinition:
+    normalized = view_name.strip().lower()
+    for definition in VIEW_DEFINITIONS:
+        if definition.view_name == normalized:
+            return definition
+    raise KeyError(view_name)
+
+
+def project_view_from_canonical(
+    cleaned: pd.DataFrame,
+    view_name: str,
+) -> tuple[ViewDefinition, pd.DataFrame]:
+    definition = get_view_definition(view_name)
+    projected_by_domain = {
+        domain_definition.domain_name: domain_df
+        for domain_definition, domain_df in project_domain_datasets_from_registry(cleaned)
+    }
+
+    if definition.domain_name not in projected_by_domain:
+        raise ValueError(
+            f"View {definition.view_name!r} could not be projected from the canonical output."
+        )
+    return definition, projected_by_domain[definition.domain_name]
 
 
 def project_domain_datasets_from_registry(
