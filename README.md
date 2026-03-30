@@ -34,6 +34,8 @@ The following directories are **maintainer-internal** support material. They are
 - `tools/` — internal spec-coverage and rule-impact tooling
 - `spec_sources/` — reference copies of the NOAA ISD format specification used during development
 
+Within `src/noaa_spec/`, the **public surface** is the `noaa-spec clean` CLI and the canonical cleaning contract (`cleaning.py`, `constants.py`, `deterministic_io.py`, `domains/`). Additional modules (`pipeline.py`, `cleaning_runner.py`, `internal/`, `research_reports.py`, `noaa_client.py`) support maintainer batch workflows and are not required for normal use or JOSS evaluation.
+
 ## Docker First Run
 
 For independent reviewer verification and the cleanest first run, use Docker:

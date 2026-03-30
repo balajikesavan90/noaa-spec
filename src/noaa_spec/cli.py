@@ -81,6 +81,8 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         help=(
             "Optional secondary projection derived from the canonical output. "
+            "View outputs use 'station_id' instead of 'STATION' as the "
+            "station identifier column. "
             f"Available views: {available_views_text()}."
         ),
     )
@@ -110,9 +112,7 @@ def main() -> None:
             view_name=view_definition.view_name,
         )
         print(
-            "Wrote cleaned CSV view "
-            f"({view_definition.view_name} -> {view_definition.domain_name}) "
-            f"to {written_path.resolve()}"
+            f"Wrote {view_definition.view_name} view to {written_path.resolve()}"
         )
         return
 

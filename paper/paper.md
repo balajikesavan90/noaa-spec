@@ -18,7 +18,7 @@ bibliography: paper.bib
 
 # Abstract
 
-NOAA-Spec is open-source software for deterministic interpretation of NOAA Integrated Surface Database (ISD) / Global Hourly observations. It provides a specification-constrained canonical contract for raw NOAA rows: the software standardizes sentinel handling, preserves NOAA quality-control semantics in dedicated fields, emits a stable schema, and serializes a deterministic canonical representation so the same raw input yields the same observation-level CSV. In the public canonical CSV exposed by the repository, the reviewer-visible identifier columns are `STATION` and `DATE`, matching the bundled reproducibility fixture.
+NOAA-Spec is open-source software for deterministic interpretation of NOAA Integrated Surface Database (ISD) / Global Hourly observations. It standardizes sentinel handling, preserves NOAA quality-control semantics in dedicated columns, and emits a stable observation-level CSV so the same raw input always yields the same canonical output. The result is a reusable interpretation layer that downstream analyses can share instead of reimplementing NOAA decoding logic independently.
 
 # Summary
 
@@ -30,17 +30,15 @@ Existing tools help users obtain NOAA records or parse ISD structures, and many 
 
 Preprocessing NOAA ISD is not only a file-reading task. Raw observations contain compact tokens such as `TMP=+9999,9`, where the numeric segment and quality code must be interpreted together [@noaa_isd_docs]. A token like `+9999,9` does not mean a very large temperature; it is a sentinel-coded missing value. When projects reimplement that interpretation locally, sentinel handling and QC preservation can drift, and derived tables stop being directly comparable.
 
-Researchers comparing temperature and visibility across stations and years need the same interpretation of missingness, QC state, and packed field semantics each time an analysis is rerun. A local parser plus one-off cleaning script can produce a usable dataset once, but the interpretation layer usually remains embedded in project code. NOAA-Spec makes that layer explicit and reusable. It converts sentinel-coded measurements into nulls, preserves NOAA quality codes in dedicated columns, and emits a stable observation-level schema. The result is a canonical, deterministic interpretation layer that downstream analyses can share as a common starting point.
+Researchers comparing temperature and visibility across stations and years need the same interpretation of missingness, QC state, and packed field semantics each time an analysis is rerun. NOAA-Spec makes that layer explicit and reusable: it converts sentinel-coded measurements into nulls, preserves NOAA quality codes in dedicated columns, and emits a stable observation-level schema.
 
-In the tracked reproducibility fixture included with the repository, raw `TMP` values such as `+0180,1` become `temperature_c=18.0`, while `TMP=+9999,9` becomes `temperature_c=null` with `temperature_quality_code=9` and `TMP__qc_reason=SENTINEL_MISSING`. When the same raw input yields the same canonical observation-level output, downstream analyses become easier to audit, compare, and reproduce because this interpretation step is explicit and repeatable. Two downstream users can start from the same canonical subset `STATION`, `DATE`, `temperature_c`, `temperature_quality_code`, `visibility_m`, and `TMP__qc_reason`, then apply different later filters without reimplementing NOAA sentinel decoding or quality-code preservation. The canonical representation is intentionally wide because it is the source layer; many users will begin from a subset of fields or from narrower derived views such as `metadata`, `wind`, `precipitation`, `clouds_visibility`, `pressure_temperature`, or `remarks`.
+For example, the raw token `TMP=+9999,9` does not mean a very large temperature — it is a sentinel-coded missing value. NOAA-Spec emits `temperature_c=null` with `temperature_quality_code=9` and `TMP__qc_reason=SENTINEL_MISSING`, so the sentinel interpretation and QC context are preserved explicitly rather than discarded or silently reimplemented. Two downstream users can start from the same canonical subset — `STATION`, `DATE`, `temperature_c`, `temperature_quality_code`, `visibility_m`, `TMP__qc_reason` — and apply different later filters without reimplementing NOAA decoding. The canonical representation is intentionally wide because it is the source layer; users can begin from a subset of fields or from narrower derived views such as `metadata`, `wind`, `precipitation`, `clouds_visibility`, `pressure_temperature`, or `remarks`.
 
 # Why This Matters In Practice
 
 NOAA-Spec matters when multiple projects need the same interpreted NOAA input. A careful local preprocessing script can clean one dataset for one study, but the interpretation rules remain local and difficult to compare across projects.
 
-Consider two researchers studying visibility and temperature over the same station set. An ad hoc workflow may emit `TMP=+9999,9` as a missing temperature and stop there, discarding the associated QC semantics. NOAA-Spec emits `temperature_c=null`, preserves `temperature_quality_code=9`, and records `TMP__qc_reason=SENTINEL_MISSING` in the canonical row.
-
-Both researchers can therefore distinguish sentinel-coded missingness from later quality-based exclusion logic instead of inheriting project-local missingness rules silently. They can begin from the same interpreted subset `STATION`, `DATE`, `temperature_c`, `temperature_quality_code`, `visibility_m`, and `TMP__qc_reason`, then apply stricter or looser later filters explicitly. NOAA-Spec does not remove downstream choice; it ensures those choices start from the same deterministic interpretation of the raw NOAA rows. The canonical dataset defines the reproducible interpretation contract, and optional derived views are usability projections from that canonical table.
+An ad hoc workflow typically discards the QC context that explains why a value is missing. NOAA-Spec preserves that context deterministically — sentinel-coded missingness is distinguished from later quality-based exclusion — so downstream users start from the same decoded interpretation instead of silently diverging. The canonical dataset defines the reproducible interpretation contract, and optional derived views are usability projections from that canonical table.
 
 # Comparison With Existing Tools
 
@@ -48,21 +46,16 @@ Existing NOAA tools help users obtain or parse ISD data, but they do not by them
 
 The closest comparators are project-local preprocessing scripts, parsing-oriented tools such as the R package `isdparser`, and Python packages such as `isd`. These tools help users read NOAA data structures or fetch source records. NOAA-Spec targets the next step: a reusable interpretation layer that fixes sentinel handling, preserves QC semantics in a stable schema, and gives different analyses the same canonical observation-level output contract.
 
-An ad hoc pandas workflow can clean one dataset for one project, but it does not by itself establish a shared interpretation contract that another project can rerun and compare against without reimplementing NOAA decoding decisions. NOAA-Spec's contribution is that reusable canonicalization layer.
+An ad hoc pandas workflow can clean one dataset for one project, but it does not establish a shared interpretation contract that another project can rerun and compare against. NOAA-Spec's contribution is that reusable canonicalization layer.
 
-| Capability / role | Ad hoc pandas or local preprocessing | `isdparser` / `isd` style parsing tools | NOAA-Spec |
+| Capability | Ad hoc / local scripts | Parsing tools (`isdparser`, `isd`) | NOAA-Spec |
 | --- | --- | --- | --- |
-| Primary role | Project-specific preprocessing | Parsing or access to NOAA structures | Canonical interpretation layer |
-| Deterministic serialized canonical CSV | Usually project-specific | Not the primary focus | Yes |
-| Explicit sentinel normalization policy | Usually local and implicit | Often left to project-specific workflows after parsing | Yes |
-| Preservation of QC semantics in stable sidecar columns | Varies by project | Not the primary focus | Yes |
-| Documented shared cleaning/interpretation contract | Usually local to one project | Not documented as the main contribution | Yes |
-| Checksum-backed reproducibility fixture in-repo | Rare | Not the primary focus | Yes |
-| Intended role as stable intermediate representation | Varies by project | Usually parsing-oriented input to later workflows | Yes |
+| Primary role | Project-specific preprocessing | Parsing or access | Canonical interpretation layer |
+| Deterministic canonical CSV | Usually project-specific | Not the primary focus | Yes |
+| Sentinel normalization + QC preservation | Varies, often implicit | Left to downstream workflows | Yes |
+| Checksum-backed reproducibility fixture | Rare | Not the primary focus | Yes |
 
 NOAA-Spec is aimed at that layer. Its contribution is deterministic NOAA-ISD-specific infrastructure that sits between raw parsed rows and downstream scientific analysis.
-
-NOAA-Spec defines a reusable, specification-constrained interpretation contract that local preprocessing scripts do not provide. It fixes a shared, specification-constrained interpretation contract that multiple projects can reuse, rerun, audit, and compare.
 
 # Software Design
 
@@ -72,7 +65,7 @@ NOAA-Spec exposes a small public surface:
 2. apply deterministic field interpretation based on NOAA semantics,
 3. write a canonical observation-level CSV with stable column names and preserved QC fields.
 
-The public CLI is the `noaa-spec clean` command. The reviewer-visible example is intentionally bounded to the tracked reproducibility fixture in the repository so the JOSS claim matches the software surface that users and reviewers can run. The canonical CSV is the reproducible source representation and stable intermediate contract. The same CLI also exposes optional derived views for usability, such as `metadata`, `wind`, `precipitation`, `clouds_visibility`, `pressure_temperature`, and `remarks`. Those views are secondary projections from the canonical table for users who do not want to begin with the full wide output.
+The public CLI is the `noaa-spec clean` command. The reviewer-visible example is intentionally bounded to the tracked reproducibility fixture so the JOSS claim matches the software surface that users and reviewers can run. The CLI also exposes optional derived views (`metadata`, `wind`, `precipitation`, `clouds_visibility`, `pressure_temperature`, `remarks`) as narrower projections from the canonical table.
 
 # Reproducibility
 

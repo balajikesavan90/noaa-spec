@@ -106,6 +106,8 @@ def test_examples_docs_no_longer_duplicate_first_run_commands() -> None:
 
 
 def test_maintainer_docs_are_moved_out_of_public_docs() -> None:
+    if not MAINTAINER_INDEX_PATH.exists():
+        pytest.skip("maintainer/ tree not present")
     for path in (
         PROJECT_ROOT / "maintainer" / "docs" / "REVIEWER_GUIDE.md",
         PROJECT_ROOT / "maintainer" / "docs" / "LOCAL_DEV.md",

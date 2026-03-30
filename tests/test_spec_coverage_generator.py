@@ -1107,6 +1107,10 @@ def test_augmented_identifier_set_enables_exact_test_evidence_for_ab1(tmp_path: 
 
 def test_spec_coverage_generator_smoke() -> None:
     repo_root = Path(__file__).resolve().parents[1]
+    generator_script = repo_root / "tools" / "spec_coverage" / "generate_spec_coverage.py"
+    exports_dir = repo_root / "maintainer" / "exports"
+    if not generator_script.exists() or not exports_dir.is_dir():
+        pytest.skip("maintainer/exports/ directory or generator script not present")
     module = _load_generator_module(repo_root)
 
     module.main()

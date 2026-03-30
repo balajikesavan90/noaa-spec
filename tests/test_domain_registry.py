@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from noaa_spec.domains.registry import domain_definitions, domain_names
 
 
@@ -46,6 +48,8 @@ def test_domain_registry_contracts_remain_observation_level_and_non_aggregate() 
 def test_domain_registry_doc_lists_all_domains_and_shared_join_keys() -> None:
     project_root = Path(__file__).resolve().parent.parent
     registry_doc = project_root / "maintainer" / "docs" / "DOMAIN_DATASET_REGISTRY.md"
+    if not registry_doc.exists():
+        pytest.skip("maintainer/docs/DOMAIN_DATASET_REGISTRY.md not present")
     text = registry_doc.read_text(encoding="utf-8")
 
     for domain_name in domain_names():

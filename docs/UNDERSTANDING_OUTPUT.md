@@ -24,9 +24,11 @@ noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_pressure_te
 
 How the two layers relate:
 
-- canonical output: the primary, loss-preserving contract
-- `--view` output: an optional usability layer derived from the canonical table
+- canonical output: the primary, loss-preserving contract (station identifier column: `STATION`)
+- `--view` output: an optional usability layer derived from the canonical table (station identifier column: `station_id`)
 - reproducibility verification: still based on the canonical output, not on a view
+
+**Note:** View outputs use `station_id` instead of `STATION` as the station identifier column. If you join a view with the canonical CSV, join on matching values rather than expecting identical column names.
 
 Use `metadata` when you want station/time context and identifying fields only. For compatibility, `core` and `core_meteorology` remain accepted aliases for that same metadata view.
 

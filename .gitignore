@@ -4,6 +4,13 @@ __pycache__/
 *$py.class
 noaa_file_index/state/
 
+# AI tooling configuration
+.codex
+.github/prompts/
+
+# Package manager lock files (project uses setuptools)
+poetry.lock
+
 *.csv
 *.parquet
 !reproducibility/minimal/
