@@ -10,6 +10,8 @@ NOAA ISD is structurally rich and heavily encoded. The width is intentional beca
 
 Most users will work with a subset of fields or a domain-specific projection. Treat the canonical table as the stable intermediate contract rather than the final analysis surface for every task.
 
+For lower-friction first use, start from a domain split when it matches your task. The repository already defines domain views such as `core_meteorology`, `wind`, `precipitation`, `clouds_visibility`, `pressure_temperature`, and `remarks`. Those narrower views are intended to make common workflows easier to approach while keeping the canonical table as the authoritative source layer.
+
 ## A 10-column subset
 
 Here is a useful subset from the canonical cleaned sample:
@@ -49,6 +51,7 @@ For the bundled reviewer fixture, this subset is usually enough for a first read
 
 - treat the canonical table as the source-of-truth intermediate representation
 - inspect a subset of relevant fields for your task
+- start from a domain split when you want a narrower first view for a common workflow
 - use the preserved QC columns when filtering or auditing missing values
 - derive narrower projections where appropriate instead of carrying all columns into every downstream step
 
@@ -142,6 +145,6 @@ This canonical representation is a better starting point when you want:
 - a reusable, deterministic source representation for downstream analysis
 - QC-aware filtering after cleaning rather than ad hoc preprocessing before it
 
-When you only need one part of the observational record, start from a subset of relevant columns. Narrower downstream tables can be derived from the canonical layer, but the defended public contribution is the canonical contract itself.
+When you only need one part of the observational record, start from a subset of relevant columns or from an existing domain split. Narrower downstream tables can be derived from the canonical layer, but the defended public contribution is the canonical contract itself.
 
 If you only need a quick notebook exploration of one file, this may be more structure than you need.

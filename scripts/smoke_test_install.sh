@@ -17,7 +17,7 @@ fi
 expected_before="$(sha256sum "${TRACKED_EXPECTED}" | cut -d' ' -f1)"
 
 python3 -c "import noaa_spec"
-python3 reproducibility/run_pipeline_example.py --example minimal --out "${SMOKE_OUTPUT}"
+python3 reproducibility/run_pipeline_example.py --out "${SMOKE_OUTPUT}"
 
 if [[ ! -s "${SMOKE_OUTPUT}" ]]; then
     echo "Smoke test failed: expected cleaned CSV at ${SMOKE_OUTPUT}." >&2

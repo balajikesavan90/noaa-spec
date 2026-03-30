@@ -1,6 +1,6 @@
 # Reproducibility
 
-This document is the authoritative public reviewer path for NOAA-Spec.
+This document is the authoritative reviewer path for NOAA-Spec.
 
 It covers:
 
@@ -9,7 +9,7 @@ It covers:
 - deterministic fixture verification
 - checksum verification
 - Docker clean-environment verification
-- the explicit reproducibility boundary
+- the public reproducibility boundary
 
 ## Quick Reviewer Path
 
@@ -53,7 +53,7 @@ Use [docs/UNDERSTANDING_OUTPUT.md](docs/UNDERSTANDING_OUTPUT.md) if you need hel
 
 ## Optional Local Install
 
-Local installation is a convenience path for users and developers. It is not the reviewer-authoritative reproducibility path.
+Local installation is a convenience path for users and developers. It is not the authoritative reviewer path.
 
 Local installation requires a working Python 3.12 environment with `venv` support.
 
@@ -103,7 +103,7 @@ Tracked files:
 Run the tracked example:
 
 ```bash
-python3 reproducibility/run_pipeline_example.py --example minimal --out /tmp/noaa-spec-sample.csv
+python3 reproducibility/run_pipeline_example.py --out /tmp/noaa-spec-sample.csv
 ```
 
 Verify the checksum:
@@ -120,13 +120,13 @@ b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597
 
 ## Reproducibility Boundary
 
-This public reproducibility surface covers only the scoped JOSS contribution:
+This reproducibility surface covers the scoped JOSS contribution:
 
 - the public `noaa-spec clean` CLI
 - the specification-constrained canonical interpretation layer
 - the bundled tracked fixture and checksum-backed verification path
 
-It does not cover maintainer-only workflows such as:
+It does not cover broader repository workflows such as:
 
 - batch orchestration
 - domain dataset publication

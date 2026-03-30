@@ -52,7 +52,7 @@ The reviewed public contribution consists only of:
 - the deterministic observation-level canonical contract
 - the bundled reproducibility fixture and checksum-backed example
 
-Other materials in this repository may support internal development, validation, or future work, but they are not part of the narrow reviewed software claim.
+The JOSS-facing contribution is this deterministic interpretation layer and its reproducibility path.
 
 ## Optional Local Install
 
@@ -128,6 +128,16 @@ Key transformations:
 - NOAA QC semantics are preserved in separate fields such as `temperature_quality_code`.
 - Output columns are normalized into a stable observation-level schema such as `temperature_c`, `dew_point_c`, and `visibility_m`.
 
+## Why This Matters In Practice
+
+Two competent researchers can start from the same raw NOAA row and still diverge before analysis begins.
+
+- One script may turn `TMP=+9999,9` into a numeric placeholder and drop the `9` quality code.
+- Another may convert the temperature to null but never preserve why it became null.
+- A third may decode `VIS=999999,9,N,1` differently again.
+
+Those are not modeling choices yet. They are interpretation choices hidden inside preprocessing. NOAA-Spec fixes that step by emitting one deterministic canonical row with nullified sentinels, preserved QC semantics, and stable column names. Different downstream filters can still differ, but they begin from the same interpretation layer instead of from incompatible local cleaning rules.
+
 ## Why The Canonical Contract Is Reusable
 
 The gain is not only "cleaned data." The same canonical row can support different downstream policies without each user re-implementing NOAA decoding rules first.
@@ -158,16 +168,16 @@ Starter columns for a first pass:
 - `visibility_m`
 - `TMP__qc_reason`
 
-The canonical output is intentionally wide because it is a loss-preserving normalized representation of the source row. Most users will work with a subset of fields or a downstream domain-specific projection built from that canonical contract.
+The canonical output is intentionally wide because it is a loss-preserving normalized representation of the source row. Most users should not begin by reading all columns at once. Start with a subset of fields or with one of the domain splits built from the canonical contract, such as `core_meteorology`, `wind`, `precipitation`, `clouds_visibility`, `pressure_temperature`, or `remarks`.
 
 For a column-level explanation of the cleaned output, see [docs/UNDERSTANDING_OUTPUT.md](docs/UNDERSTANDING_OUTPUT.md).
 For one public worked example showing what a user gains from the canonical layer, see [docs/examples/CANONICAL_WALKTHROUGH.md](docs/examples/CANONICAL_WALKTHROUGH.md).
 
 ## Repository Boundary
 
-Reviewer-facing materials are intentionally limited to this README, [REPRODUCIBILITY.md](REPRODUCIBILITY.md), `src/noaa_spec`, `tests`, the minimal public fixture under `reproducibility/minimal/`, and the small public docs under `docs/`.
+Reviewer-facing materials are this README, [REPRODUCIBILITY.md](REPRODUCIBILITY.md), `src/noaa_spec`, `tests`, the tracked fixture under `reproducibility/minimal/`, and the public docs under `docs/`.
 
-Maintainer-only records, audit exports, and broader pipeline material live under `maintainer/`. They are outside the public reviewer path.
+Additional repository material may support broader maintenance and publication workflows, but the JOSS claim here is the canonical interpretation layer above.
 
 ## Reproducibility Verification
 

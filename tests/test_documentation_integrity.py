@@ -25,6 +25,7 @@ def test_readme_locks_public_contribution_and_workflow() -> None:
         "## Quick Reviewer Path",
         "## Optional Local Install",
         "## Minimal Workflow",
+        "## Why This Matters In Practice",
         "## Why The Canonical Contract Is Reusable",
         "## Repository Boundary",
         "## Reproducibility Verification",
@@ -43,7 +44,10 @@ def test_readme_locks_public_contribution_and_workflow() -> None:
     assert "docker build -f Dockerfile -t noaa-spec-review ." in text
     assert "TMP__qc_reason" in text
     assert "SENTINEL_MISSING" in text
-    assert "Maintainer-only records, audit exports, and broader pipeline material live under `maintainer/`" in text
+    assert "Two competent researchers can start from the same raw NOAA row and still diverge" in text
+    assert "core_meteorology" in text
+    assert "clouds_visibility" in text
+    assert "Additional repository material may support broader maintenance and publication workflows" in text
 
 
 def test_docs_index_points_to_single_first_run_and_reproducibility_path() -> None:
@@ -70,6 +74,8 @@ def test_output_guide_provides_practical_subset_and_qc_context() -> None:
     assert "BEFORE -> AFTER example" in output_text
     assert "temperature_c" in output_text
     assert "TMP__qc_reason=SENTINEL_MISSING" in output_text
+    assert "The repository already defines domain views such as" in output_text
+    assert "start from a domain split" in output_text
 
 
 def test_examples_docs_no_longer_duplicate_first_run_commands() -> None:
@@ -126,7 +132,7 @@ def test_reproducibility_doc_is_single_reproducibility_path() -> None:
     assert "working Python 3.12 environment with `venv` support" in public_text
     assert "For independent reviewer verification, use Docker" in public_text
     assert "Inspect a small subset from the tracked canonical fixture:" in public_text
-    assert "python3 reproducibility/run_pipeline_example.py --example minimal --out /tmp/noaa-spec-sample.csv" in public_text
+    assert "python3 reproducibility/run_pipeline_example.py --out /tmp/noaa-spec-sample.csv" in public_text
     assert "50e8bfb9ffae8278652bb7410cfbc9683a48711c35cfcf9e9dd3c38bbc403d47" in public_text
     assert "b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597" in public_text
     assert "docker build -f Dockerfile -t noaa-spec-review ." in public_text
