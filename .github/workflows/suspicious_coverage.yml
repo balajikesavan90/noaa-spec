@@ -37,7 +37,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .venv
-          key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+          key: v3-venv-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'poetry.lock') }}
       
       - name: Install dependencies
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
@@ -46,13 +46,17 @@ jobs:
       - name: Install project
         run: poetry install --no-interaction
 
+      - name: Install test tooling
+        run: |
+          poetry run python -m pip install pytest==9.0.2 pytest-cov==5.0.0
+
       - name: Run publication schema validation gate
         run: |
-          poetry run pytest tests/test_publication_schema_ci.py -v
+          poetry run python -m pytest tests/test_publication_schema_ci.py -v
 
       - name: Run parser/spec guardrail checks
         run: |
-          poetry run pytest tests/test_parser_spec_guardrails.py -v
+          poetry run python -m pytest tests/test_parser_spec_guardrails.py -v
 
       - name: Generate suspicious coverage summary
         run: |
@@ -144,7 +148,7 @@ jobs:
       
       - name: Run suspicious coverage integrity test
         run: |
-          poetry run pytest tests/test_suspicious_coverage_integrity.py -v
+          poetry run python -m pytest tests/test_suspicious_coverage_integrity.py -v
       
       - name: Upload suspicious coverage summary
         uses: actions/upload-artifact@v4
