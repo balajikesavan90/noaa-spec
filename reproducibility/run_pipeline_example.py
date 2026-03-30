@@ -4,9 +4,15 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import sys
 import tempfile
 
 import pandas as pd
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+SRC_ROOT = PROJECT_ROOT / "src"
+if str(SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(SRC_ROOT))
 
 from noaa_spec.cleaning import clean_noaa_dataframe
 from noaa_spec.deterministic_io import write_deterministic_csv
@@ -31,8 +37,7 @@ def _parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = _parse_args()
-    repo_root = Path(__file__).resolve().parents[1]
-    raw_path = repo_root / RAW_RELPATH
+    raw_path = PROJECT_ROOT / RAW_RELPATH
     cleaned_path = args.out or (Path(tempfile.gettempdir()) / DEFAULT_OUT)
     cleaned_path.parent.mkdir(parents=True, exist_ok=True)
 
