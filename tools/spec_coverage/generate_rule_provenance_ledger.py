@@ -2,8 +2,8 @@
 """Generate rule provenance ledger artifacts from enforced repository behavior.
 
 Outputs:
-- RULE_PROVENANCE_LEDGER.csv
-- docs/internal/reports/RULE_PROVENANCE_LEDGER.md
+- maintainer/exports/RULE_PROVENANCE_LEDGER.csv
+- maintainer/docs/reports/RULE_PROVENANCE_LEDGER.md
 
 This script is deterministic and uses local repository files only.
 """
@@ -1429,19 +1429,19 @@ def main() -> int:
     parser.add_argument(
         "--spec-coverage",
         type=Path,
-        default=Path("spec_coverage.csv"),
+        default=Path("maintainer/exports/spec_coverage.csv"),
         help="Path to spec_coverage.csv",
     )
     parser.add_argument(
         "--output-csv",
         type=Path,
-        default=Path("RULE_PROVENANCE_LEDGER.csv"),
+        default=Path("maintainer/exports/RULE_PROVENANCE_LEDGER.csv"),
         help="Output CSV path",
     )
     parser.add_argument(
         "--output-md",
         type=Path,
-        default=Path("docs/internal/reports/RULE_PROVENANCE_LEDGER.md"),
+        default=Path("maintainer/docs/reports/RULE_PROVENANCE_LEDGER.md"),
         help="Output markdown summary path",
     )
     args = parser.parse_args()

@@ -6,13 +6,14 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 README_PATH = PROJECT_ROOT / "README.md"
 DOCS_INDEX_PATH = PROJECT_ROOT / "docs" / "README.md"
 DOCS_OUTPUT_GUIDE_PATH = PROJECT_ROOT / "docs" / "UNDERSTANDING_OUTPUT.md"
-DOCS_INTERNAL_INDEX_PATH = PROJECT_ROOT / "docs" / "internal" / "README.md"
+MAINTAINER_INDEX_PATH = PROJECT_ROOT / "maintainer" / "README.md"
+MAINTAINER_DOCS_INDEX_PATH = PROJECT_ROOT / "maintainer" / "docs" / "README.md"
 EXAMPLES_README_PATH = PROJECT_ROOT / "examples" / "README.md"
 DOCS_EXAMPLES_README_PATH = PROJECT_ROOT / "docs" / "examples" / "README.md"
 PUBLIC_REPRODUCIBILITY_PATH = PROJECT_ROOT / "REPRODUCIBILITY.md"
 REPRODUCIBILITY_README_PATH = PROJECT_ROOT / "reproducibility" / "README.md"
-INTERNAL_REPORTS_DIR = PROJECT_ROOT / "docs" / "internal" / "reports"
-INTERNAL_ARCHIVE_DIR = PROJECT_ROOT / "docs" / "internal" / "archive"
+INTERNAL_REPORTS_DIR = PROJECT_ROOT / "maintainer" / "docs" / "reports"
+INTERNAL_ARCHIVE_DIR = PROJECT_ROOT / "maintainer" / "docs" / "archive"
 INTERNAL_RECORD_BANNER = "INTERNAL DEVELOPMENT RECORD — NOT REVIEWER EVIDENCE"
 
 
@@ -22,9 +23,9 @@ def test_readme_locks_public_contribution_and_workflow() -> None:
     for section in (
         "## Public Scope",
         "## Quick Reviewer Path",
-        "## Start Here",
-        "### Local Python Path",
+        "## Optional Local Install",
         "## Minimal Workflow",
+        "## Why The Canonical Contract Is Reusable",
         "## Repository Boundary",
         "## Reproducibility Verification",
         "## Docs",
@@ -34,15 +35,15 @@ def test_readme_locks_public_contribution_and_workflow() -> None:
     assert "deterministic canonicalization layer" in text
     assert "bundled checksum-backed reproducibility fixture" in text
     assert "loss-preserving normalized representation" in text
-    assert "Use Docker for the most reliable first review path" in text
+    assert "For independent reviewer verification, use Docker" in text
     assert "working Python 3.12 environment" in text
-    assert "On some Linux systems, `venv` support and `ensurepip` are provided by a separate OS package." in text
+    assert "convenience path for users and developers" in text
     assert "noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv" in text
     assert "sha256sum /tmp/station_cleaned.csv" in text
     assert "docker build -f Dockerfile -t noaa-spec-review ." in text
     assert "TMP__qc_reason" in text
     assert "SENTINEL_MISSING" in text
-    assert "maintainer/supporting material" in text
+    assert "Maintainer-only records, audit exports, and broader pipeline material live under `maintainer/`" in text
 
 
 def test_docs_index_points_to_single_first_run_and_reproducibility_path() -> None:
@@ -52,7 +53,7 @@ def test_docs_index_points_to_single_first_run_and_reproducibility_path() -> Non
     assert "[UNDERSTANDING_OUTPUT.md](UNDERSTANDING_OUTPUT.md)" in text
     assert "[../REPRODUCIBILITY.md](../REPRODUCIBILITY.md)" in text
     assert "[examples/CANONICAL_WALKTHROUGH.md](examples/CANONICAL_WALKTHROUGH.md)" in text
-    assert "Maintainer-only material remains under `docs/internal/`" in text
+    assert "[../maintainer/README.md](../maintainer/README.md)" in text
     assert "small public documentation set" in text
 
 
@@ -85,22 +86,25 @@ def test_examples_docs_no_longer_duplicate_first_run_commands() -> None:
     assert "CANONICAL_WALKTHROUGH.md" in docs_examples_text
 
 
-def test_internal_docs_are_moved_under_docs_internal() -> None:
+def test_maintainer_docs_are_moved_out_of_public_docs() -> None:
     for path in (
-        PROJECT_ROOT / "docs" / "internal" / "REVIEWER_GUIDE.md",
-        PROJECT_ROOT / "docs" / "internal" / "LOCAL_DEV.md",
-        PROJECT_ROOT / "docs" / "internal" / "ARTIFACT_BOUNDARY_POLICY.md",
-        PROJECT_ROOT / "docs" / "internal" / "DOMAIN_DATASET_REGISTRY.md",
-        PROJECT_ROOT / "docs" / "internal" / "PIPELINE_DESIGN_RATIONALE.md",
-        PROJECT_ROOT / "docs" / "internal" / "PIPELINE_VALIDATION_PLAN.md",
-        PROJECT_ROOT / "docs" / "internal" / "operations" / "README.md",
+        PROJECT_ROOT / "maintainer" / "docs" / "REVIEWER_GUIDE.md",
+        PROJECT_ROOT / "maintainer" / "docs" / "LOCAL_DEV.md",
+        PROJECT_ROOT / "maintainer" / "docs" / "ARTIFACT_BOUNDARY_POLICY.md",
+        PROJECT_ROOT / "maintainer" / "docs" / "DOMAIN_DATASET_REGISTRY.md",
+        PROJECT_ROOT / "maintainer" / "docs" / "PIPELINE_DESIGN_RATIONALE.md",
+        PROJECT_ROOT / "maintainer" / "docs" / "PIPELINE_VALIDATION_PLAN.md",
+        PROJECT_ROOT / "maintainer" / "docs" / "operations" / "README.md",
     ):
         assert path.exists()
 
-    internal_index_text = DOCS_INTERNAL_INDEX_PATH.read_text(encoding="utf-8")
-    assert "maintainer material only" in internal_index_text
-    assert "Operations" in internal_index_text
-    assert "Archive" in internal_index_text
+    maintainer_index_text = MAINTAINER_INDEX_PATH.read_text(encoding="utf-8")
+    maintainer_docs_index_text = MAINTAINER_DOCS_INDEX_PATH.read_text(encoding="utf-8")
+    assert "Maintainer Material" in maintainer_index_text
+    assert "not part of the public JOSS reviewer path" in maintainer_index_text
+    assert "maintainer material only" in maintainer_docs_index_text
+    assert "Operations" in maintainer_docs_index_text
+    assert "Archive" in maintainer_docs_index_text
 
 
 def test_internal_markdown_records_keep_banner() -> None:
@@ -118,9 +122,9 @@ def test_reproducibility_doc_is_single_reproducibility_path() -> None:
     public_text = PUBLIC_REPRODUCIBILITY_PATH.read_text(encoding="utf-8")
     directory_text = REPRODUCIBILITY_README_PATH.read_text(encoding="utf-8")
 
+    assert "Local installation is a convenience path for users and developers." in public_text
     assert "working Python 3.12 environment with `venv` support" in public_text
-    assert "On some Linux systems, `venv` support and `ensurepip` are provided by a separate OS package." in public_text
-    assert "Use Docker for the most reliable clean-environment review" in public_text
+    assert "For independent reviewer verification, use Docker" in public_text
     assert "Inspect a small subset from the tracked canonical fixture:" in public_text
     assert "python3 reproducibility/run_pipeline_example.py --example minimal --out /tmp/noaa-spec-sample.csv" in public_text
     assert "50e8bfb9ffae8278652bb7410cfbc9683a48711c35cfcf9e9dd3c38bbc403d47" in public_text

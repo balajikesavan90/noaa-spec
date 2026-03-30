@@ -1,4 +1,4 @@
-"""Run a small cleaning example for reproducibility artifacts."""
+"""Run tracked cleaning fixtures used by public verification and maintainer tests."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ EXAMPLES = {
         "default_out": "noaa-spec-sample.csv",
     },
     "full_station": {
-        "raw_relpath": Path("reproducibility/full_station/station_raw.csv"),
+        "raw_relpath": Path("maintainer/reproducibility/full_station/station_raw.csv"),
         "default_out": "noaa-spec-full-station.csv",
     },
 }

@@ -13,7 +13,7 @@ It covers:
 
 ## Quick Reviewer Path
 
-Use Docker for the most reliable clean-environment review:
+For independent reviewer verification, use Docker:
 
 ```bash
 docker build -f Dockerfile -t noaa-spec-review .
@@ -51,11 +51,13 @@ PY
 
 Use [docs/UNDERSTANDING_OUTPUT.md](docs/UNDERSTANDING_OUTPUT.md) if you need help interpreting the canonical columns.
 
-## Local Python Path
+## Optional Local Install
+
+Local installation is a convenience path for users and developers. It is not the reviewer-authoritative reproducibility path.
 
 Local installation requires a working Python 3.12 environment with `venv` support.
 
-On some Linux systems, `venv` support and `ensurepip` are provided by a separate OS package. If local `venv` setup is unavailable, use the Docker path above instead of improvising a local install.
+On some Linux systems, `venv` support and `ensurepip` are provided by a separate OS package. If local `venv` setup is unavailable, use Docker instead of improvising a host-local reviewer path.
 
 ```bash
 python3 -m venv .venv
@@ -124,9 +126,9 @@ This public reproducibility surface covers only the scoped JOSS contribution:
 - the specification-constrained canonical interpretation layer
 - the bundled tracked fixture and checksum-backed verification path
 
-It does not claim reviewer reproduction of maintainer-only workflows such as:
+It does not cover maintainer-only workflows such as:
 
 - batch orchestration
 - domain dataset publication
 - release manifests
-- internal validation or reporting workflows
+- internal validation or reporting workflows under `maintainer/`

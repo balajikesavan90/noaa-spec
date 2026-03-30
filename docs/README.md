@@ -7,4 +7,4 @@ This directory contains the small public documentation set for NOAA-Spec's canon
 - Use [UNDERSTANDING_OUTPUT.md](UNDERSTANDING_OUTPUT.md) to read the canonical output as a practical subset rather than as one large table.
 - Use [examples/CANONICAL_WALKTHROUGH.md](examples/CANONICAL_WALKTHROUGH.md) for one worked raw-to-canonical-to-subset example.
 
-Maintainer-only material remains under `docs/internal/`, but first-time reviewers do not need it for installation, execution, or reproducibility verification.
+Maintainer-only material lives under [../maintainer/README.md](../maintainer/README.md), but first-time reviewers do not need it for installation, execution, or reproducibility verification.

@@ -2,9 +2,9 @@
 """Generate deterministic rule-impact artifacts for NOAA cleaning.
 
 Outputs:
-- docs/internal/reports/RULE_IMPACT_REPORT.md
-- rule_impact_summary.csv
-- rule_family_impact_summary.csv
+- maintainer/docs/reports/RULE_IMPACT_REPORT.md
+- maintainer/exports/rule_impact_summary.csv
+- maintainer/exports/rule_family_impact_summary.csv
 
 The analysis is bounded to local station data under output/<station>/LocationData_Raw.csv.
 No network access or data download is performed.
@@ -648,9 +648,9 @@ def generate(
 
     arity_total = int(sum(arity_mismatch_counts.values()))
 
-    review_csv = repo_root / "undocumented_rules_review.csv"
+    review_csv = repo_root / "maintainer" / "exports" / "undocumented_rules_review.csv"
     flag_only_identifiers = _read_flag_only_identifiers(review_csv)
-    provenance_csv = repo_root / "RULE_PROVENANCE_LEDGER.csv"
+    provenance_csv = repo_root / "maintainer" / "exports" / "RULE_PROVENANCE_LEDGER.csv"
     provenance_family_map = _read_provenance_family_map(provenance_csv)
 
     flag_only_total = 0
@@ -952,19 +952,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--report-path",
         type=Path,
-        default=Path("docs/internal/reports/RULE_IMPACT_REPORT.md"),
+        default=Path("maintainer/docs/reports/RULE_IMPACT_REPORT.md"),
         help="Markdown report output path.",
     )
     parser.add_argument(
         "--summary-csv",
         type=Path,
-        default=Path("rule_impact_summary.csv"),
+        default=Path("maintainer/exports/rule_impact_summary.csv"),
         help="CSV summary output path.",
     )
     parser.add_argument(
         "--rule-family-csv",
         type=Path,
-        default=Path("rule_family_impact_summary.csv"),
+        default=Path("maintainer/exports/rule_family_impact_summary.csv"),
         help="Rule-family impact CSV output path.",
     )
     return parser.parse_args()

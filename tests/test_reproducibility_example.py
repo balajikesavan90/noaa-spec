@@ -23,7 +23,8 @@ def _assert_example_matches_expected(
 ) -> None:
     script_path = repo_root / "reproducibility" / "run_pipeline_example.py"
     example_root = repo_root / "reproducibility" / example
-    tracked_anchor_path = example_root / "station_cleaned.csv"
+    if not example_root.exists():
+        example_root = repo_root / "maintainer" / "reproducibility" / example
     expected_path = example_root / "station_cleaned_expected.csv"
     output_path = tmp_path / output_name
 
@@ -34,14 +35,10 @@ def _assert_example_matches_expected(
     )
 
     output_text = output_path.read_text(encoding="utf-8")
-    tracked_anchor_text = tracked_anchor_path.read_text(encoding="utf-8")
     expected_text = expected_path.read_text(encoding="utf-8")
     if output_text != expected_text:
         diff = _diff_text(expected_text, output_text)
         raise AssertionError(f"Reproducibility output mismatch for {example}:\n" + diff)
-    if tracked_anchor_text != expected_text:
-        diff = _diff_text(expected_text, tracked_anchor_text)
-        raise AssertionError(f"Tracked reproducibility anchor drifted for {example}:\n" + diff)
 
 
 def test_minimal_reproducibility_example_output_matches_expected(tmp_path: Path) -> None:

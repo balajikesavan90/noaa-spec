@@ -87,7 +87,7 @@ def _load_coverage_metrics(spec_coverage_path: Path) -> dict[str, int]:
 
 def main() -> None:
     repo_root = Path(__file__).resolve().parents[2]
-    spec_coverage_path = repo_root / "spec_coverage.csv"
+    spec_coverage_path = repo_root / "maintainer" / "exports" / "spec_coverage.csv"
     if not spec_coverage_path.exists():
         raise FileNotFoundError(f"Missing spec_coverage.csv at {spec_coverage_path}")
 

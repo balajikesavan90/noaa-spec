@@ -39,6 +39,17 @@ For a station-year comparison or QC-aware filtering workflow, this subset is oft
 - keep all non-null `temperature_c` rows, or
 - require a stricter quality condition before aggregation.
 
+## Reuse Difference
+
+This is where the canonical contract beats a one-off cleaning script.
+
+Two downstream users can reuse the same canonical subset:
+
+- User A: keep rows where `temperature_c` is present.
+- User B: keep rows where `temperature_c` is present and `temperature_quality_code == 1`.
+
+Neither user has to decode `TMP=+9999,9`, preserve the `9` quality code, or rename packed NOAA fields before analysis starts. The canonical row already carries the normalized value, the preserved QC semantics, and the stable column names needed for both downstream policies.
+
 ## What Changed
 
 1. `TMP=+0180,1` becomes `temperature_c=18.0` with `temperature_quality_code=1`.

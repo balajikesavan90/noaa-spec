@@ -6,7 +6,7 @@ The public software surface is the `noaa-spec clean` CLI, the canonical observat
 
 ## Quick Reviewer Path
 
-Use Docker for the most reliable first review path:
+For independent reviewer verification, use Docker:
 
 ```bash
 docker build -f Dockerfile -t noaa-spec-review .
@@ -54,16 +54,16 @@ The reviewed public contribution consists only of:
 
 Other materials in this repository may support internal development, validation, or future work, but they are not part of the narrow reviewed software claim.
 
-## Start Here
+## Optional Local Install
 
-### Local Python Path
+Local installation is a convenience path for users and developers. The reviewer-verified path is the Docker workflow above.
 
 Local installation requires:
 
 - a working Python 3.12 environment
 - `venv` support
 
-On some Linux systems, `venv` support and `ensurepip` are provided by a separate OS package. If local `venv` setup is unavailable, use the Docker path above instead of guessing.
+On some Linux systems, `venv` support and `ensurepip` are provided by a separate OS package. If local `venv` setup is unavailable, use Docker instead of improvising a host-local reviewer path.
 
 ```bash
 python3 -m venv .venv
@@ -128,6 +128,25 @@ Key transformations:
 - NOAA QC semantics are preserved in separate fields such as `temperature_quality_code`.
 - Output columns are normalized into a stable observation-level schema such as `temperature_c`, `dew_point_c`, and `visibility_m`.
 
+## Why The Canonical Contract Is Reusable
+
+The gain is not only "cleaned data." The same canonical row can support different downstream policies without each user re-implementing NOAA decoding rules first.
+
+Shared canonical subset:
+
+```text
+STATION,DATE,temperature_c,temperature_quality_code,visibility_m,TMP__qc_reason
+40435099999,2000-01-10T06:00:00,18.0,1,10000.0,
+40435099999,2000-03-17T09:00:00,,9,,SENTINEL_MISSING
+```
+
+Two downstream users can start from the same columns:
+
+- User A keeps rows where `temperature_c` is present.
+- User B keeps rows where `temperature_c` is present and `temperature_quality_code == 1`.
+
+Both users reuse the same deterministic interpretation of `TMP=+9999,9` and `VIS=999999,9,N,1`. Without the canonical contract, each script has to decode sentinels, preserve QC state, and normalize packed field names on its own before those downstream choices can even begin.
+
 Starter columns for a first pass:
 
 - `STATION`
@@ -146,9 +165,9 @@ For one public worked example showing what a user gains from the canonical layer
 
 ## Repository Boundary
 
-Reviewer-visible directories such as `artifacts/`, `output/`, `data/`, `noaa_file_index/`, `tools/`, and `docs/internal/` are maintainer/supporting material. They are not required for the scoped JOSS review path above.
+Reviewer-facing materials are intentionally limited to this README, [REPRODUCIBILITY.md](REPRODUCIBILITY.md), `src/noaa_spec`, `tests`, the minimal public fixture under `reproducibility/minimal/`, and the small public docs under `docs/`.
 
-Tracked root CSV summaries such as `RULE_PROVENANCE_LEDGER.csv`, `spec_coverage.csv`, and related audit exports remain in the repository for maintainer workflows and internal validation. They are not part of the narrow reviewed public software surface.
+Maintainer-only records, audit exports, and broader pipeline material live under `maintainer/`. They are outside the public reviewer path.
 
 ## Reproducibility Verification
 

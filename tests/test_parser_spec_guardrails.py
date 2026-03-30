@@ -11,7 +11,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 def test_spec_coverage_has_no_implemented_without_tests_or_suspicious_rows() -> None:
-    coverage_path = PROJECT_ROOT / "spec_coverage.csv"
+    coverage_path = PROJECT_ROOT / "maintainer" / "exports" / "spec_coverage.csv"
     coverage = pd.read_csv(coverage_path, dtype=str).fillna("")
 
     implemented_without_tests = (

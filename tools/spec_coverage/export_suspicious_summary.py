@@ -2,10 +2,10 @@
 """
 Export suspicious coverage summary to Markdown.
 
-This script analyzes spec_coverage.csv and generates a summary report
+This script analyzes maintainer/exports/spec_coverage.csv and generates a summary report
 of suspicious coverage entries (test_covered_any=TRUE but code_implemented=FALSE).
 
-Output: docs/internal/reports/validation_artifacts/suspicious_coverage/suspicious_summary.md
+Output: maintainer/docs/reports/validation_artifacts/suspicious_coverage/suspicious_summary.md
 """
 
 import csv
@@ -15,7 +15,7 @@ from pathlib import Path
 
 def load_suspicious_coverage(spec_coverage_path: Path) -> list[dict]:
     """
-    Load all suspicious coverage entries from spec_coverage.csv.
+    Load all suspicious coverage entries from maintainer/exports/spec_coverage.csv.
     
     Returns list of row dicts where:
         test_covered_any == TRUE AND code_implemented == FALSE
@@ -149,8 +149,8 @@ def main():
     """Main entry point."""
     # Paths
     project_root = Path(__file__).parent.parent.parent
-    spec_coverage_path = project_root / "spec_coverage.csv"
-    output_dir = project_root / "docs" / "internal" / "reports" / "validation_artifacts" / "suspicious_coverage"
+    spec_coverage_path = project_root / "maintainer" / "exports" / "spec_coverage.csv"
+    output_dir = project_root / "maintainer" / "docs" / "reports" / "validation_artifacts" / "suspicious_coverage"
     output_path = output_dir / "suspicious_summary.md"
     
     # Ensure input exists

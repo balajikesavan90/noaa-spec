@@ -6,7 +6,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 SMOKE_OUTPUT="${TMPDIR:-/tmp}/noaa-spec-smoke-test.csv"
 TRACKED_EXPECTED="${REPO_ROOT}/reproducibility/minimal/station_cleaned_expected.csv"
-TRACKED_ANCHOR="${REPO_ROOT}/reproducibility/minimal/station_cleaned.csv"
 
 cd "${REPO_ROOT}"
 
@@ -16,7 +15,6 @@ if ! command -v python3 >/dev/null 2>&1; then
 fi
 
 expected_before="$(sha256sum "${TRACKED_EXPECTED}" | cut -d' ' -f1)"
-anchor_before="$(sha256sum "${TRACKED_ANCHOR}" | cut -d' ' -f1)"
 
 python3 -c "import noaa_spec"
 python3 reproducibility/run_pipeline_example.py --example minimal --out "${SMOKE_OUTPUT}"
@@ -32,9 +30,8 @@ if ! cmp -s "${SMOKE_OUTPUT}" "${TRACKED_EXPECTED}"; then
 fi
 
 expected_after="$(sha256sum "${TRACKED_EXPECTED}" | cut -d' ' -f1)"
-anchor_after="$(sha256sum "${TRACKED_ANCHOR}" | cut -d' ' -f1)"
 
-if [[ "${expected_before}" != "${expected_after}" || "${anchor_before}" != "${anchor_after}" ]]; then
+if [[ "${expected_before}" != "${expected_after}" ]]; then
     echo "Smoke test failed: reviewer flow modified tracked reproducibility files." >&2
     exit 1
 fi

@@ -25,7 +25,7 @@ def test_no_suspicious_coverage():
     This indicates a mismatch where tests claim to cover a spec rule
     that is marked as not implemented.
     """
-    spec_coverage_path = Path(__file__).parent.parent / "spec_coverage.csv"
+    spec_coverage_path = Path(__file__).parent.parent / "maintainer" / "exports" / "spec_coverage.csv"
     
     if not spec_coverage_path.exists():
         pytest.skip("spec_coverage.csv not found")
@@ -69,7 +69,7 @@ def test_no_suspicious_coverage():
         
         error_lines.append("-" * 80)
         error_lines.append(
-            "Action required: Review spec_coverage.csv and verify whether:"
+            "Action required: Review maintainer/exports/spec_coverage.csv and verify whether:"
         )
         error_lines.append(
             "  1. Test coverage is incorrectly marked (should be FALSE)"
