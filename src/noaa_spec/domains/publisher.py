@@ -17,18 +17,26 @@ class ViewDefinition:
     view_name: str
     domain_name: str
     description: str
+    public: bool = True
 
 
 VIEW_DEFINITIONS: tuple[ViewDefinition, ...] = (
     ViewDefinition(
+        view_name="metadata",
+        domain_name="core_meteorology",
+        description="station/time context and identifying metadata",
+    ),
+    ViewDefinition(
         view_name="core",
         domain_name="core_meteorology",
-        description="alias for core_meteorology",
+        description="legacy alias for metadata",
+        public=False,
     ),
     ViewDefinition(
         view_name="core_meteorology",
         domain_name="core_meteorology",
-        description="station/time context and identifying metadata",
+        description="legacy alias for metadata",
+        public=False,
     ),
     ViewDefinition(
         view_name="wind",
@@ -59,7 +67,7 @@ VIEW_DEFINITIONS: tuple[ViewDefinition, ...] = (
 
 
 def available_view_names() -> tuple[str, ...]:
-    return tuple(definition.view_name for definition in VIEW_DEFINITIONS)
+    return tuple(definition.view_name for definition in VIEW_DEFINITIONS if definition.public)
 
 
 def available_views_text() -> str:

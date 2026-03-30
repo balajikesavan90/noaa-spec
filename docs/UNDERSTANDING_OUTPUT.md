@@ -12,7 +12,7 @@ Most users will work with a subset of fields or a domain-specific projection. Tr
 
 The canonical dataset defines the reproducible interpretation contract. Optional `--view` outputs are derived projections for usability and do not modify the underlying contract.
 
-The public CLI also exposes optional canonical-derived views such as `core`, `core_meteorology`, `wind`, `precipitation`, `clouds_visibility`, `pressure_temperature`, and `remarks`. Those narrower views exist to make common workflows easier to approach while keeping the canonical table as the authoritative source layer.
+The public CLI also exposes optional canonical-derived views such as `metadata`, `wind`, `precipitation`, `clouds_visibility`, `pressure_temperature`, and `remarks`. Those narrower views exist to make common workflows easier to approach while keeping the canonical table as the authoritative source layer.
 
 ## Optional views
 
@@ -27,6 +27,8 @@ How the two layers relate:
 - canonical output: the primary, loss-preserving contract
 - `--view` output: an optional usability layer derived from the canonical table
 - reproducibility verification: still based on the canonical output, not on a view
+
+Use `metadata` when you want station/time context and identifying fields only. For compatibility, `core` and `core_meteorology` remain accepted aliases for that same metadata view.
 
 ## A 10-column subset
 
@@ -152,6 +154,8 @@ What happened:
 - the NOAA quality code `9` is preserved in `temperature_quality_code`
 - the row remains available for downstream analysis
 - QC sidecar columns explain why the cleaned value is missing
+
+That means downstream users can tell the difference between a sentinel-coded missing value and later quality-based exclusion logic. It also lets multiple projects begin from the same decoded interpretation instead of carrying slightly different local missingness rules forward.
 
 ## What this output is good for
 

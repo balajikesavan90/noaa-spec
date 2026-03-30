@@ -224,7 +224,36 @@ class TestCliCommands:
         output = capsys.readouterr().out
         assert "wind" in output
 
-    def test_cli_clean_with_core_alias_writes_core_meteorology_projection(
+    def test_cli_clean_with_metadata_view_writes_core_meteorology_projection(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        input_csv = repo_root / "reproducibility" / "minimal" / "station_raw.csv"
+        output_csv = tmp_path / "station_metadata.csv"
+
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            ["prog", "clean", str(input_csv), "--out", str(output_csv), "--view", "metadata"],
+        )
+        cli.main()
+
+        assert output_csv.exists()
+        cleaned = pd.read_csv(output_csv, low_memory=False)
+        assert tuple(cleaned.columns) == (
+            "station_id",
+            "DATE",
+            "YEAR",
+            "LATITUDE",
+            "LONGITUDE",
+            "ELEVATION",
+            "REPORT_TYPE",
+            "CALL_SIGN",
+        )
+
+    def test_cli_clean_with_core_alias_still_writes_metadata_projection(
         self,
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,

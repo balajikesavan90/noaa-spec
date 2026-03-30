@@ -71,7 +71,7 @@ noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv
 
 This writes the canonical NOAA-Spec representation for the tracked sample input.
 
-For a narrower usability-oriented projection derived from the same canonical output, you can optionally add `--view core`, `--view wind`, `--view precipitation`, `--view clouds_visibility`, `--view pressure_temperature`, or `--view remarks`.
+For a narrower usability-oriented projection derived from the same canonical output, you can optionally add `--view metadata`, `--view wind`, `--view precipitation`, `--view clouds_visibility`, `--view pressure_temperature`, or `--view remarks`. The `metadata` view is station/time context and identifying metadata; `core` and `core_meteorology` remain accepted compatibility aliases.
 
 Inspect a small subset of the output:
 
@@ -132,8 +132,4 @@ This reproducibility surface covers the scoped JOSS contribution:
 - the specification-constrained canonical interpretation layer
 - the bundled tracked fixture and checksum-backed verification path
 
-It does not cover broader repository workflows such as:
-
-- batch orchestration
-- release manifests
-- internal validation or reporting workflows under `maintainer/`
+It does not cover broader repository workflows such as batch orchestration, release manifests, or internal validation/reporting workflows.

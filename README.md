@@ -2,18 +2,18 @@
 
 NOAA-Spec is a deterministic canonicalization layer for NOAA ISD / Global Hourly observations. It turns raw NOAA rows into a specification-constrained canonical CSV with explicit nulls, preserved quality codes, stable column names, and deterministic serialization.
 
-The public software surface is the `noaa-spec clean` CLI, the canonical observation-level output contract, optional secondary views derived from the canonical output, and the bundled checksum-backed reproducibility fixture.
+The public software surface is the `noaa-spec clean` CLI, the canonical observation-level output contract, a small set of optional derived views, and the bundled checksum-backed reproducibility fixture.
 
 ## Public Scope
 
-The reviewed public contribution consists only of:
+The public contribution consists of:
 
 - the public `noaa-spec clean` CLI
 - the deterministic observation-level canonical contract
-- secondary views derived from the canonical output
+- optional views derived from the canonical output
 - the bundled reproducibility fixture and checksum-backed example
 
-The JOSS-facing contribution is this deterministic interpretation layer and its reproducibility path.
+The JOSS-facing contribution is a shared deterministic interpretation layer for NOAA rows and a reproducibility path reviewers can run directly from this repository.
 
 ## Install
 
@@ -80,19 +80,21 @@ noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv
 If you want NOAA-Spec to write a narrower derived projection directly, add `--view` after the canonical workflow above:
 
 ```bash
-noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_core.csv --view core
+noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_metadata.csv --view metadata
 ```
 
 Other supported views:
 
-- `core` (`core_meteorology`)
+- `metadata`
 - `wind`
 - `precipitation`
 - `clouds_visibility`
 - `pressure_temperature`
 - `remarks`
 
-The canonical CSV remains the primary contract. Views are optional convenience projections derived from that canonical output.
+The `metadata` view contains station/time context and identifying metadata rather than cleaned meteorological measurements. The canonical CSV remains the primary contract. Views are optional convenience projections derived from that canonical output.
+
+For compatibility, `core` and `core_meteorology` remain accepted aliases for `metadata`.
 
 ## Minimal Workflow
 
@@ -142,11 +144,11 @@ temperature_quality_code = 9
 TMP__qc_reason = SENTINEL_MISSING
 ```
 
-Ad hoc preprocessing often keeps the missing temperature but drops the associated QC context. NOAA-Spec preserves that context deterministically in stable sidecar columns, so downstream users can make comparable filtering decisions from the same interpreted row.
+Ad hoc preprocessing often keeps only the missing temperature and discards the QC context that explains why it is missing. NOAA-Spec preserves that sidecar context deterministically, so downstream users can distinguish sentinel-coded missingness from later quality-based filtering and start from the same decoded interpretation instead of silently diverging.
 
 ## Why The Canonical Contract Is Reusable
 
-The gain is not only "cleaned data." The same canonical row can support different downstream policies without each user re-implementing NOAA decoding rules first.
+The gain is not only "cleaned data." NOAA decoding and cleaning logic is often reimplemented locally across projects; the same canonical row lets multiple downstream workflows begin from one shared interpretation instead of rebuilding that logic independently.
 
 Shared canonical subset:
 
@@ -181,9 +183,7 @@ For one public worked example showing what a user gains from the canonical layer
 
 ## Repository Boundary
 
-Reviewer-facing materials are this README, [REPRODUCIBILITY.md](REPRODUCIBILITY.md), `src/noaa_spec`, `tests`, the tracked fixture under `reproducibility/minimal/`, and the public docs under `docs/`.
-
-Additional repository material may support broader maintenance and publication workflows, but the JOSS claim here is the canonical interpretation layer above.
+Reviewer-facing materials are this README, [REPRODUCIBILITY.md](REPRODUCIBILITY.md), the tracked fixture under `reproducibility/minimal/`, the public docs under `docs/`, and the public package under `src/noaa_spec`.
 
 ## Quick Reviewer Path
 
@@ -232,7 +232,7 @@ The same tracked fixture is also used for reproducibility verification:
 - Expected cleaned output: [reproducibility/minimal/station_cleaned_expected.csv](reproducibility/minimal/station_cleaned_expected.csv)
 - Expected cleaned SHA256: `b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597`
 
-The included fixture is intentionally minimal (5 rows) and serves as a deterministic reproducibility proof. Larger-scale processing is supported but not included in-repo due to size constraints.
+The included fixture is intentionally minimal (5 rows) and serves as a deterministic reproducibility proof. Larger-scale processing is supported but not bundled in-repo.
 
 For the complete checksum verification, Docker clean-environment path, and explicit reproducibility boundary, use [REPRODUCIBILITY.md](REPRODUCIBILITY.md).
 
