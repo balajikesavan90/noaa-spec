@@ -155,8 +155,8 @@ def main():
     
     # Ensure input exists
     if not spec_coverage_path.exists():
-        print(f"❌ spec_coverage.csv not found at {spec_coverage_path}")
-        return 1
+        print(f"⚠️  spec_coverage.csv not found at {spec_coverage_path} — skipping summary generation.")
+        return 0
     
     # Load data
     print(f"📊 Loading spec_coverage.csv from {spec_coverage_path}...")
