@@ -686,4 +686,4 @@ reports = ["beautifulsoup4", "lxml", "pypdf"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12"
-content-hash = "84830f720417e403c3d3ca87b685930510ccd624a3c3eec62c2463ff4c2d04fd"
+content-hash = "ac73c32f3ec916c92f04ca78b2fcb1dbd23c0f3f5e8d6de1f174c9a866ea7345"

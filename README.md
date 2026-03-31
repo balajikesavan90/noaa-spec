@@ -2,39 +2,19 @@
 
 NOAA-Spec is a deterministic canonicalization layer for NOAA ISD / Global Hourly observations. It turns raw NOAA rows into a specification-constrained canonical CSV with explicit nulls, preserved quality codes, stable column names, and deterministic serialization.
 
-The public software surface is the `noaa-spec clean` CLI, the canonical observation-level output contract, a small set of optional derived views, and the bundled checksum-backed reproducibility fixture.
+## JOSS Scope — Start Here
 
-## Public Scope
+**The JOSS submission is the `noaa-spec clean` CLI, its canonical output contract, and the bundled checksum-backed reproducibility fixture.** That is the reviewed surface.
 
-The public contribution consists of:
+| In scope (JOSS-reviewed) | Not in scope |
+| --- | --- |
+| `src/noaa_spec/` — installable package and CLI | `maintainer/` — internal planning and audit docs |
+| `reproducibility/` — tracked fixture and verification | `tools/` — internal spec-coverage tooling |
+| `docs/` — output guide and worked example | `spec_sources/` — NOAA format reference copies |
+| `paper/` — JOSS manuscript | `scripts/` — operational and batch-run helpers |
+| `README.md`, `REPRODUCIBILITY.md` | `noaa_file_index/`, `output/`, `data/` — local data |
 
-- the public `noaa-spec clean` CLI
-- the deterministic observation-level canonical contract
-- optional views derived from the canonical output
-- the bundled reproducibility fixture and checksum-backed example
-
-The JOSS-facing contribution is a shared deterministic interpretation layer for NOAA rows and a reproducibility path reviewers can run directly from this repository.
-The reproducible public canonical contract is the CSV emitted by `noaa-spec clean` and exemplified by `reproducibility/minimal/station_cleaned_expected.csv`; its reviewer-visible identifier columns are `STATION` and `DATE`.
-
-## Repository Scope
-
-This repository contains both the public NOAA-Spec software surface and some maintainer-internal support material.
-
-For JOSS review and normal first-time use, the relevant surface is:
-
-- `src/noaa_spec/` — the installable package and `noaa-spec clean` CLI
-- `reproducibility/` — the tracked fixture and checksum-backed verification
-- `docs/` — output guide and worked example
-- `paper/` — the JOSS manuscript
-- `README.md` and `REPRODUCIBILITY.md`
-
-The following directories are **maintainer-internal** support material. They are not required for the reviewer path, not part of the public API, and not the subject of the JOSS submission:
-
-- `maintainer/` — internal planning docs, audit records, and operational guides
-- `tools/` — internal spec-coverage and rule-impact tooling
-- `spec_sources/` — reference copies of the NOAA ISD format specification used during development
-
-Within `src/noaa_spec/`, the **public surface** is the `noaa-spec clean` CLI and the canonical cleaning contract (`cleaning.py`, `constants.py`, `deterministic_io.py`, `domains/`). Additional modules (`pipeline.py`, `cleaning_runner.py`, `internal/`, `research_reports.py`, `noaa_client.py`) support maintainer batch workflows and are not required for normal use or JOSS evaluation.
+Within `src/noaa_spec/`, the public surface is the `noaa-spec clean` CLI and the canonical cleaning contract (`cleaning.py`, `constants.py`, `deterministic_io.py`, `domains/`). Additional modules (`pipeline.py`, `cleaning_runner.py`, `internal/`, `research_reports.py`, `noaa_client.py`) support maintainer batch workflows and are not required for normal use or JOSS evaluation.
 
 ## Docker First Run
 
@@ -158,68 +138,10 @@ Key transformations:
 - NOAA QC semantics are preserved in separate fields such as `temperature_quality_code`.
 - Output columns are normalized into a stable observation-level schema such as `temperature_c`, `dew_point_c`, and `visibility_m`.
 
-## Why This Matters In Practice
-
-Raw NOAA token:
-
-```text
-TMP=+9999,9
-```
-
-Ad hoc workflow:
-
-```text
-temperature = NaN
-```
-
-NOAA-Spec canonical workflow:
-
-```text
-temperature_c = null
-temperature_quality_code = 9
-TMP__qc_reason = SENTINEL_MISSING
-```
-
-Ad hoc preprocessing often keeps only the missing temperature and discards the QC context that explains why it is missing. NOAA-Spec preserves that sidecar context deterministically, so downstream users can distinguish sentinel-coded missingness from later quality-based filtering and start from the same decoded interpretation instead of silently diverging.
-
-## Why The Canonical Contract Is Reusable
-
-The gain is not only "cleaned data." NOAA decoding and cleaning logic is often reimplemented locally across projects; the same canonical row lets multiple downstream workflows begin from one shared interpretation instead of rebuilding that logic independently.
-
-Shared canonical subset:
-
-```text
-STATION,DATE,temperature_c,temperature_quality_code,visibility_m,TMP__qc_reason
-40435099999,2000-01-10T06:00:00,18.0,1,10000.0,
-40435099999,2000-03-17T09:00:00,,9,,SENTINEL_MISSING
-```
-
-Two downstream users can start from the same columns:
-
-- User A keeps rows where `temperature_c` is present.
-- User B keeps rows where `temperature_c` is present and `temperature_quality_code == 1`.
-
-Both users reuse the same deterministic interpretation of `TMP=+9999,9` and `VIS=999999,9,N,1`. Without the canonical contract, each script has to decode sentinels, preserve QC state, and normalize packed field names on its own before those downstream choices can even begin.
-
-Starter columns for a first pass:
-
-- `STATION`
-- `DATE`
-- `temperature_c`
-- `temperature_quality_code`
-- `dew_point_c`
-- `wind_speed_ms`
-- `visibility_m`
-- `TMP__qc_reason`
-
-The canonical output is intentionally wide because it is a loss-preserving normalized representation of the source row. Most users should not begin by reading all columns at once. Start with the canonical contract, inspect a subset of fields, and use an optional `--view` projection when a narrower convenience output is helpful.
+## Further Reading
 
 For a column-level explanation of the cleaned output, see [docs/UNDERSTANDING_OUTPUT.md](docs/UNDERSTANDING_OUTPUT.md).
-For one public worked example showing what a user gains from the canonical layer, see [docs/examples/CANONICAL_WALKTHROUGH.md](docs/examples/CANONICAL_WALKTHROUGH.md).
-
-## Repository Boundary
-
-Reviewer-facing materials are this README, [REPRODUCIBILITY.md](REPRODUCIBILITY.md), the tracked fixture under `reproducibility/minimal/`, the public docs under `docs/`, and the public package under `src/noaa_spec`. See [Repository Scope](#repository-scope) above for the full public/maintainer-internal boundary.
+For a worked example showing what a user gains from the canonical layer, see [docs/examples/CANONICAL_WALKTHROUGH.md](docs/examples/CANONICAL_WALKTHROUGH.md).
 
 ## Quick Reviewer Inspection
 
