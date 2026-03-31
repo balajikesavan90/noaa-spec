@@ -21,15 +21,13 @@ def test_readme_locks_public_contribution_and_workflow() -> None:
     text = README_PATH.read_text(encoding="utf-8")
 
     for section in (
-        "## Public Scope",
+        "## JOSS Scope",
         "## Docker First Run",
         "## Optional Local Install",
         "## Run The Canonical Contract",
         "## Optional Derived Views",
         "## Minimal Workflow",
-        "## Why This Matters In Practice",
-        "## Why The Canonical Contract Is Reusable",
-        "## Repository Boundary",
+        "## Further Reading",
         "## Quick Reviewer Inspection",
         "## Reproducibility Verification",
         "## Docs",
@@ -38,7 +36,6 @@ def test_readme_locks_public_contribution_and_workflow() -> None:
 
     assert "deterministic canonicalization layer" in text
     assert "bundled checksum-backed reproducibility fixture" in text
-    assert "loss-preserving normalized representation" in text
     assert "For independent reviewer verification and the cleanest first run, use Docker" in text
     assert "recommended reviewer-safe path" in text
     assert "For ordinary local use, install NOAA-Spec into a Python 3.12 environment" in text
@@ -49,12 +46,8 @@ def test_readme_locks_public_contribution_and_workflow() -> None:
     assert "TMP__qc_reason" in text
     assert "SENTINEL_MISSING" in text
     assert "The canonical dataset defines the reproducible interpretation contract." in text
-    assert "its reviewer-visible identifier columns are `STATION` and `DATE`" in text
     assert "many users begin with a smaller derived view" in text
     assert "Optional views are usability projections derived from that canonical output" in text
-    assert "Raw NOAA token:" in text
-    assert "Ad hoc preprocessing often keeps only the missing temperature and discards the QC context" in text
-    assert "optional views derived from the canonical output" in text
     assert "`metadata`" in text
     assert "clouds_visibility" in text
     assert "intentionally minimal (5 rows)" in text
