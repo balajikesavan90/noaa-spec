@@ -121,6 +121,7 @@ class TestNoaaClient:
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
+        pytest.importorskip("requests")
         calls = {"count": 0}
 
         class _FakeResponse:
@@ -154,6 +155,8 @@ class TestNoaaClient:
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
+        pytest.importorskip("requests")
+
         class _FakeResponse:
             status_code = 404
             content = b""
