@@ -11,6 +11,7 @@ import pandas as pd
 import pytest
 
 import noaa_spec.cleaning_runner as cleaning_runner
+import noaa_spec.publication_artifacts as publication_artifacts
 from noaa_spec.cleaning_runner import CleaningRunConfig, RunWriteFlags, run_cleaning_run
 from noaa_spec.contracts import DOMAIN_DATASET_CONTRACT
 from noaa_spec.domains.registry import domain_definitions
@@ -119,6 +120,8 @@ def _expected_file_manifest_paths(config: CleaningRunConfig) -> set[str]:
                 expected.add(_portable_artifact_path(config, marker))
 
     global_artifacts = [
+        config.output_root.parent / "README.md",
+        config.output_root.parent / "data_dictionary.csv",
         config.manifest_root / "run_manifest.csv",
         config.manifest_root / "run_status.csv",
         config.manifest_root / "run_config.json",
@@ -401,6 +404,63 @@ def test_ci_file_manifest_completeness_matches_write_flags(
         assert "station_quality_profile" in observed_types
     else:
         assert "station_quality_profile" not in observed_types
+
+
+def test_ci_build_root_publication_artifacts_are_generated_from_build_metadata(tmp_path: Path) -> None:
+    config, station_id = _run_fixture_build(tmp_path, run_id="20260101T120011Z")
+
+    readme_path = config.output_root.parent / "README.md"
+    dictionary_path = config.output_root.parent / "data_dictionary.csv"
+    assert readme_path.exists()
+    assert dictionary_path.exists()
+
+    readme_text = readme_path.read_text(encoding="utf-8")
+    assert "# NOAA-Spec Build 20260101T120011Z" in readme_text
+    assert "Canonical cleaned outputs should be interpreted together with the included `data_dictionary.csv`." in readme_text
+    assert "- Canonical schema version: `1.0.0`" in readme_text
+    assert "- Station count: `1`" in readme_text
+
+    dictionary = pd.read_csv(dictionary_path, keep_default_na=False)
+    assert list(dictionary.columns) == ["column_name", "description", "source_token", "notes"]
+    assert "STATION" in set(dictionary["column_name"].astype(str))
+    assert "DATE" in set(dictionary["column_name"].astype(str))
+    assert "row_has_any_usable_metric" in set(dictionary["column_name"].astype(str))
+
+    station_columns = pd.read_csv(
+        config.output_root / station_id / "LocationData_Cleaned.csv",
+        low_memory=False,
+    ).columns.tolist()
+    assert dictionary["column_name"].astype(str).tolist() == station_columns
+
+    schema_summary = publication_artifacts.validate_canonical_schema_consistency(config.output_root)
+    assert schema_summary.consistent
+    assert schema_summary.station_count == 1
+
+
+def test_ci_schema_consistency_utility_reports_union_without_normalizing(tmp_path: Path) -> None:
+    output_root = tmp_path / "canonical_cleaned"
+    station_a = output_root / "01234567890"
+    station_b = output_root / "01234567891"
+    station_a.mkdir(parents=True)
+    station_b.mkdir(parents=True)
+
+    pd.DataFrame({"STATION": ["01234567890"], "DATE": ["2020-01-01T00:00:00"], "TMP": ["0010,1"]}).to_csv(
+        station_a / "LocationData_Cleaned.csv",
+        index=False,
+    )
+    pd.DataFrame(
+        {"STATION": ["01234567891"], "DATE": ["2020-01-01T01:00:00"], "WND": ["010,1,N,0010,1"]}
+    ).to_csv(
+        station_b / "LocationData_Cleaned.csv",
+        index=False,
+    )
+
+    summary = publication_artifacts.validate_canonical_schema_consistency(output_root)
+    assert not summary.consistent
+    assert summary.station_count == 2
+    assert summary.canonical_columns == ("STATION", "DATE", "TMP")
+    assert summary.union_columns == ("STATION", "DATE", "TMP", "WND")
+    assert len(summary.deviations) == 1
 
 
 def test_ci_manifest_checksums_follow_portable_content_policy(tmp_path: Path) -> None:

@@ -42,6 +42,7 @@ from .domain_split import sanitize_station_slug
 from .domains.publisher import project_domain_datasets_from_registry, write_domain_datasets_from_registry
 from .domains.registry import domain_definitions
 from .pipeline import _extract_time_columns
+from .publication_artifacts import write_build_publication_artifacts
 from .research_reports import (
     ResearchReportContext,
     domain_quality_report_names,
@@ -905,6 +906,16 @@ def run_cleaning_run(config: CleaningRunConfig) -> dict[str, Any]:
         summary_path = config.reports_root / "quality_reports_summary.md"
         _write_quality_reports_summary(summary_path, quality_frames, config.run_id, status_df)
         print(f"Quality artifact: wrote {summary_path}")
+
+        if config.write_flags.write_cleaned_station:
+            publication_artifacts = write_build_publication_artifacts(
+                build_root=config.output_root.parent,
+                output_root=config.output_root,
+                reports_root=config.reports_root,
+                manifest_root=config.manifest_root,
+            )
+            print(f"Build artifact: wrote {publication_artifacts['readme_path']}")
+            print(f"Build artifact: wrote {publication_artifacts['data_dictionary_path']}")
 
         finalized_output_paths = _collect_file_manifest_paths(
             config=config,
@@ -3467,6 +3478,8 @@ def _collect_file_manifest_paths(
         run_status_path,
         run_config_path,
         build_metadata_path,
+        config.output_root.parent / "README.md",
+        config.output_root.parent / "data_dictionary.csv",
         config.reports_root / "quality_reports_summary.md",
     ]
     if include_release_manifest:
@@ -3531,6 +3544,10 @@ def _full_file_manifest_artifact_type(config: CleaningRunConfig, path: Path) -> 
         return "release_manifest"
     if resolved == (config.manifest_root / "publication_readiness_gate.json").resolve():
         return "publication_readiness_gate"
+    if resolved == (config.output_root.parent / "README.md").resolve():
+        return "build_readme"
+    if resolved == (config.output_root.parent / "data_dictionary.csv").resolve():
+        return "data_dictionary"
 
     if resolved.name == "_SUCCESS.json":
         return "success_marker"
@@ -3712,6 +3729,8 @@ def _publication_manifest_coverage_check(
         build_metadata_path,
         release_manifest_path,
         quality_assessment_path,
+        config.output_root.parent / "README.md",
+        config.output_root.parent / "data_dictionary.csv",
         config.reports_root / "quality_reports_summary.md",
     ]
     global_paths.extend(config.reports_root / f"{name}.csv" for name in MANDATORY_QUALITY_ARTIFACT_NAMES)

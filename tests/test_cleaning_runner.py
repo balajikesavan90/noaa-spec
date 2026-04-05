@@ -1090,6 +1090,8 @@ def test_file_manifest_captures_station_outputs_with_dual_manifest_model(
         "release_manifest",
         "quality_assessment",
         "publication_readiness_gate",
+        "build_readme",
+        "data_dictionary",
     }.issubset(set(file_manifest["artifact_type"].astype(str)))
 
     release_manifest = pd.read_csv(config.manifest_root / "release_manifest.csv", dtype=str)
