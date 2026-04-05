@@ -2,16 +2,21 @@
 
 ## Development setup
 
-Install the project in editable mode:
+Use the same Python 3.12 virtual-environment flow documented in the README:
 
 ```bash
-pip install -e .
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install --upgrade pip
+python3 -m pip install -e .
 ```
+
+If `python3 -m venv` is unavailable on Ubuntu/Debian, install `python3-venv` first.
 
 Install test tooling if needed:
 
 ```bash
-python3 -m pip install --user --break-system-packages pytest pytest-cov
+python3 -m pip install pytest pytest-cov
 ```
 
 ## Running tests
@@ -19,13 +24,13 @@ python3 -m pip install --user --break-system-packages pytest pytest-cov
 Run the full suite:
 
 ```bash
-pytest -q
+python3 -m pytest -q
 ```
 
 Run CLI smoke checks:
 
 ```bash
-python -m noaa_spec.cli --help
+python3 -m noaa_spec.cli --help
 noaa-spec --help
 ```
 

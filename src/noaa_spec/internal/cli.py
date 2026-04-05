@@ -995,7 +995,7 @@ def _parse_args() -> argparse.Namespace:
         "--raw-root",
         required=True,
         type=Path,
-        help="Root directory containing pulled raw parquets (for example /media/.../NOAA_Data)",
+        help="Root directory containing pulled raw parquets (for example path/to/NOAA_Data)",
     )
     cleaning_batch_parser.add_argument(
         "--count",
