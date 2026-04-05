@@ -10,7 +10,7 @@ NOAA ISD is structurally rich and heavily encoded. NOAA-Spec externalizes that s
 
 For orientation, first-time users should begin with a smaller view or a small subset of canonical columns. Treat the canonical table as the stable contract, then expand into the full column set when your workflow needs the additional detail.
 
-The canonical dataset defines the reproducible interpretation contract. In that public canonical CSV, the identifier columns are `STATION` and `DATE`, matching the bundled reproducibility fixture and CLI output. Optional `--view` outputs are derived projections for usability and do not modify the underlying contract.
+The canonical dataset defines the reproducible interpretation contract. In that public canonical CSV, the identifier columns are `STATION` and `DATE`, matching the bundled reproducibility fixture and CLI output. Optional `--view` outputs are narrower domain-specific datasets for usability and do not modify the underlying contract.
 
 The public CLI also exposes optional canonical-derived views such as `metadata`, `wind`, `precipitation`, `clouds_visibility`, `pressure_temperature`, and `remarks`. Those narrower views exist to make common workflows easier to approach while keeping the canonical table as the authoritative source layer.
 
@@ -71,9 +71,9 @@ For the bundled reviewer fixture, this subset is usually enough for a first read
 
 - treat the canonical table as the source-of-truth intermediate representation
 - inspect a subset of relevant fields for your task
-- use a `--view` projection when you want a narrower convenience output for a common workflow
+- use a `--view` dataset when you want a narrower convenience output for a common workflow
 - use the preserved QC columns when filtering or auditing missing values
-- derive narrower projections where appropriate instead of carrying all columns into every downstream step
+- use narrower derived datasets where appropriate instead of carrying all columns into every downstream step
 
 ## Practical downstream subset
 
@@ -163,4 +163,4 @@ That means downstream users can tell the difference between a sentinel-coded mis
 
 This canonical representation is a better starting point when you want consistent field handling across many stations, a reusable deterministic source representation, or QC-aware filtering after cleaning.
 
-When you only need part of the observational record, start from a subset of relevant columns or from an existing `--view` projection.
+When you only need part of the observational record, start from a subset of relevant columns or from an existing `--view` dataset.

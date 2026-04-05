@@ -2,7 +2,7 @@
 
 This document is the authoritative reproducibility reference for NOAA-Spec.
 
-Views are available through the public `noaa-spec clean --view ...` CLI as optional usability projections, but reproducibility verification for the scoped JOSS claim remains the canonical output and checksum below. The reproducible public canonical contract is the emitted CSV shown by the bundled fixture, with `STATION` and `DATE` as the reviewer-visible identifier columns.
+Views are available through the public `noaa-spec clean --view ...` CLI as optional narrower datasets for usability, but reproducibility verification for the scoped JOSS claim remains the canonical output and checksum below. The reproducible public canonical contract is the emitted CSV shown by the bundled fixture, with `STATION` and `DATE` as the reviewer-visible identifier columns.
 
 ## Quick Reviewer Path
 
@@ -34,7 +34,7 @@ python3 -m pip install -e .
 noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv
 ```
 
-For a narrower usability-oriented projection, you can optionally add `--view metadata`, `--view wind`, `--view precipitation`, `--view clouds_visibility`, `--view pressure_temperature`, or `--view remarks`.
+For a narrower usability-oriented dataset, you can optionally add `--view metadata`, `--view wind`, `--view precipitation`, `--view clouds_visibility`, `--view pressure_temperature`, or `--view remarks`.
 
 Inspect a small subset from the tracked canonical fixture:
 

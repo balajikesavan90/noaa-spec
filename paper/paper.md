@@ -38,7 +38,7 @@ For example, the raw token `TMP=+9999,9` does not mean a very large temperature 
 
 NOAA-Spec matters when multiple projects need the same interpreted NOAA input. A careful local preprocessing script can clean one dataset for one study, but the interpretation rules remain local and difficult to compare across projects.
 
-An ad hoc workflow typically discards the QC context that explains why a value is missing. NOAA-Spec preserves that context deterministically — sentinel-coded missingness is distinguished from later quality-based exclusion — so downstream users start from the same decoded interpretation instead of silently diverging. The canonical dataset defines the reproducible interpretation contract, and optional derived views are usability projections from that canonical table.
+An ad hoc workflow typically discards the QC context that explains why a value is missing. NOAA-Spec preserves that context deterministically — sentinel-coded missingness is distinguished from later quality-based exclusion — so downstream users start from the same decoded interpretation instead of silently diverging. The canonical dataset defines the reproducible interpretation contract, and optional derived views are narrower usability-oriented datasets from that canonical table.
 
 # Comparison With Existing Tools
 
@@ -65,7 +65,7 @@ NOAA-Spec exposes a small public surface:
 2. apply deterministic field interpretation based on NOAA semantics,
 3. write a canonical observation-level CSV with stable column names and preserved QC fields.
 
-The public CLI is the `noaa-spec clean` command. The reviewer-visible example is intentionally bounded to the tracked reproducibility fixture so the JOSS claim matches the software surface that users and reviewers can run. The CLI also exposes optional derived views (`metadata`, `wind`, `precipitation`, `clouds_visibility`, `pressure_temperature`, `remarks`) as narrower projections from the canonical table.
+The public CLI is the `noaa-spec clean` command. The reviewer-visible example is intentionally bounded to the tracked reproducibility fixture so the JOSS claim matches the software surface that users and reviewers can run. The CLI also exposes optional derived views (`metadata`, `wind`, `precipitation`, `clouds_visibility`, `pressure_temperature`, `remarks`) as narrower datasets from the canonical table.
 
 # Reproducibility
 

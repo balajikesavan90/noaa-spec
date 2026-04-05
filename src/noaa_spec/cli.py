@@ -80,7 +80,7 @@ def _parse_args() -> argparse.Namespace:
         type=str,
         default=None,
         help=(
-            "Optional secondary projection derived from the canonical output. "
+            "Optional secondary dataset derived from the canonical output. "
             "View outputs use 'station_id' instead of 'STATION' as the "
             "station identifier column. "
             f"Available views: {available_views_text()}."

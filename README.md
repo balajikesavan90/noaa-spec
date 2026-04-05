@@ -10,7 +10,7 @@ flowchart TB
     B["Specification-constrained<br/>parsing"]
     C["Specification-driven<br/>validation<br/>(rule enforcement)"]
     D["Canonical, loss-preserving<br/>cleaned dataset"]
-    E["Optional domain-specific<br/>projections"]
+    E["Optional domain-specific<br/>datasets"]
     F["Quality reports, manifests,<br/>and provenance artifacts"]
 
     A --> B --> C --> D
@@ -18,7 +18,7 @@ flowchart TB
     D --> F
 ```
 
-NOAA-Spec transforms raw NOAA observations into a canonical cleaned representation governed by specification-derived rules. That canonical dataset is the source layer for optional domain-specific projections and for deterministic downstream artifacts such as quality reports, release manifests, and related provenance records.
+NOAA-Spec transforms raw NOAA observations into a canonical cleaned representation governed by specification-derived rules. That canonical dataset is the source layer for optional domain-specific datasets and for deterministic downstream artifacts such as quality reports, release manifests, and related provenance records.
 
 ## JOSS Scope — Start Here
 
@@ -38,7 +38,7 @@ NOAA-Spec transforms raw NOAA observations into a canonical cleaned representati
 - `constants.py` — field rules, sentinels, and QC definitions
 - `deterministic_io.py` — checksummable CSV writer
 - `cli.py` — the `noaa-spec clean` entry point
-- `domains/` — view definitions for derived projections
+- `domains/` — view definitions for domain-specific datasets
 
 Other modules (`pipeline.py`, `cleaning_runner.py`, `internal/`, `research_reports.py`, `noaa_client.py`) support maintainer batch workflows and are not required for normal use or JOSS evaluation.
 
@@ -85,7 +85,7 @@ Expected checksum: `b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f288
 
 ## Run The Canonical Contract
 
-The canonical dataset defines the reproducible interpretation contract. In that public canonical CSV, the station identifier remains `STATION`, matching the bundled fixture and CLI output. Optional `--view` outputs are derived projections for usability and do not modify the underlying contract.
+The canonical dataset defines the reproducible interpretation contract. In that public canonical CSV, the station identifier remains `STATION`, matching the bundled fixture and CLI output. Optional `--view` outputs are narrower domain-specific datasets for usability and do not modify the underlying contract.
 
 For a first inspection path, many users begin with a smaller derived view:
 
@@ -93,7 +93,7 @@ For a first inspection path, many users begin with a smaller derived view:
 noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_metadata.csv --view metadata
 ```
 
-The canonical CSV is the full loss-preserving contract and is intentionally wide. Optional views are usability projections derived from that canonical output, so you can orient yourself quickly and then expand into the full canonical columns as needed.
+The canonical CSV is the full loss-preserving contract and is intentionally wide. Optional views are narrower usability-oriented datasets derived from that canonical output, so you can orient yourself quickly and then expand into the full canonical columns as needed.
 
 ## Optional Derived Views
 

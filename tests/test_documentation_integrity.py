@@ -47,7 +47,7 @@ def test_readme_locks_public_contribution_and_workflow() -> None:
     assert "SENTINEL_MISSING" in text
     assert "The canonical dataset defines the reproducible interpretation contract." in text
     assert "many users begin with a smaller derived view" in text
-    assert "Optional views are usability projections derived from that canonical output" in text
+    assert "Optional views are narrower usability-oriented datasets derived from that canonical output" in text
     assert "`metadata`" in text
     assert "clouds_visibility" in text
     assert "intentionally minimal (5 rows)" in text

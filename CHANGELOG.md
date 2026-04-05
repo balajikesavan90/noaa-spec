@@ -9,7 +9,7 @@
 
 ### CLI
 - Public `noaa-spec clean` CLI for canonical CSV output.
-- Optional `--view` projections: `metadata`, `wind`, `precipitation`, `clouds_visibility`, `pressure_temperature`, `remarks`.
+- Optional `--view` datasets: `metadata`, `wind`, `precipitation`, `clouds_visibility`, `pressure_temperature`, `remarks`.
 
 ### Reproducibility
 - Tracked minimal fixture (`reproducibility/minimal/`) with raw input, expected output, and SHA256 checksum.
