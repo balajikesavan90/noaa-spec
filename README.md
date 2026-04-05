@@ -2,6 +2,24 @@
 
 NOAA-Spec is a deterministic canonicalization layer for NOAA ISD / Global Hourly observations. It turns raw NOAA rows into a specification-constrained canonical CSV with explicit nulls, preserved quality codes, stable column names, and deterministic serialization.
 
+At a high level, NOAA-Spec moves data through the following stages:
+
+```mermaid
+flowchart LR
+    A[Raw NOAA ISD / Global Hourly input]
+    B[Specification-constrained parsing and cleaning]
+    C[Validation and rule enforcement]
+    D[Canonical cleaned dataset]
+    E[Optional domain-specific projections]
+    F[Quality reports, manifests, and provenance artifacts]
+
+    A --> B --> C --> D
+    D --> E
+    D --> F
+```
+
+The reviewer-visible path is `noaa-spec clean`, which produces the canonical cleaned dataset as the public interpretation contract. In broader repository workflows, that same canonical layer is also the source for narrower domain projections and deterministic publication artifacts such as quality reports and release manifests.
+
 ## JOSS Scope — Start Here
 
 **The JOSS submission is the `noaa-spec clean` CLI, its canonical output contract, and the bundled checksum-backed reproducibility fixture.** That is the reviewed surface.
