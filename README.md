@@ -8,7 +8,7 @@ High-level pipeline overview:
 flowchart TB
     A["Raw NOAA ISD /<br/>Global Hourly input"]
     B["Specification-constrained<br/>parsing"]
-    C["Specification-driven validation<br/>(rule enforcement)"]
+    C["Specification-driven<br/>validation<br/>(rule enforcement)"]
     D["Canonical, loss-preserving<br/>cleaned dataset"]
     E["Optional domain-specific<br/>projections"]
     F["Quality reports, manifests,<br/>and provenance artifacts"]
