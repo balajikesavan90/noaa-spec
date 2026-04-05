@@ -46,7 +46,13 @@ This is the recommended reviewer-safe path. It reruns the tracked reproducibilit
 
 For ordinary local use, install NOAA-Spec into a Python 3.12 environment with `venv` support.
 
-On some Linux systems, `venv` support and `ensurepip` are provided by a separate OS package. If local `venv` setup is unavailable, use the Docker path above instead of improvising a host-local reviewer path.
+> **Ubuntu/Debian users:** install venv support first if you have not already:
+>
+> ```bash
+> sudo apt install python3-venv
+> ```
+
+If local `venv` setup is unavailable, use the Docker path above instead.
 
 ```bash
 python3 -m venv .venv

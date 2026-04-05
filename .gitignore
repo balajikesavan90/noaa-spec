@@ -22,6 +22,8 @@ maintainer/docs/archive/legacy_r/
 *.parquet
 !reproducibility/minimal/
 !reproducibility/minimal/**
+!reproducibility/minimal_second/
+!reproducibility/minimal_second/**
 !reproducibility/full_station/
 !reproducibility/full_station/**
 

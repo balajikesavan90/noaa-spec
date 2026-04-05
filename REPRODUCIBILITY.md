@@ -87,6 +87,30 @@ Expected result:
 b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597
 ```
 
+## Additional Fixture for Broader Field Coverage
+
+A second tracked fixture uses station `78724099999` (8 rows, 50 raw columns) to exercise additional NOAA field structures including precipitation (AA1–AA4), multiple cloud layers (GA1–GA5), past weather (AY1/AY2), extreme temperature (KA1/KA2), and present weather (MW1–MW3).
+
+Tracked files:
+
+- Raw input: `reproducibility/minimal_second/station_raw.csv`
+- Raw input SHA256: `7b77a6b636baaf00f465c747d541e237417757d518e13e6e286045b53d6fe685`
+- Expected output: `reproducibility/minimal_second/station_cleaned_expected.csv`
+- Expected output SHA256: `223efb068df6d605646a1288feedf6621fa55b4c9074c027f6347cbe7ca2f30e`
+
+Run and verify:
+
+```bash
+noaa-spec clean reproducibility/minimal_second/station_raw.csv /tmp/second_fixture.csv
+sha256sum /tmp/second_fixture.csv
+```
+
+Expected result:
+
+```text
+223efb068df6d605646a1288feedf6621fa55b4c9074c027f6347cbe7ca2f30e
+```
+
 ## Reproducibility Boundary
 
 This reproducibility surface covers the scoped JOSS contribution:
