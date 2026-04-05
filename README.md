@@ -14,7 +14,15 @@ NOAA-Spec is a deterministic canonicalization layer for NOAA ISD / Global Hourly
 | `paper/` — JOSS manuscript | `scripts/` — operational and batch-run helpers |
 | `README.md`, `REPRODUCIBILITY.md` | `noaa_file_index/`, `output/`, `data/` — local data |
 
-Within `src/noaa_spec/`, the public surface is the `noaa-spec clean` CLI and the canonical cleaning contract (`cleaning.py`, `constants.py`, `deterministic_io.py`, `domains/`). Additional modules (`pipeline.py`, `cleaning_runner.py`, `internal/`, `research_reports.py`, `noaa_client.py`) support maintainer batch workflows and are not required for normal use or JOSS evaluation.
+**Public API surface.** Within `src/noaa_spec/`, the public surface is:
+
+- `cleaning.py` — canonical interpretation logic
+- `constants.py` — field rules, sentinels, and QC definitions
+- `deterministic_io.py` — checksummable CSV writer
+- `cli.py` — the `noaa-spec clean` entry point
+- `domains/` — view definitions for derived projections
+
+Other modules (`pipeline.py`, `cleaning_runner.py`, `internal/`, `research_reports.py`, `noaa_client.py`) support maintainer batch workflows and are not required for normal use or JOSS evaluation.
 
 ## Docker First Run
 
@@ -49,43 +57,11 @@ noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv
 sha256sum /tmp/station_cleaned.csv
 ```
 
-Expected checksum:
-
-```text
-b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597
-```
-
-Inspect a small reviewer-friendly subset:
-
-```bash
-python3 - <<'PY'
-import csv
-
-cols = [
-    "STATION",
-    "DATE",
-    "temperature_c",
-    "temperature_quality_code",
-    "visibility_m",
-    "TMP__qc_reason",
-]
-
-with open("/tmp/station_cleaned.csv", newline="", encoding="utf-8") as handle:
-    reader = csv.DictReader(handle)
-    for row in list(reader)[:5]:
-        print({col: row[col] for col in cols})
-PY
-```
+Expected checksum: `b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597`
 
 ## Run The Canonical Contract
 
 The canonical dataset defines the reproducible interpretation contract. In that public canonical CSV, the station identifier remains `STATION`, matching the bundled fixture and CLI output. Optional `--view` outputs are derived projections for usability and do not modify the underlying contract.
-
-Run the canonical workflow first:
-
-```bash
-noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv
-```
 
 For a first inspection path, many users begin with a smaller derived view:
 
@@ -97,8 +73,6 @@ The canonical CSV is the full loss-preserving contract and is intentionally wide
 
 ## Optional Derived Views
 
-If you want NOAA-Spec to write a narrower derived projection directly, add `--view` after the canonical workflow above.
-
 Other supported views:
 
 - `metadata`
@@ -108,9 +82,7 @@ Other supported views:
 - `pressure_temperature`
 - `remarks`
 
-The `metadata` view contains station/time context and identifying metadata rather than cleaned meteorological measurements. The canonical CSV remains the primary contract. Views are optional convenience projections derived from that canonical output.
-
-For compatibility, `core` and `core_meteorology` remain accepted aliases for `metadata`.
+The `metadata` view contains station/time context and identifying metadata rather than cleaned meteorological measurements. For compatibility, `core` and `core_meteorology` remain accepted aliases for `metadata`.
 
 ## Minimal Workflow
 
@@ -169,16 +141,15 @@ PY
 
 ## Reproducibility Verification
 
-The same tracked fixture is also used for reproducibility verification:
+The tracked fixture is also used for checksum-backed reproducibility verification:
 
 - Raw input: [reproducibility/minimal/station_raw.csv](reproducibility/minimal/station_raw.csv)
-- Raw input SHA256: `50e8bfb9ffae8278652bb7410cfbc9683a48711c35cfcf9e9dd3c38bbc403d47`
 - Expected cleaned output: [reproducibility/minimal/station_cleaned_expected.csv](reproducibility/minimal/station_cleaned_expected.csv)
 - Expected cleaned SHA256: `b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597`
 
-The included fixture is intentionally minimal (5 rows) and serves as a deterministic reproducibility proof. Larger-scale processing is supported but not bundled in-repo.
+The included fixture is intentionally minimal (5 rows) and serves as a deterministic reproducibility proof.
 
-For the complete checksum verification, Docker clean-environment path, and explicit reproducibility boundary, use [REPRODUCIBILITY.md](REPRODUCIBILITY.md).
+For the complete verification workflow, Docker clean-environment path, and explicit reproducibility boundary, see [REPRODUCIBILITY.md](REPRODUCIBILITY.md).
 
 ## Docs
 

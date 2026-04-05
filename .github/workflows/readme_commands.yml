@@ -14,5 +14,10 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install package
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -e .
+
       - name: Execute every README command
         run: python3 scripts/run_readme_commands.py

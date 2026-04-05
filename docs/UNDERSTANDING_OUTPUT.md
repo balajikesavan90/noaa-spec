@@ -161,12 +161,6 @@ That means downstream users can tell the difference between a sentinel-coded mis
 
 ## What this output is good for
 
-This canonical representation is a better starting point when you want:
+This canonical representation is a better starting point when you want consistent field handling across many stations, a reusable deterministic source representation, or QC-aware filtering after cleaning.
 
-- consistent field handling across many stations
-- a reusable, deterministic source representation for downstream analysis
-- QC-aware filtering after cleaning rather than ad hoc preprocessing before it
-
-When you only need one part of the observational record, start from a subset of relevant columns or from an existing `--view` projection. Narrower downstream tables can be derived from the canonical layer, but the defended public contribution is the canonical contract itself.
-
-If you only need a quick notebook exploration of one file, this may be more structure than you need.
+When you only need part of the observational record, start from a subset of relevant columns or from an existing `--view` projection.

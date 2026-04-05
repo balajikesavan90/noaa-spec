@@ -41,14 +41,7 @@ For a station-year comparison or QC-aware filtering workflow, this subset is oft
 
 ## Reuse Difference
 
-This is where the canonical contract beats a one-off cleaning script.
-
-Two downstream users can reuse the same canonical subset:
-
-- User A: keep rows where `temperature_c` is present.
-- User B: keep rows where `temperature_c` is present and `temperature_quality_code == 1`.
-
-Neither user has to decode `TMP=+9999,9`, preserve the `9` quality code, or rename packed NOAA fields before analysis starts. The canonical row already carries the normalized value, the preserved QC semantics, and the stable column names needed for both downstream policies.
+Two downstream users can reuse the same canonical subset with different quality policies without reimplementing sentinel decoding or field renaming. See [../UNDERSTANDING_OUTPUT.md](../UNDERSTANDING_OUTPUT.md) for a worked example of divergent downstream filtering.
 
 ## What Changed
 

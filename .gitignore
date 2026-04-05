@@ -7,9 +7,16 @@ noaa_file_index/state/
 # AI tooling configuration
 .codex
 .github/prompts/
+AGENTS.md
+
+# IDE configuration
+.vscode/
 
 # Package manager lock files (project uses setuptools)
 poetry.lock
+
+# Legacy files
+maintainer/docs/archive/legacy_r/
 
 *.csv
 *.parquet

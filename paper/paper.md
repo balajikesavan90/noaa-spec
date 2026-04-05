@@ -44,11 +44,11 @@ An ad hoc workflow typically discards the QC context that explains why a value i
 
 Existing NOAA tools help users obtain or parse ISD data, but they do not by themselves define a shared reusable interpretation contract for downstream analysis.
 
-The closest comparators are project-local preprocessing scripts, parsing-oriented tools such as the R package `isdparser`, and Python packages such as `isd`. These tools help users read NOAA data structures or fetch source records. NOAA-Spec targets the next step: a reusable interpretation layer that fixes sentinel handling, preserves QC semantics in a stable schema, and gives different analyses the same canonical observation-level output contract.
+The closest comparators are project-local preprocessing scripts, parsing-oriented tools such as the R package `isdparser` [@chamberlain_isdparser], and Python packages such as `isd` [@isd_python]. These tools help users read NOAA data structures or fetch source records. NOAA-Spec targets the next step: a reusable interpretation layer that fixes sentinel handling, preserves QC semantics in a stable schema, and gives different analyses the same canonical observation-level output contract.
 
 An ad hoc pandas workflow can clean one dataset for one project, but it does not establish a shared interpretation contract that another project can rerun and compare against. NOAA-Spec's contribution is that reusable canonicalization layer.
 
-| Capability | Ad hoc / local scripts | Parsing tools (`isdparser`, `isd`) | NOAA-Spec |
+| Capability | Ad hoc / local scripts | Parsing tools (`isdparser` [@chamberlain_isdparser], `isd` [@isd_python]) | NOAA-Spec |
 | --- | --- | --- | --- |
 | Primary role | Project-specific preprocessing | Parsing or access | Canonical interpretation layer |
 | Deterministic canonical CSV | Usually project-specific | Not the primary focus | Yes |
@@ -80,4 +80,4 @@ NOAA-Spec is NOAA-specific software. The current contribution is the reusable ca
 The author acknowledges NOAA National Centers for Environmental Information (NCEI) for maintaining the ISD dataset and documentation. Some development work used large language models as drafting assistance, but the software contribution described here is the committed implementation, tests, and documentation in the repository.
 
 # References
-All references cited in this manuscript are provided in `paper.bib` [@smith2011isd; @noaa_isd_docs].
+All references cited in this manuscript are provided in `paper.bib` [@smith2011isd; @noaa_isd_docs; @chamberlain_isdparser; @isd_python].
