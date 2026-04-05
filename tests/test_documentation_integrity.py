@@ -1,6 +1,8 @@
 from pathlib import Path
 import pytest
 
+from scripts.run_readme_commands import _normalize_line, _should_skip
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 README_PATH = PROJECT_ROOT / "README.md"
@@ -150,3 +152,14 @@ def test_reproducibility_doc_is_single_reproducibility_path() -> None:
     assert "docker run --rm noaa-spec-review bash scripts/verify_reproducibility.sh" in public_text
     assert "tracked artifacts behind the public reproducibility claim" in directory_text
     assert "The active reviewer workflow is documented in [../REPRODUCIBILITY.md](../REPRODUCIBILITY.md)." in directory_text
+
+
+def test_readme_command_runner_skips_infra_and_privileged_setup_steps() -> None:
+    assert _normalize_line("> sudo apt install python3-venv") == "sudo apt install python3-venv"
+    assert _normalize_line(">") == ""
+    assert _normalize_line("    reader = csv.DictReader(handle)") == "    reader = csv.DictReader(handle)"
+    assert _should_skip("sudo apt install python3-venv")
+    assert _should_skip("> sudo apt install python3-venv")
+    assert _should_skip("python3 -m venv .venv")
+    assert _should_skip("python3 -m pip install -e .")
+    assert not _should_skip("noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv")
