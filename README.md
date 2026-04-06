@@ -72,21 +72,42 @@ This is the recommended reviewer-safe path for independent reviewer verification
 
 For ordinary local use, install NOAA-Spec into a Python 3.12 environment with `venv` support. This is the normal user/developer workflow, not the independent reviewer verification path.
 
-> **Ubuntu/Debian users:** install venv support first if you have not already:
->
-> ```bash
-> sudo apt install python3-venv
-> ```
+If local `venv` setup is unavailable or inconvenient, use the Docker path above instead.
 
-If local `venv` setup is unavailable, use the Docker path above instead.
+### Windows PowerShell
+
+If PowerShell blocks script activation, run this first:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+```
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -e .
+noaa-spec clean reproducibility/minimal/station_raw.csv $env:TEMP\station_cleaned.csv
+Get-FileHash $env:TEMP\station_cleaned.csv -Algorithm SHA256
+```
+
+### macOS / Linux
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install --upgrade pip
-python3 -m pip install -e .
+python -m pip install --upgrade pip
+python -m pip install -e .
 noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv
 sha256sum /tmp/station_cleaned.csv
+```
+
+### Ubuntu / Debian Note
+
+Ubuntu/Debian users may need to install `venv` support first:
+
+```bash
+sudo apt install python3-venv
 ```
 
 Expected checksum: `b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597`
