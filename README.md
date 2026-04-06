@@ -46,6 +46,14 @@ Other modules (`pipeline.py`, `cleaning_runner.py`, `internal/`, `research_repor
 
 For independent reviewer verification and the cleanest first run, use Docker:
 
+Docker installed and running is required before these commands will work.
+
+```bash
+docker --version
+```
+
+If this command fails, Docker is not correctly installed or not available on PATH.
+
 ```bash
 docker build -f Dockerfile -t noaa-spec-review .
 docker run --rm noaa-spec-review bash scripts/verify_reproducibility.sh
@@ -58,11 +66,11 @@ PASS: reproducibility verification succeeded.
 SHA256: b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597
 ```
 
-This is the recommended reviewer-safe path. It reruns the tracked reproducibility fixture and verifies the canonical contract checksum without depending on a host-local Python setup.
+This is the recommended reviewer-safe path for independent reviewer verification and a clean first run. It reruns the tracked reproducibility fixture and verifies the canonical contract checksum without depending on a host-local Python setup.
 
 ## Optional Local Install
 
-For ordinary local use, install NOAA-Spec into a Python 3.12 environment with `venv` support.
+For ordinary local use, install NOAA-Spec into a Python 3.12 environment with `venv` support. This is the normal user/developer workflow, not the independent reviewer verification path.
 
 > **Ubuntu/Debian users:** install venv support first if you have not already:
 >

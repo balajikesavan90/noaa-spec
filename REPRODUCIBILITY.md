@@ -8,6 +8,14 @@ Views are available through the public `noaa-spec clean --view ...` CLI as optio
 
 For independent reviewer verification, use Docker:
 
+Docker installed and running is required before these commands will work.
+
+```bash
+docker --version
+```
+
+If this command fails, Docker is not correctly installed or not available on PATH.
+
 ```bash
 docker build -f Dockerfile -t noaa-spec-review .
 docker run --rm noaa-spec-review bash scripts/verify_reproducibility.sh
@@ -24,7 +32,7 @@ SHA256: b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597
 
 Local installation is a convenience path for users and developers. It is not the authoritative reviewer path.
 
-Local installation requires a working Python 3.12 environment with `venv` support. If local `venv` setup is unavailable, use Docker instead.
+Local installation requires a working Python 3.12 environment with `venv` support. If local `venv` setup is unavailable, use Docker instead. Docker is the clean first run path for independent reviewer verification.
 
 ```bash
 python3 -m venv .venv
