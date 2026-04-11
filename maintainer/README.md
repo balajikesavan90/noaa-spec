@@ -1,6 +1,6 @@
 # Maintainer Material
 
-> **Not part of the JOSS submission.** This directory is maintainer-internal and is not reviewed, documented, or supported as part of the public NOAA-Spec package.
+> **Not part of the JOSS submission.** This directory is maintainer-internal and is not part of the public JOSS reviewer path.
 
 This directory holds maintainer-only records, audit exports, larger internal fixtures, and broader pipeline documentation. None of these files are required to install, use, or verify NOAA-Spec.
 
