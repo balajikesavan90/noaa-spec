@@ -16,6 +16,8 @@ SKIP_PREFIXES = (
     "docker ",
     "sudo apt ",
     "python3 -m venv",
+    "python3.12 --version",
+    "python3.12 -m venv",
     "source ",
     "python -m pip",
     "python3 -m pip",

@@ -32,9 +32,11 @@ SHA256: b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597
 
 Local installation is a convenience path for users and developers. It is not the authoritative reviewer path.
 
-Local installation requires a working Python environment with `venv` support. NOAA-Spec currently declares support for Python `>=3.11,<3.13`; reviewers should use Python 3.11 or 3.12 for the local path. If local `venv` setup is unavailable, use Docker instead. Docker is the clean first run path for independent reviewer verification.
+Local installation requires a working Python environment with `venv` support. NOAA-Spec currently declares support for Python `>=3.11,<3.13`; reviewers should use Python 3.11 or 3.12 for the local path. Python 3.13 is not yet supported. If local `venv` setup is unavailable, use Docker instead. Docker is the clean first run path for independent reviewer verification.
 
 On any platform, if `pyarrow` does not provide a compatible wheel for the active Python version, `pip` may try to build it from source. That source-build path can fail and prevent the `noaa-spec` CLI from being installed. Use Python 3.11 or 3.12 for reviewer-local installs.
+
+Before creating the environment, check that you have Python 3.11 or 3.12 available. If you do not already have a supported interpreter, install Python 3.12 first and then continue with the commands below.
 
 ### Windows PowerShell
 
@@ -45,7 +47,8 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 ```
 
 ```powershell
-python -m venv .venv
+py -3.12 --version
+py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip setuptools wheel
 python -m pip install -e .
@@ -57,13 +60,16 @@ Expected SHA256: `b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f28875
 
 ### macOS / Linux
 
+The exact command for the installed Python 3.12 interpreter may vary by system, but `python3.12` is the standard example used here.
+
 ```bash
-python3 -m venv .venv
+python3.12 --version
+python3.12 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install --upgrade pip setuptools wheel
-python3 -m pip install -e .
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -e .
 noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv
-python3 -c "import hashlib, pathlib; print(hashlib.sha256(pathlib.Path('/tmp/station_cleaned.csv').read_bytes()).hexdigest())"
+python -c "import hashlib, pathlib; print(hashlib.sha256(pathlib.Path('/tmp/station_cleaned.csv').read_bytes()).hexdigest())"
 ```
 
 Expected SHA256: `b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597`
