@@ -71,11 +71,13 @@ This is the recommended reviewer-safe path for independent reviewer verification
 
 ## Optional Local Install
 
-For ordinary local use, install NOAA-Spec into a Python 3.12 environment with `venv` support. This is the normal user/developer workflow, not the independent reviewer verification path.
+For ordinary local use, install NOAA-Spec into a supported Python environment with `venv` support. NOAA-Spec currently declares support for Python `>=3.11,<3.13`; reviewers should use Python 3.11 or 3.12 for the local path. This is the normal user/developer workflow, not the independent reviewer verification path.
 
 If local `venv` setup is unavailable or inconvenient, use the Docker path above instead.
 
 The base install is sufficient for cleaning existing local NOAA CSV files with `noaa-spec clean`. Downloading NOAA data also requires the `fetch` optional dependency, which installs `requests`. The base install already includes `pandas` and `pyarrow`.
+
+Dependency note: on any platform, if `pyarrow` does not provide a compatible wheel for the active Python version, `pip` may try to build it from source. That source-build path can fail and prevent the `noaa-spec` CLI from being installed. Use Python 3.11 or 3.12 for reviewer-local installs.
 
 ### Windows PowerShell
 
@@ -88,7 +90,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
+python -m pip install --upgrade pip setuptools wheel
 python -m pip install -e .
 noaa-spec clean reproducibility/minimal/station_raw.csv $env:TEMP\station_cleaned.csv
 Get-FileHash $env:TEMP\station_cleaned.csv -Algorithm SHA256
@@ -99,10 +101,10 @@ Get-FileHash $env:TEMP\station_cleaned.csv -Algorithm SHA256
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -e .
+python3 -m pip install --upgrade pip setuptools wheel
+python3 -m pip install -e .
 noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv
-sha256sum /tmp/station_cleaned.csv
+python3 -c "import hashlib, pathlib; print(hashlib.sha256(pathlib.Path('/tmp/station_cleaned.csv').read_bytes()).hexdigest())"
 ```
 
 ### Ubuntu / Debian Note
@@ -122,13 +124,14 @@ This is the recommended public entry point when you want NOAA-Spec to download a
 Install with the download extra:
 
 ```bash
-python -m pip install -e ".[fetch]"
+python3 -m pip install --upgrade pip setuptools wheel
+python3 -m pip install -e ".[fetch]"
 ```
 
 Then run:
 
 ```bash
-python examples/download_and_clean_station.py \
+python3 examples/download_and_clean_station.py \
   --station 02536099999 \
   --start-year 2000 \
   --end-year 2025 \

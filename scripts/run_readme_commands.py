@@ -17,7 +17,13 @@ SKIP_PREFIXES = (
     "sudo apt ",
     "python3 -m venv",
     "source ",
+    "python -m pip",
     "python3 -m pip",
+    "python3 examples/download_and_clean_station.py",
+    "--station ",
+    "--start-year ",
+    "--end-year ",
+    "--output-dir ",
     "sha256sum",
 )
 

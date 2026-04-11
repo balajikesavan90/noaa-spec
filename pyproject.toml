@@ -6,7 +6,7 @@ authors = [
     {name = "Balaji Kesavan",email = "balajikesavan29@gmail.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11,<3.13"
 dependencies = [
     "pandas>=3.0.0,<4.0.0",
     "pyarrow>=16.0.0,<17.0.0",

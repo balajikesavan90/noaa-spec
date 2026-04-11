@@ -8,7 +8,8 @@ RUN apt-get update \
 
 COPY . /app
 
-RUN pip install --no-cache-dir -r requirements-review.txt \
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
+    && pip install --no-cache-dir -r requirements-review.txt \
     && pip install --no-cache-dir -e .
 
 CMD ["bash", "scripts/verify_reproducibility.sh"]

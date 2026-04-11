@@ -25,8 +25,8 @@ if ((${#missing[@]} > 0)); then
     exit 1
 fi
 
-if ! python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 12) else 1)' >/dev/null 2>&1; then
-    echo "FAIL: python3 must be Python 3.12 or newer." >&2
+if ! python3 -c 'import sys; raise SystemExit(0 if (3, 11) <= sys.version_info[:2] < (3, 13) else 1)' >/dev/null 2>&1; then
+    echo "FAIL: python3 must be Python 3.11 or 3.12." >&2
     print_fix
     exit 1
 fi
