@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 from pathlib import Path
 
 import pandas as pd
@@ -24,6 +25,12 @@ def _parse_args() -> argparse.Namespace:
         required=True,
         type=Path,
         help="Directory where Raw.csv and Cleaned.csv will be written.",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        default=False,
+        help="Show detailed [PARSE_STRICT] validation warnings during cleaning.",
     )
     return parser.parse_args()
 
@@ -72,8 +79,16 @@ def main() -> None:
     print(f"Writing raw data to {raw_path}")
     write_deterministic_csv(raw, raw_path, sort_by=("STATION", "DATE"))
 
+    cleaning_logger = logging.getLogger("noaa_spec.cleaning")
+    previous_cleaning_level = cleaning_logger.level
+    if not args.verbose:
+        cleaning_logger.setLevel(logging.ERROR)
+
     print("Cleaning downloaded data")
-    cleaned = clean_noaa_dataframe(raw, keep_raw=False, strict_mode=True)
+    try:
+        cleaned = clean_noaa_dataframe(raw, keep_raw=False, strict_mode=True)
+    finally:
+        cleaning_logger.setLevel(previous_cleaning_level)
 
     print(f"Writing cleaned data to {cleaned_path}")
     write_deterministic_csv(
