@@ -38,15 +38,15 @@ For example, the raw token `TMP=+9999,9` does not mean a very large temperature 
 
 NOAA-Spec matters when multiple projects need the same interpreted NOAA input. A careful local preprocessing script can clean one dataset for one study, but the interpretation rules remain local and difficult to compare across projects.
 
-An ad hoc workflow typically discards the QC context that explains why a value is missing. NOAA-Spec preserves that context deterministically — sentinel-coded missingness is distinguished from later quality-based exclusion — so downstream users start from the same decoded interpretation instead of silently diverging. The canonical dataset defines the reproducible interpretation contract, and optional derived views are narrower usability-oriented datasets from that canonical table.
+An ad hoc workflow typically discards the QC context that explains why a value is missing. NOAA-Spec preserves that context deterministically — sentinel-coded missingness is distinguished from later quality-based exclusion — so downstream users start from the same decoded interpretation instead of silently diverging. The canonical dataset provides a stable interpreted output, and optional derived views are narrower usability-oriented datasets from that canonical table.
 
 # Comparison With Existing Tools
 
-Existing NOAA tools help users obtain or parse ISD data, but they do not by themselves define a shared reusable interpretation contract for downstream analysis.
+Existing NOAA tools help users obtain or parse ISD data, but they do not by themselves define a shared interpreted output for downstream analysis.
 
-The closest comparators are project-local preprocessing scripts, parsing-oriented tools such as the R package `isdparser` [@chamberlain_isdparser], and Python packages such as `isd` [@isd_python]. These tools help users read NOAA data structures or fetch source records. NOAA-Spec targets the next step: a reusable interpretation layer that fixes sentinel handling, preserves QC semantics in a stable schema, and gives different analyses the same canonical observation-level output contract.
+The closest comparators are project-local preprocessing scripts, parsing-oriented tools such as the R package `isdparser` [@chamberlain_isdparser], and Python packages such as `isd` [@isd_python]. These tools help users read NOAA data structures or fetch source records. NOAA-Spec targets the next step: a reusable interpretation layer that fixes sentinel handling, preserves QC semantics in a stable schema, and gives different analyses the same canonical observation-level output.
 
-An ad hoc pandas workflow can clean one dataset for one project, but it does not establish a shared interpretation contract that another project can rerun and compare against. NOAA-Spec's contribution is that reusable canonicalization layer.
+An ad hoc pandas workflow can clean one dataset for one project, but it does not establish a shared interpretation that another project can rerun and compare against. NOAA-Spec's contribution is that reusable canonicalization layer.
 
 | Capability | Ad hoc / local scripts | Parsing tools (`isdparser` [@chamberlain_isdparser], `isd` [@isd_python]) | NOAA-Spec |
 | --- | --- | --- | --- |
@@ -55,7 +55,7 @@ An ad hoc pandas workflow can clean one dataset for one project, but it does not
 | Sentinel normalization + QC preservation | Varies, often implicit | Left to downstream workflows | Yes |
 | Checksum-backed reproducibility fixture | Rare | Not the primary focus | Yes |
 
-NOAA-Spec is aimed at that layer. Its contribution is deterministic NOAA-ISD-specific infrastructure that sits between raw parsed rows and downstream scientific analysis.
+NOAA-Spec is aimed at that layer. Its contribution is a deterministic NOAA-ISD-specific cleaning layer between raw parsed rows and downstream scientific analysis.
 
 # Software Design
 
@@ -69,7 +69,7 @@ The public CLI is the `noaa-spec clean` command. The reviewer-visible example is
 
 # Reproducibility
 
-The repository includes a tracked raw input, tracked expected canonical output, and checksum-backed verification under `reproducibility/`. For independent reviewer verification, the authoritative path is the Docker workflow documented in the repository. Reviewers can rerun the example and confirm that the emitted CSV matches the expected checksum. The included fixture is intentionally minimal (5 rows) and serves as a deterministic reproducibility proof; larger-scale processing is supported but not bundled in-repo. This supports the main software claim: NOAA-Spec makes NOAA-specific interpretation behavior deterministic and inspectable at the observation level.
+The repository includes a tracked raw input, tracked expected canonical output, and checksum-backed verification under `reproducibility/`. For independent reviewer verification, the authoritative path is the Docker workflow documented in the repository. Reviewers can rerun the example and confirm that the emitted CSV matches the expected checksum. The included fixture is intentionally minimal (5 rows) and serves as a deterministic reproducibility check; larger-scale processing is supported but not bundled in-repo. The fixture is the committed reviewer-checkable boundary, while rule-based implementation derived from NOAA documentation and automated tests provide broader confidence across encoded cases. This supports the main software claim: NOAA-Spec makes NOAA-specific interpretation behavior deterministic and inspectable at the observation level.
 
 # Limitations
 

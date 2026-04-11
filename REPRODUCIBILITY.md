@@ -2,7 +2,7 @@
 
 This document is the authoritative reproducibility reference for NOAA-Spec.
 
-Views are available through the public `noaa-spec clean --view ...` CLI as optional narrower datasets for usability, but reproducibility verification for the scoped JOSS claim remains the canonical output and checksum below. The reproducible public canonical contract is the emitted CSV shown by the bundled fixture, with `STATION` and `DATE` as the reviewer-visible identifier columns.
+Views are available through the public `noaa-spec clean --view ...` CLI as optional narrower datasets for usability, but reproducibility verification for the scoped JOSS claim remains the canonical output and checksum below. The reviewer-visible canonical output is the emitted CSV shown by the bundled fixture, with `STATION` and `DATE` as identifier columns.
 
 ## Quick Reviewer Path
 
@@ -20,6 +20,8 @@ If this command fails, Docker is not correctly installed or not available on PAT
 docker build -f Dockerfile -t noaa-spec-review .
 docker run --rm noaa-spec-review bash scripts/verify_reproducibility.sh
 ```
+
+The `scripts/verify_reproducibility.sh` script is a thin convenience wrapper around the reviewer workflow. General `scripts/` helpers are maintainer tooling and are outside the JOSS evaluation path; reviewers may either use this wrapper or run the underlying `noaa-spec clean` and checksum commands directly.
 
 Successful verification prints:
 
@@ -159,4 +161,4 @@ This reproducibility surface covers the scoped JOSS contribution:
 - the specification-constrained canonical interpretation layer
 - the bundled tracked fixture and checksum-backed verification path
 
-It does not cover broader repository workflows such as batch orchestration, release manifests, or internal validation/reporting workflows.
+It does not cover broader repository workflows such as batch orchestration, release manifests, or internal validation/reporting workflows. General `scripts/` helpers are part of that maintainer-oriented surface, with `scripts/verify_reproducibility.sh` carved out only as a convenience wrapper for the commands above.

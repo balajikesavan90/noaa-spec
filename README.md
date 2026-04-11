@@ -2,47 +2,34 @@
 
 NOAA-Spec is a deterministic canonicalization layer for NOAA ISD / Global Hourly observations. It turns raw NOAA rows into a specification-constrained canonical CSV with explicit nulls, preserved quality codes, stable column names, and deterministic serialization.
 
-High-level pipeline overview:
+## JOSS Scope (Reviewer Start Here)
 
-```mermaid
-flowchart TB
-    A["Raw NOAA ISD /<br/>Global Hourly input"]
-    B["Specification-constrained<br/>parsing"]
-    C["Specification-driven<br/>validation<br/>(rule enforcement)"]
-    D["Canonical, loss-preserving<br/>cleaned dataset"]
-    E["Optional domain-specific<br/>datasets"]
-    F["Quality reports, manifests,<br/>and provenance artifacts"]
+The JOSS-facing contribution is intentionally narrow. Review should focus on:
 
-    A --> B --> C --> D
-    D --> E
-    D --> F
-```
+- the `noaa-spec clean` CLI;
+- deterministic canonical CSV output with stable columns, explicit nulls, and preserved NOAA quality codes;
+- the tracked reproducibility fixture under `reproducibility/`.
 
-NOAA-Spec transforms raw NOAA observations into a canonical cleaned representation governed by specification-derived rules. That canonical dataset is the source layer for optional domain-specific datasets and for deterministic downstream artifacts such as quality reports, release manifests, and related provenance records.
+Broader repository materials, including maintainer utilities, batch helpers, quality-report tooling, release-manifest tooling, and internal support material, are supporting material and are not required for JOSS evaluation. The one exception in `scripts/` is `scripts/verify_reproducibility.sh`, a thin convenience wrapper around the documented reviewer workflow; reviewers may use that wrapper or run the underlying `noaa-spec clean` and checksum commands directly.
 
-## JOSS Scope — Start Here
-
-**The JOSS submission is the `noaa-spec clean` CLI, its canonical output contract, and the bundled checksum-backed reproducibility fixture.** That is the reviewed surface.
+## Repository Scope
 
 | In scope (JOSS-reviewed) | Not in scope |
 | --- | --- |
 | `src/noaa_spec/` — installable package and CLI | `maintainer/` — internal planning and audit docs |
 | `reproducibility/` — tracked fixture and verification | `tools/` — internal spec-coverage tooling |
 | `docs/` — output guide and worked example | `spec_sources/` — NOAA format reference copies |
-| `paper/` — JOSS manuscript | `scripts/` — operational and batch-run helpers |
+| `paper/` — JOSS manuscript | `scripts/` — operational and batch-run helpers, except `scripts/verify_reproducibility.sh` |
 | `README.md`, `REPRODUCIBILITY.md` | `noaa_file_index/`, `output/`, `data/` — local data |
 
-**Public API surface.** Within `src/noaa_spec/`, the public surface is:
+The reviewer-facing package surface is centered on:
 
 - `cleaning.py` — canonical interpretation logic
 - `constants.py` — field rules, sentinels, and QC definitions
 - `deterministic_io.py` — checksummable CSV writer
 - `cli.py` — the `noaa-spec clean` entry point
-- `noaa_client.py` — public NOAA Global Hourly download helpers for single-station workflows
-- `domains/` — view definitions for domain-specific datasets
-- `contracts.py` — schema contract definitions used by the domain publisher
 
-Modules under `internal/` (batch orchestration, pipeline helpers, report generation) are maintainer-oriented, excluded from the installable distribution, and not part of the JOSS-reviewed surface. The [single-station example script](examples/download_and_clean_station.py) is the recommended cross-platform workflow for downloading and cleaning one station.
+Modules under `internal/` (batch orchestration, pipeline helpers, report generation) are maintainer-oriented, excluded from the installable distribution, and not part of the JOSS-reviewed surface. Optional download helpers and derived views are documented for users, but they are not the core JOSS evaluation path. The [single-station example script](examples/download_and_clean_station.py) is the recommended cross-platform workflow for downloading and cleaning one station.
 
 ## Docker First Run
 
@@ -68,7 +55,9 @@ PASS: reproducibility verification succeeded.
 SHA256: b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597
 ```
 
-This is the recommended reviewer-safe path for independent reviewer verification and a clean first run. It reruns the tracked reproducibility fixture and verifies the canonical contract checksum without depending on a host-local Python setup.
+This is the recommended reviewer-safe path for independent reviewer verification and a clean first run. It reruns the tracked reproducibility fixture and verifies the canonical output checksum without depending on a host-local Python setup.
+
+The script used here is a convenience wrapper for the reviewer workflow. Reviewers who prefer not to use `scripts/` can run the underlying `noaa-spec clean` command and checksum verification shown in [REPRODUCIBILITY.md](REPRODUCIBILITY.md).
 
 ## Optional Local Install
 
@@ -156,7 +145,7 @@ Key transformations:
 - NOAA QC semantics are preserved in separate fields such as `temperature_quality_code`.
 - Output columns are normalized into a stable observation-level schema such as `temperature_c`, `dew_point_c`, and `visibility_m`.
 
-The canonical CSV is the full loss-preserving contract and is intentionally wide (~130 columns preserving all decoded fields and QC context). For a first inspection path, many users begin with a smaller derived view:
+The canonical CSV is intentionally wide (~130 columns preserving decoded fields and QC context). For a first inspection path, many users begin with a smaller derived view:
 
 ```bash
 noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_metadata.csv --view metadata
@@ -212,9 +201,15 @@ The tracked fixture is also used for checksum-backed reproducibility verificatio
 - Expected cleaned output: [reproducibility/minimal/station_cleaned_expected.csv](reproducibility/minimal/station_cleaned_expected.csv)
 - Expected cleaned SHA256: `b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597`
 
-The included fixture is intentionally minimal (5 rows) and serves as a deterministic reproducibility proof.
+The included fixture is intentionally minimal (5 rows) and serves as a deterministic reproducibility check.
 
 For the complete verification workflow, Docker clean-environment path, and explicit reproducibility boundary, see [REPRODUCIBILITY.md](REPRODUCIBILITY.md).
+
+## Correctness Beyond the Fixture
+
+The tracked fixture demonstrates reproducibility and deterministic behavior for a committed, reviewer-checkable input/output pair. It does not prove universal correctness for all NOAA ISD / Global Hourly records.
+
+Broader correctness confidence comes from the rule-based implementation derived from NOAA documentation and from the automated tests that exercise encoded cases beyond the small fixture. The fixture is the committed reproducibility boundary; the documented rules and test suite provide broader confidence in the behavior of the cleaning layer.
 
 ## Optional: Download and Clean a New Station
 
