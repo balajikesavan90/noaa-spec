@@ -38,9 +38,10 @@ NOAA-Spec transforms raw NOAA observations into a canonical cleaned representati
 - `constants.py` — field rules, sentinels, and QC definitions
 - `deterministic_io.py` — checksummable CSV writer
 - `cli.py` — the `noaa-spec clean` entry point
+- `noaa_client.py` — public NOAA Global Hourly download helpers for single-station workflows
 - `domains/` — view definitions for domain-specific datasets
 
-Other modules (`pipeline.py`, `cleaning_runner.py`, `internal/`, `research_reports.py`, `noaa_client.py`) support maintainer batch workflows and are not required for normal use or JOSS evaluation.
+The internal CLI and pipeline modules (`internal/`, `pipeline.py`, and related batch helpers) are maintainer-oriented. They are used for large-scale batch processing, are not required for standard usage, and may not be cross-platform. The [single-station example script](examples/download_and_clean_station.py) is the recommended cross-platform workflow for downloading and cleaning one station.
 
 ## Docker First Run
 
@@ -73,6 +74,8 @@ This is the recommended reviewer-safe path for independent reviewer verification
 For ordinary local use, install NOAA-Spec into a Python 3.12 environment with `venv` support. This is the normal user/developer workflow, not the independent reviewer verification path.
 
 If local `venv` setup is unavailable or inconvenient, use the Docker path above instead.
+
+The base install is sufficient for cleaning existing local NOAA CSV files with `noaa-spec clean`. Downloading NOAA data also requires the `fetch` optional dependency, which installs `requests`. The base install already includes `pandas` and `pyarrow`.
 
 ### Windows PowerShell
 
@@ -111,6 +114,43 @@ sudo apt install python3-venv
 ```
 
 Expected checksum: `b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597`
+
+## Download and clean a single station (recommended workflow)
+
+This is the recommended public entry point when you want NOAA-Spec to download a single NOAA Global Hourly station and clean it end to end. It uses only public package modules and does not use the maintainer-oriented internal CLI or pipeline modules.
+
+Install with the download extra:
+
+```bash
+python -m pip install -e ".[fetch]"
+```
+
+Then run:
+
+```bash
+python examples/download_and_clean_station.py \
+  --station 02536099999 \
+  --start-year 2000 \
+  --end-year 2025 \
+  --output-dir output/02536099999
+```
+
+On Windows PowerShell, the same command can be written on one line:
+
+```powershell
+python examples/download_and_clean_station.py --station 02536099999 --start-year 2000 --end-year 2025 --output-dir output\02536099999
+```
+
+Expected outputs:
+
+```text
+output/
+  02536099999/
+    Raw.csv
+    Cleaned.csv
+```
+
+`Raw.csv` contains the downloaded NOAA Global Hourly rows for the station and year range. `Cleaned.csv` contains the canonical NOAA-Spec cleaned output with sentinel values normalized to nulls and quality-code semantics preserved.
 
 ## Run The Canonical Contract
 
