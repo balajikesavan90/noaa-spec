@@ -8,7 +8,7 @@ The JOSS-facing contribution is intentionally narrow. Review should focus on:
 
 - the `noaa-spec clean` CLI;
 - deterministic canonical CSV output with stable columns, explicit nulls, and preserved NOAA quality codes;
-- the tracked reproducibility fixture under `reproducibility/`.
+- the bundled checksum-backed reproducibility fixture under `reproducibility/`.
 
 Broader repository materials, including maintainer utilities, batch helpers, quality-report tooling, release-manifest tooling, and internal support material, are supporting material and are not required for JOSS evaluation. The one exception in `scripts/` is `scripts/verify_reproducibility.sh`, a thin convenience wrapper around the documented reviewer workflow; reviewers may use that wrapper or run the underlying `noaa-spec clean` and checksum commands directly.
 

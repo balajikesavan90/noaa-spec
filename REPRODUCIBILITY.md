@@ -2,7 +2,7 @@
 
 This document is the authoritative reproducibility reference for NOAA-Spec.
 
-Views are available through the public `noaa-spec clean --view ...` CLI as optional narrower datasets for usability, but reproducibility verification for the scoped JOSS claim remains the canonical output and checksum below. The reviewer-visible canonical output is the emitted CSV shown by the bundled fixture, with `STATION` and `DATE` as identifier columns.
+Views are available through the public `noaa-spec clean --view ...` CLI as optional narrower datasets for usability, but reproducibility verification for the scoped JOSS claim remains the canonical output and checksum below. The reviewer-visible canonical output is the emitted CSV shown by the bundled fixture, with `STATION` and `DATE` as the reviewer-visible identifier columns.
 
 ## Quick Reviewer Path
 

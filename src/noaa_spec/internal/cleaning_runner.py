@@ -1659,7 +1659,7 @@ def _station_subprocess_command(
 
 def _station_subprocess_env() -> dict[str, str]:
     env = os.environ.copy()
-    src_root = Path(__file__).resolve().parents[1]
+    src_root = Path(__file__).resolve().parents[2]
     existing = env.get("PYTHONPATH", "")
     pythonpath_parts = [str(src_root)]
     if existing:
