@@ -40,10 +40,11 @@ def test_readme_locks_public_contribution_and_workflow() -> None:
     assert "bundled checksum-backed reproducibility fixture" in text
     assert "For independent reviewer verification and the cleanest first run, use Docker" in text
     assert "recommended reviewer-safe path" in text
-    assert "For ordinary local use, install NOAA-Spec into a Python 3.12 environment" in text
+    assert "NOAA-Spec currently declares support for Python `>=3.11,<3.13`" in text
+    assert "reviewers should use Python 3.11 or 3.12 for the local path" in text
     assert "noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv" in text
     assert "noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_metadata.csv --view metadata" in text
-    assert "sha256sum /tmp/station_cleaned.csv" in text
+    assert "pathlib.Path('/tmp/station_cleaned.csv').read_bytes()" in text
     assert "docker build -f Dockerfile -t noaa-spec-review ." in text
     assert "TMP__qc_reason" in text
     assert "SENTINEL_MISSING" in text
@@ -139,7 +140,9 @@ def test_reproducibility_doc_is_single_reproducibility_path() -> None:
     directory_text = REPRODUCIBILITY_README_PATH.read_text(encoding="utf-8")
 
     assert "Local installation is a convenience path for users and developers." in public_text
-    assert "working Python 3.12 environment with `venv` support" in public_text
+    assert "working Python environment with `venv` support" in public_text
+    assert "NOAA-Spec currently declares support for Python `>=3.11,<3.13`" in public_text
+    assert "reviewers should use Python 3.11 or 3.12 for the local path" in public_text
     assert "For independent reviewer verification, use Docker" in public_text
     assert "Inspect a small subset from the tracked canonical fixture:" in public_text
     assert "python3 reproducibility/run_pipeline_example.py --out /tmp/noaa-spec-sample.csv" in public_text
@@ -161,5 +164,6 @@ def test_readme_command_runner_skips_infra_and_privileged_setup_steps() -> None:
     assert _should_skip("sudo apt install python3-venv")
     assert _should_skip("> sudo apt install python3-venv")
     assert _should_skip("python3 -m venv .venv")
+    assert _should_skip("python -m pip install -e .")
     assert _should_skip("python3 -m pip install -e .")
     assert not _should_skip("noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv")
