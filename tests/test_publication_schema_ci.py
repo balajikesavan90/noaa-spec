@@ -10,9 +10,9 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-import noaa_spec.cleaning_runner as cleaning_runner
-import noaa_spec.publication_artifacts as publication_artifacts
-from noaa_spec.cleaning_runner import CleaningRunConfig, RunWriteFlags, run_cleaning_run
+import noaa_spec.internal.cleaning_runner as cleaning_runner
+import noaa_spec.internal.publication_artifacts as publication_artifacts
+from noaa_spec.internal.cleaning_runner import CleaningRunConfig, RunWriteFlags, run_cleaning_run
 from noaa_spec.contracts import DOMAIN_DATASET_CONTRACT
 from noaa_spec.domains.registry import domain_definitions
 

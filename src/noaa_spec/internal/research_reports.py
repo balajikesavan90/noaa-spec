@@ -18,8 +18,8 @@ from typing import Any
 
 import pandas as pd
 
-from . import __version__
-from .constants import get_agg_func, get_field_rule, is_quality_column, to_internal_column
+from .. import __version__
+from ..constants import get_agg_func, get_field_rule, is_quality_column, to_internal_column
 from .domain_split import DOMAIN_RULES, classify_columns
 from .pipeline import _best_hour, _filter_full_months, _filter_full_years
 

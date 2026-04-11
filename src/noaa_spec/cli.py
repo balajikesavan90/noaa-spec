@@ -15,6 +15,7 @@ from .domains.publisher import (
     get_view_definition,
     project_view_from_canonical,
 )
+from . import __version__
 
 
 def _clean_csv_to_csv(input_csv: Path, output_csv: Path, *, view_name: str | None = None) -> Path:
@@ -50,6 +51,9 @@ def _parse_args() -> argparse.Namespace:
             "or noaa-spec clean INPUT.csv --out OUTPUT.csv. "
             f"Optional views: {available_views_text()}"
         ),
+    )
+    parser.add_argument(
+        "--version", action="version", version=f"%(prog)s {__version__}"
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 

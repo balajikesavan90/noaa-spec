@@ -12,9 +12,9 @@ import pandas as pd
 import pytest
 
 from noaa_spec import noaa_client
-from noaa_spec.cleaning_runner import CleaningRunConfig
-import noaa_spec.pipeline as pipeline
-from noaa_spec.pipeline import LocationDataOutputs
+from noaa_spec.internal.cleaning_runner import CleaningRunConfig
+import noaa_spec.internal.pipeline as pipeline
+from noaa_spec.internal.pipeline import LocationDataOutputs
 import noaa_spec.cli as cli
 import noaa_spec.internal.cli as internal_cli
 

@@ -40,8 +40,9 @@ NOAA-Spec transforms raw NOAA observations into a canonical cleaned representati
 - `cli.py` — the `noaa-spec clean` entry point
 - `noaa_client.py` — public NOAA Global Hourly download helpers for single-station workflows
 - `domains/` — view definitions for domain-specific datasets
+- `contracts.py` — schema contract definitions used by the domain publisher
 
-The internal CLI and pipeline modules (`internal/`, `pipeline.py`, and related batch helpers) are maintainer-oriented. They are used for large-scale batch processing, are not required for standard usage, and may not be cross-platform. The [single-station example script](examples/download_and_clean_station.py) is the recommended cross-platform workflow for downloading and cleaning one station.
+Modules under `internal/` (batch orchestration, pipeline helpers, report generation) are maintainer-oriented, excluded from the installable distribution, and not part of the JOSS-reviewed surface. The [single-station example script](examples/download_and_clean_station.py) is the recommended cross-platform workflow for downloading and cleaning one station.
 
 ## Docker First Run
 
@@ -71,15 +72,15 @@ This is the recommended reviewer-safe path for independent reviewer verification
 
 ## Optional Local Install
 
-For ordinary local use, install NOAA-Spec into a supported Python environment with `venv` support. NOAA-Spec currently declares support for Python `>=3.11,<3.13`; reviewers should use Python 3.11 or 3.12 for the local path. Python 3.13 is not yet supported. This is the normal user/developer workflow, not the independent reviewer verification path.
+> **Requires Python 3.11 or 3.12.** Python 3.13 is not currently supported. If `noaa-spec` is not on PATH after install, use `python -m noaa_spec.cli` as a fallback (see below).
+
+For ordinary local use, install NOAA-Spec into a supported Python environment with `venv` support. This is the normal user/developer workflow, not the independent reviewer verification path.
 
 If local `venv` setup is unavailable or inconvenient, use the Docker path above instead.
 
 The base install is sufficient for cleaning existing local NOAA CSV files with `noaa-spec clean`. Downloading NOAA data also requires the `fetch` optional dependency, which installs `requests`. The base install already includes `pandas` and `pyarrow`.
 
-Dependency note: on any platform, if `pyarrow` does not provide a compatible wheel for the active Python version, `pip` may try to build it from source. That source-build path can fail and prevent the `noaa-spec` CLI from being installed. Use Python 3.11 or 3.12 for reviewer-local installs.
-
-Before creating the environment, check that you have Python 3.11 or 3.12 available. If you do not already have a supported interpreter, install Python 3.12 first and then continue with the commands below.
+On any platform, if `pyarrow` does not provide a compatible wheel for the active Python version, `pip` may try to build from source and fail. Use Python 3.11 or 3.12.
 
 ### Windows PowerShell
 
@@ -123,70 +124,11 @@ sudo apt install python3-venv
 
 Expected checksum: `b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597`
 
-## Download and clean a single station (recommended workflow)
-
-This is the recommended public entry point when you want NOAA-Spec to download a single NOAA Global Hourly station and clean it end to end. It uses only public package modules and does not use the maintainer-oriented internal CLI or pipeline modules.
-
-Install with the download extra:
+If `noaa-spec` is not found after install, use the module fallback:
 
 ```bash
-py -3.12 --version
-py -3.12 -m venv .venv
-python -m pip install --upgrade pip setuptools wheel
-python -m pip install -e ".[fetch]"
+python -m noaa_spec.cli clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv
 ```
-
-Then run:
-
-```bash
-python examples/download_and_clean_station.py \
-  --station 02536099999 \
-  --start-year 2000 \
-  --end-year 2025 \
-  --output-dir output/02536099999
-```
-
-On Windows PowerShell, the same command can be written on one line:
-
-```powershell
-python examples/download_and_clean_station.py --station 02536099999 --start-year 2000 --end-year 2025 --output-dir output\02536099999
-```
-
-Expected outputs:
-
-```text
-output/
-  02536099999/
-    Raw.csv
-    Cleaned.csv
-```
-
-`Raw.csv` contains the downloaded NOAA Global Hourly rows for the station and year range. `Cleaned.csv` contains the canonical NOAA-Spec cleaned output with sentinel values normalized to nulls and quality-code semantics preserved.
-
-## Run The Canonical Contract
-
-The canonical dataset defines the reproducible interpretation contract. In that public canonical CSV, the station identifier remains `STATION`, matching the bundled fixture and CLI output. Optional `--view` outputs are narrower domain-specific datasets for usability and do not modify the underlying contract.
-
-For a first inspection path, many users begin with a smaller derived view:
-
-```bash
-noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_metadata.csv --view metadata
-```
-
-The canonical CSV is the full loss-preserving contract and is intentionally wide. Optional views are narrower usability-oriented datasets derived from that canonical output, so you can orient yourself quickly and then expand into the full canonical columns as needed.
-
-## Optional Derived Views
-
-Other supported views:
-
-- `metadata`
-- `wind`
-- `precipitation`
-- `clouds_visibility`
-- `pressure_temperature`
-- `remarks`
-
-The `metadata` view contains station/time context and identifying metadata rather than cleaned meteorological measurements. For compatibility, `core` and `core_meteorology` remain accepted aliases for `metadata`.
 
 ## Minimal Workflow
 
@@ -213,6 +155,25 @@ Key transformations:
 - Sentinel-coded values such as `+9999,9` become nulls instead of fake measurements.
 - NOAA QC semantics are preserved in separate fields such as `temperature_quality_code`.
 - Output columns are normalized into a stable observation-level schema such as `temperature_c`, `dew_point_c`, and `visibility_m`.
+
+The canonical CSV is the full loss-preserving contract and is intentionally wide (~130 columns preserving all decoded fields and QC context). For a first inspection path, many users begin with a smaller derived view:
+
+```bash
+noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_metadata.csv --view metadata
+```
+
+## Optional Derived Views
+
+Other supported views:
+
+- `metadata`
+- `wind`
+- `precipitation`
+- `clouds_visibility`
+- `pressure_temperature`
+- `remarks`
+
+The `metadata` view contains station/time context and identifying metadata rather than cleaned meteorological measurements. For compatibility, `core` and `core_meteorology` remain accepted aliases for `metadata`.
 
 ## Further Reading
 
@@ -254,6 +215,21 @@ The tracked fixture is also used for checksum-backed reproducibility verificatio
 The included fixture is intentionally minimal (5 rows) and serves as a deterministic reproducibility proof.
 
 For the complete verification workflow, Docker clean-environment path, and explicit reproducibility boundary, see [REPRODUCIBILITY.md](REPRODUCIBILITY.md).
+
+## Optional: Download and Clean a New Station
+
+To download and clean a single NOAA Global Hourly station from the network, install with the `fetch` extra and run the bundled example script. This requires network access and is not needed for reproducibility verification.
+
+```bash
+python -m pip install -e ".[fetch]"
+python examples/download_and_clean_station.py \
+  --station 02536099999 \
+  --start-year 2000 \
+  --end-year 2025 \
+  --output-dir output/02536099999
+```
+
+Expected outputs: `output/02536099999/Raw.csv` (downloaded NOAA rows) and `output/02536099999/Cleaned.csv` (canonical cleaned output).
 
 ## Docs
 

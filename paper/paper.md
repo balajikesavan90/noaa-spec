@@ -65,7 +65,7 @@ NOAA-Spec exposes a small public surface:
 2. apply deterministic field interpretation based on NOAA semantics,
 3. write a canonical observation-level CSV with stable column names and preserved QC fields.
 
-The public CLI is the `noaa-spec clean` command. The reviewer-visible example is intentionally bounded to the tracked reproducibility fixture so the JOSS claim matches the software surface that users and reviewers can run. The CLI also exposes optional derived views (`metadata`, `wind`, `precipitation`, `clouds_visibility`, `pressure_temperature`, `remarks`) as narrower datasets from the canonical table.
+The public CLI is the `noaa-spec clean` command. The reviewer-visible example is intentionally bounded to the tracked reproducibility fixture so the JOSS claim matches the software surface that users and reviewers can run. The canonical output is intentionally wide (~130 columns) because it preserves all decoded measurement fields and QC context in a single deterministic table; optional derived views (`metadata`, `wind`, `precipitation`, `clouds_visibility`, `pressure_temperature`, `remarks`) provide narrower subsets for common workflows.
 
 # Reproducibility
 
@@ -80,4 +80,3 @@ NOAA-Spec is NOAA-specific software. The current contribution is the reusable ca
 The author acknowledges NOAA National Centers for Environmental Information (NCEI) for maintaining the ISD dataset and documentation. Some development work used large language models as drafting assistance, but the software contribution described here is the committed implementation, tests, and documentation in the repository.
 
 # References
-All references cited in this manuscript are provided in `paper.bib` [@smith2011isd; @noaa_isd_docs; @chamberlain_isdparser; @isd_python].

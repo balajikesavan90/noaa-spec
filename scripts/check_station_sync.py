@@ -16,7 +16,7 @@ if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
 from noaa_spec.noaa_client import normalize_station_file_name
-from noaa_spec.pipeline import default_raw_pull_state_path
+from noaa_spec.internal.pipeline import default_raw_pull_state_path
 
 RAW_PULL_STATE_COLUMNS = {
     "station_id",

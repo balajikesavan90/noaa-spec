@@ -6,8 +6,8 @@ from typing import Any
 
 import pandas as pd
 
-from .constants import FIELD_RULES, to_internal_column
-from .contracts import CANONICAL_CORE_COLUMN_TYPES, CANONICAL_DATASET_CONTRACT
+from ..constants import FIELD_RULES, to_internal_column
+from ..contracts import CANONICAL_CORE_COLUMN_TYPES, CANONICAL_DATASET_CONTRACT
 
 
 _SENTINEL_TOLERANCE = 1e-6

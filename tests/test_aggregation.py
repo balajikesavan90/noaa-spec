@@ -21,7 +21,7 @@ from noaa_spec.constants import (
     is_categorical_column,
     is_quality_column,
 )
-from noaa_spec.pipeline import (
+from noaa_spec.internal.pipeline import (
     _aggregate_numeric,
     _classify_columns,
     _coerce_numeric,

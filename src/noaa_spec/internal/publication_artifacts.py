@@ -11,9 +11,9 @@ from typing import Any, Sequence
 
 import pandas as pd
 
-from .constants import to_internal_column
-from .contracts import CANONICAL_DATASET_CONTRACT
-from .deterministic_io import write_deterministic_csv
+from ..constants import to_internal_column
+from ..contracts import CANONICAL_DATASET_CONTRACT
+from ..deterministic_io import write_deterministic_csv
 
 try:
     import pyarrow.parquet as pq

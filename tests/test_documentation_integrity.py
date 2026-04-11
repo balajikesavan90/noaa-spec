@@ -26,12 +26,12 @@ def test_readme_locks_public_contribution_and_workflow() -> None:
         "## JOSS Scope",
         "## Docker First Run",
         "## Optional Local Install",
-        "## Run The Canonical Contract",
-        "## Optional Derived Views",
         "## Minimal Workflow",
+        "## Optional Derived Views",
         "## Further Reading",
         "## Quick Reviewer Inspection",
         "## Reproducibility Verification",
+        "## Optional: Download and Clean a New Station",
         "## Docs",
     ):
         assert section in text
@@ -40,10 +40,8 @@ def test_readme_locks_public_contribution_and_workflow() -> None:
     assert "bundled checksum-backed reproducibility fixture" in text
     assert "For independent reviewer verification and the cleanest first run, use Docker" in text
     assert "recommended reviewer-safe path" in text
-    assert "NOAA-Spec currently declares support for Python `>=3.11,<3.13`" in text
-    assert "reviewers should use Python 3.11 or 3.12 for the local path" in text
-    assert "Python 3.13 is not yet supported" in text
-    assert "install Python 3.12 first and then continue" in text
+    assert "Requires Python 3.11 or 3.12" in text
+    assert "Python 3.13 is not currently supported" in text
     assert "py -3.12 -m venv .venv" in text
     assert "python3.12 -m venv .venv" in text
     assert "noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv" in text
@@ -52,9 +50,7 @@ def test_readme_locks_public_contribution_and_workflow() -> None:
     assert "docker build -f Dockerfile -t noaa-spec-review ." in text
     assert "TMP__qc_reason" in text
     assert "SENTINEL_MISSING" in text
-    assert "The canonical dataset defines the reproducible interpretation contract." in text
     assert "many users begin with a smaller derived view" in text
-    assert "Optional views are narrower usability-oriented datasets derived from that canonical output" in text
     assert "`metadata`" in text
     assert "clouds_visibility" in text
     assert "intentionally minimal (5 rows)" in text

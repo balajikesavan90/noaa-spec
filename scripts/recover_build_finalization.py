@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from noaa_spec.cleaning_runner import recover_completed_build_finalization
+from noaa_spec.internal.cleaning_runner import recover_completed_build_finalization
 
 
 def _parse_args() -> argparse.Namespace:

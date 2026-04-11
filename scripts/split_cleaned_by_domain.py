@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from noaa_spec.domain_split import COMMON_COLUMNS, classify_columns
+from noaa_spec.internal.domain_split import COMMON_COLUMNS, classify_columns
 
 
 def _coerce_qc_pass(series: pd.Series) -> pd.Series:
