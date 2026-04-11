@@ -130,6 +130,8 @@ This is the recommended public entry point when you want NOAA-Spec to download a
 Install with the download extra:
 
 ```bash
+py -3.12 --version
+py -3.12 -m venv .venv
 python -m pip install --upgrade pip setuptools wheel
 python -m pip install -e ".[fetch]"
 ```
