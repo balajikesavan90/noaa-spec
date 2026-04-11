@@ -177,4 +177,5 @@ def test_readme_command_runner_skips_infra_and_privileged_setup_steps() -> None:
     assert _should_skip("python3.12 -m venv .venv")
     assert _should_skip("python -m pip install -e .")
     assert _should_skip("python3 -m pip install -e .")
+    assert _should_skip("python examples/download_and_clean_station.py \\")
     assert not _should_skip("noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv")
