@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 from pathlib import Path
 
 import pandas as pd
@@ -86,6 +87,12 @@ def _parse_args() -> argparse.Namespace:
             f"Available views: {available_views_text()}."
         ),
     )
+    clean_parser.add_argument(
+        "--verbose",
+        action="store_true",
+        default=False,
+        help="Show detailed [PARSE_STRICT] validation warnings during cleaning.",
+    )
 
     return parser.parse_args()
 
@@ -94,6 +101,10 @@ def main() -> None:
     args = _parse_args()
     if args.command != "clean":
         raise ValueError(f"Unsupported public command: {args.command}")
+
+    cleaning_logger = logging.getLogger("noaa_spec.cleaning")
+    if not args.verbose:
+        cleaning_logger.setLevel(logging.ERROR)
 
     output_path = args.output_csv_flag or args.output_csv
     if output_path is None:
