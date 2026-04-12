@@ -11,14 +11,19 @@ import sys
 import pytest
 
 
-FIXTURE_CASES = (
-    "minimal",
-    "minimal_second",
-    "real_provenance_example",
-    "station_03041099999_aonach_mor",
-    "station_01116099999_stokka",
-    "station_94368099999_hamilton_island",
-)
+def _fixture_cases_from_checksum_manifest(repo_root: Path) -> tuple[str, ...]:
+    manifest = repo_root / "reproducibility" / "checksums.sha256"
+    fixtures: list[str] = []
+    for line in manifest.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        _hash, rel_path = line.split(maxsplit=1)
+        prefix = "reproducibility/"
+        suffix = "/station_cleaned_expected.csv"
+        if rel_path.startswith(prefix) and rel_path.endswith(suffix):
+            fixtures.append(rel_path.removeprefix(prefix).removesuffix(suffix))
+    return tuple(fixtures)
 
 
 def _diff_text(expected: str, actual: str) -> str:
@@ -94,12 +99,12 @@ def _assert_public_example_script_matches_expected(
         )
 
 
-@pytest.mark.parametrize("fixture_name", FIXTURE_CASES)
-def test_reproducibility_fixture_output_matches_expected(
-    tmp_path: Path, fixture_name: str
-) -> None:
+def test_reproducibility_fixture_output_matches_expected(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
-    _assert_fixture_matches_expected(repo_root, tmp_path, fixture_name=fixture_name)
+    fixture_cases = _fixture_cases_from_checksum_manifest(repo_root)
+    assert fixture_cases, "No expected reproducibility fixtures in checksum manifest."
+    for fixture_name in fixture_cases:
+        _assert_fixture_matches_expected(repo_root, tmp_path, fixture_name=fixture_name)
 
 
 def test_minimal_reproducibility_example_script_matches_expected(tmp_path: Path) -> None:

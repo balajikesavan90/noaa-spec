@@ -17,18 +17,15 @@ docker build -f Dockerfile -t noaa-spec-review .
 docker run --rm noaa-spec-review bash scripts/verify_reproducibility.sh
 ```
 
-Expected result:
+Expected result: one `PASS` line for each tracked `station_cleaned_expected.csv`
+entry in `reproducibility/checksums.sha256`, followed by:
 
 ```text
-PASS: minimal 20e571805ad6eafd0d538b57f64e94ddc6aebe78280e3c10c48095f375f49850
-PASS: minimal_second e6f8ae6ca75c10bdbbc1714cc61f49d0afcbe7ad6767da58551fc73742dab934
-PASS: real_provenance_example e7db5076bc211e1a2a738de5ed83e42ba8543d0b1ce7a686f4cd06f399164e53
-PASS: station_03041099999_aonach_mor 8a38e712e4fcb81bc26860b5a575c05951b3d6761fc04511a6237acfe454abe2
-PASS: station_01116099999_stokka a13415c7916371aecdfe0b6e8d5c81eae63207ef7a46606e45b98f0e59b7ae6c
-PASS: station_94368099999_hamilton_island 1d741b69938780663c88d8f4b982f1d01fc6a8212fe4b4fa0878040e222f1f4e
 PASS: reproducibility verification succeeded.
 Output directory: /tmp/noaa-spec-reproducibility
 ```
+
+The canonical checksum list is `reproducibility/checksums.sha256`.
 
 The Dockerfile uses the floating `python:3.12-slim` base image and upgrades bootstrap packaging tools during build. Treat it as a tested reviewer environment, not an immutable archived runtime.
 
@@ -38,7 +35,7 @@ The strongest provenance example is:
 
 - Raw input: `reproducibility/real_provenance_example/station_raw.csv`
 - Expected cleaned output: `reproducibility/real_provenance_example/station_cleaned_expected.csv`
-- Checksums: `reproducibility/real_provenance_example/checksums.sha256`
+- Checksums: `reproducibility/checksums.sha256`
 - Provenance note: `reproducibility/REAL_PROVENANCE_EXAMPLE.md`
 
 It uses the first five data rows from the NOAA/NCEI Global Hourly CSV for station `03041099999`:
@@ -56,11 +53,19 @@ noaa-spec clean \
 sha256sum /tmp/noaa-spec-real-provenance.csv
 ```
 
-Expected checksum:
+Compare the generated checksum with the matching
+`reproducibility/real_provenance_example/station_cleaned_expected.csv` entry in
+`reproducibility/checksums.sha256`.
 
-```text
-e7db5076bc211e1a2a738de5ed83e42ba8543d0b1ce7a686f4cd06f399164e53
-```
+Expected output snapshot for the first five rows:
+
+| STATION | DATE | temperature_c | temperature_quality_code | visibility_m | visibility_quality_code | wind_speed_ms | wind_speed_quality_code |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 03041099999 | 2024-01-01T00:00:00 | -1.8 | 1 |  | 9.0 |  | 9.0 |
+| 03041099999 | 2024-01-01T01:00:00 | -1.6 | 1 |  | 9.0 |  | 9.0 |
+| 03041099999 | 2024-01-01T02:00:00 | -1.5 | 1 |  | 9.0 |  | 9.0 |
+| 03041099999 | 2024-01-01T03:00:00 | -1.6 | 1 |  | 9.0 |  | 9.0 |
+| 03041099999 | 2024-01-01T04:00:00 | -1.8 | 1 |  | 9.0 |  | 9.0 |
 
 ## First Output: What To Look At
 
@@ -134,7 +139,7 @@ These fixtures prove deterministic behavior for committed input/output pairs. Th
 noaa-spec split-domains CLEANED.csv OUTPUT_DIR --prefix example
 ```
 
-This is not part of the core JOSS contribution and is not part of the primary reproducibility claim. Manifest files written by this optional command are runtime support artifacts for that optional workflow only.
+This command is optional. It is not part of the core JOSS contribution, not part of the reviewer checksum workflow, and not part of the primary reproducibility claim. Manifest files written by this optional command are runtime support artifacts for that optional workflow only.
 
 ## Run Tests
 

@@ -21,6 +21,8 @@ poetry.lock
 !reproducibility/minimal/**
 !reproducibility/minimal_second/
 !reproducibility/minimal_second/**
+!reproducibility/real_provenance_example/
+!reproducibility/real_provenance_example/**
 !reproducibility/station_03041099999_aonach_mor/
 !reproducibility/station_03041099999_aonach_mor/**
 !reproducibility/station_01116099999_stokka/

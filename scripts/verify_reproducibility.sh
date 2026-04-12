@@ -5,15 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 OUTPUT_DIR="${1:-/tmp/noaa-spec-reproducibility}"
-
-FIXTURES=(
-    "minimal:20e571805ad6eafd0d538b57f64e94ddc6aebe78280e3c10c48095f375f49850"
-    "minimal_second:e6f8ae6ca75c10bdbbc1714cc61f49d0afcbe7ad6767da58551fc73742dab934"
-    "real_provenance_example:e7db5076bc211e1a2a738de5ed83e42ba8543d0b1ce7a686f4cd06f399164e53"
-    "station_03041099999_aonach_mor:8a38e712e4fcb81bc26860b5a575c05951b3d6761fc04511a6237acfe454abe2"
-    "station_01116099999_stokka:a13415c7916371aecdfe0b6e8d5c81eae63207ef7a46606e45b98f0e59b7ae6c"
-    "station_94368099999_hamilton_island:1d741b69938780663c88d8f4b982f1d01fc6a8212fe4b4fa0878040e222f1f4e"
-)
+CHECKSUM_MANIFEST="${REPO_ROOT}/reproducibility/checksums.sha256"
 
 cd "${REPO_ROOT}"
 
@@ -27,14 +19,40 @@ if ! command -v sha256sum >/dev/null 2>&1; then
     exit 1
 fi
 
+if [[ ! -f "${CHECKSUM_MANIFEST}" ]]; then
+    echo "FAIL: missing checksum manifest at ${CHECKSUM_MANIFEST}." >&2
+    exit 1
+fi
+
+if ! sha256sum -c "${CHECKSUM_MANIFEST}" >/dev/null; then
+    echo "FAIL: tracked reproducibility artifact checksum mismatch." >&2
+    exit 1
+fi
+
 mkdir -p "${OUTPUT_DIR}"
 
-for fixture_entry in "${FIXTURES[@]}"; do
-    fixture="${fixture_entry%%:*}"
-    expected_hash_value="${fixture_entry##*:}"
+fixture_count=0
+
+while read -r expected_hash_value expected_rel_path; do
+    [[ -n "${expected_hash_value:-}" ]] || continue
+    [[ "${expected_hash_value}" != \#* ]] || continue
+    [[ "${expected_rel_path:-}" == reproducibility/*/station_cleaned_expected.csv ]] || continue
+
+    fixture="${expected_rel_path#reproducibility/}"
+    fixture="${fixture%/station_cleaned_expected.csv}"
     raw_path="reproducibility/${fixture}/station_raw.csv"
     expected_path="${REPO_ROOT}/reproducibility/${fixture}/station_cleaned_expected.csv"
     output_path="${OUTPUT_DIR}/${fixture}_station_cleaned.csv"
+
+    if [[ ! -f "${raw_path}" ]]; then
+        echo "FAIL: missing tracked raw fixture at ${raw_path}." >&2
+        exit 1
+    fi
+
+    if [[ ! -f "${expected_path}" ]]; then
+        echo "FAIL: missing tracked expected fixture at ${expected_path}." >&2
+        exit 1
+    fi
 
     expected_before="$(sha256sum "${expected_path}" | cut -d' ' -f1)"
 
@@ -70,7 +88,13 @@ for fixture_entry in "${FIXTURES[@]}"; do
     fi
 
     echo "PASS: ${fixture} ${actual_hash}"
-done
+    fixture_count=$((fixture_count + 1))
+done < "${CHECKSUM_MANIFEST}"
+
+if [[ "${fixture_count}" -eq 0 ]]; then
+    echo "FAIL: no station_cleaned_expected.csv entries found in ${CHECKSUM_MANIFEST}." >&2
+    exit 1
+fi
 
 echo "PASS: reproducibility verification succeeded."
 echo "Output directory: ${OUTPUT_DIR}"
