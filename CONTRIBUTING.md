@@ -37,7 +37,7 @@ noaa-spec --help
 ## Adding or updating rules
 
 - Treat NOAA documentation as the authoritative source.
-- Keep rule provenance explicit in code, tests, and generated evidence artifacts.
+- Keep rule provenance explicit in code and tests.
 - Prefer adding or tightening validation through declarative rules and deterministic checks.
 - If a rule is stricter than the source documentation, record that rationale clearly and avoid silent data loss.
 
@@ -45,5 +45,5 @@ noaa-spec --help
 
 - Preserve deterministic outputs and stable schema contracts.
 - Keep production code under `src/noaa_spec/`.
-- Keep scripts in `scripts/` or `tools/` unless there is a real reuse benefit in moving logic into the library.
+- Keep reviewer-facing helper scripts minimal and reproducibility-oriented.
 - Update tests and documentation in the same change whenever paths, commands, or contracts change.
