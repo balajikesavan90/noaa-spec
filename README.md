@@ -1,6 +1,6 @@
 # NOAA-Spec
 
-NOAA-Spec is a deterministic cleaning layer for NOAA ISD / Global Hourly observations. It provides one reviewer-facing workflow: run `noaa-spec clean` on a raw NOAA-style CSV and get a reproducible cleaned CSV with sentinel-coded values normalized to nulls, NOAA quality-code semantics preserved, and deterministic row/order serialization.
+NOAA-Spec is a deterministic cleaning layer for NOAA ISD / Global Hourly observations. Its primary reviewer-facing workflow is to run `noaa-spec clean` on a raw NOAA-style CSV and get a reproducible cleaned CSV with sentinel-coded values normalized to nulls, NOAA quality-code semantics preserved, and deterministic row/order serialization.
 
 This tool provides a consistent and reproducible interpretation of NOAA ISD CSV fields, rather than asserting a single authoritative schema for all possible NOAA data.
 
@@ -16,7 +16,7 @@ NOAA-Spec does not download NOAA data or orchestrate multi-station batch process
 
 ## First Run
 
-Use Docker for a clean reviewer run:
+Use Docker for the preferred pinned reviewer run:
 
 ```bash
 docker build -f Dockerfile -t noaa-spec-review .
@@ -35,7 +35,7 @@ PASS: reproducibility verification succeeded.
 Output directory: /tmp/noaa-spec-reproducibility
 ```
 
-The Docker path installs the package, runs `noaa-spec clean` against the tracked fixtures, and checks that the generated CSVs match the expected SHA256 values.
+The Docker path installs the package, runs `noaa-spec clean` against the tracked fixtures, and checks that the generated CSVs match the expected SHA256 values. This is the preferred reviewer path because the environment is pinned by the repository Dockerfile.
 
 After running the fixture check, open:
 
@@ -47,7 +47,7 @@ After running the fixture check, open:
 
 ## Local Install
 
-Python 3.11 or 3.12 is required.
+Python 3.11 or 3.12 is required. Local install is a convenience and development path. Create and activate a virtual environment first; installing into system Python may fail on Linux distributions that enforce externally managed Python environments.
 
 To install the CLI directly from GitHub without an editable local checkout:
 
@@ -115,6 +115,29 @@ The cleaned CSV intentionally includes both raw NOAA identifier/source fields fo
 
 The full cleaned output is intentionally wide: even a tiny input can expand to around 100+ columns because NOAA packed fields are decomposed and QC/sidecar columns are preserved. See [docs/schema.md](docs/schema.md) for the full structure and a short start-here guide.
 
+## How to Read the Cleaned Output First
+
+Start with these decoded measurement columns and their nearby quality-code or QC sidecar columns:
+
+- Temperature: `temperature_c`, `temperature_quality_code`, `TMP__qc_reason`.
+- Visibility: `visibility_m`, `visibility_quality_code`, `VIS__part1__qc_status`.
+- Wind: `wind_speed_ms`, `wind_direction_deg`, `wind_speed_quality_code`, `WND__part4__qc_status`.
+- Pressure: `sea_level_pressure_hpa`, `station_pressure_hpa`, `SLP__qc_status`.
+- Row usability: `row_has_any_usable_metric`, `usable_metric_count`, `usable_metric_fraction`.
+
+The canonical cleaned CSV is intentionally comprehensive and deterministic. Treat it as the stable output contract before using narrower convenience views.
+
+## Optional Domain Splits
+
+The canonical cleaned CSV remains the core JOSS interface and the primary reproducibility artifact. For easier interpretation, users may optionally split an already-cleaned CSV into analysis-friendly domain subsets derived from that canonical output:
+
+```bash
+noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv
+noaa-spec split-domains /tmp/station_cleaned.csv /tmp/station_domains --prefix minimal
+```
+
+These domain CSVs are convenience views for browsing and downstream analysis. They are not the default output and are not required for the fixture checksum workflow.
+
 ## Why Not a Simple Script?
 
 Loading the raw CSV with pandas is useful, but it does not by itself interpret NOAA ISD encoded fields. NOAA-Spec exists to make a small set of NOAA-specific cleaning decisions explicit and repeatable.
@@ -177,8 +200,9 @@ python -m pytest tests -v
 - `src/noaa_spec/constants.py`: encoded field rules, sentinels, and QC definitions.
 - `src/noaa_spec/deterministic_io.py`: deterministic CSV writer.
 - `src/noaa_spec/cli.py`: public `noaa-spec clean` entry point.
+- `src/noaa_spec/internal/domain_split.py`: optional cleaned-output domain split helper.
 - `spec_sources/`: NOAA ISD documentation material organized for repository reference/provenance.
-- `reproducibility/`: tracked raw and expected cleaned fixtures.
+- `reproducibility/`: tracked raw and expected cleaned fixtures. `reproducibility/run_pipeline_example.py` is a non-core helper and is not part of the primary reviewer workflow.
 - `tests/`: reviewer-relevant regression tests.
 - `paper/`: JOSS manuscript source.
 

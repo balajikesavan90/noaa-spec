@@ -68,7 +68,7 @@ The public CLI is:
 noaa-spec clean INPUT.csv OUTPUT.csv
 ```
 
-The implementation separates the NOAA field-interpretation logic (`cleaning.py` and `constants.py`) from deterministic CSV writing (`deterministic_io.py`) and the command-line entry point (`cli.py`). The cleaned output is intentionally wide because it preserves decoded measurement fields, NOAA quality codes, validation sidecars, and row-level usability summaries rather than projecting a single analysis-ready subset. The repository includes reviewer-facing schema notes and representative rule-provenance notes in `docs/schema.md` and `docs/rule_provenance.md`.
+The implementation separates the NOAA field-interpretation logic (`cleaning.py` and `constants.py`) from deterministic CSV writing (`deterministic_io.py`) and the command-line entry point (`cli.py`). The cleaned output is intentionally wide because it preserves decoded measurement fields, NOAA quality codes, validation sidecars, and row-level usability summaries rather than projecting a single analysis-ready subset. Optional domain-specific CSV views can be derived from the canonical cleaned output for interpretation, but they are not the primary reproducibility artifact. The repository includes reviewer-facing schema notes and representative rule-provenance notes in `docs/schema.md` and `docs/rule_provenance.md`.
 
 # Reproducibility
 

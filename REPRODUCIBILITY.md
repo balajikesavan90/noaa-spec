@@ -4,6 +4,8 @@ This document describes the tracked reproducibility checks for the JOSS-facing N
 
 ## Docker Verification
 
+Docker is the preferred pinned reviewer path.
+
 ```bash
 docker build -f Dockerfile -t noaa-spec-review .
 docker run --rm noaa-spec-review bash scripts/verify_reproducibility.sh
@@ -29,6 +31,8 @@ python3 -m noaa_spec.cli clean reproducibility/minimal/station_raw.csv /tmp/noaa
 
 It then compares each generated CSV checksum to the tracked expected output.
 
+Optional domain split CSVs are derived convenience views from cleaned output. They are not part of this primary checksum workflow.
+
 After verification, reviewers should inspect the raw fixture and expected cleaned output side by side:
 
 - `reproducibility/minimal/station_raw.csv`
@@ -50,6 +54,8 @@ Tracked files:
 Local verification:
 
 ```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
 python -m pip install -e .
 noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/noaa-spec-sample.csv
 sha256sum /tmp/noaa-spec-sample.csv

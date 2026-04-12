@@ -62,3 +62,36 @@ def test_cli_clean_requires_output_path(
 
     with pytest.raises(SystemExit, match="Provide an output path"):
         cli.main()
+
+
+def test_cli_split_domains_writes_optional_domain_csvs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    input_csv = repo_root / "reproducibility" / "minimal" / "station_raw.csv"
+    cleaned_csv = tmp_path / "station_cleaned.csv"
+    output_dir = tmp_path / "domains"
+
+    cli._clean_csv_to_csv(input_csv, cleaned_csv)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "prog",
+            "split-domains",
+            str(cleaned_csv),
+            str(output_dir),
+            "--prefix",
+            "minimal",
+            "--exclude-other",
+        ],
+    )
+
+    cli.main()
+
+    manifest = pd.read_csv(output_dir / "minimal__manifest.csv")
+    assert set(manifest["domain"]) >= {"temperature", "wind", "visibility_ceiling"}
+    temperature = pd.read_csv(output_dir / "minimal__temperature.csv")
+    assert "temperature_c" in temperature.columns
+    assert "visibility_m" not in temperature.columns
