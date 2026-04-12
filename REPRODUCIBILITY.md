@@ -91,7 +91,7 @@ Compare the generated checksum with the matching
 `reproducibility/minimal_second/station_cleaned_expected.csv` entry in
 `reproducibility/checksums.sha256`.
 
-## Fully Traceable Example
+## Traceable Example
 
 This is the strongest real-world provenance case in the repository. It is still small and reviewer-checkable, but unlike the older curated station slices it records the upstream NOAA/NCEI source URL and observed upstream checksum.
 
@@ -100,10 +100,10 @@ Tracked files:
 - Raw input: `reproducibility/real_provenance_example/station_raw.csv`
 - Expected output: `reproducibility/real_provenance_example/station_cleaned_expected.csv`
 - Checksums: `reproducibility/checksums.sha256`
-- Upstream source URL: `https://www.ncei.noaa.gov/data/global-hourly/access/2024/03041099999.csv`
-- Upstream full CSV checksum: recorded in `reproducibility/checksums.sha256`
+- Upstream source URL: `https://www.ncei.noaa.gov/data/global-hourly/access/2001/78724099999.csv`
+- Upstream source CSV checksum: recorded in `reproducibility/checksums.sha256`
 
-The fixture contains the header and first five data rows from the upstream source file. See [reproducibility/REAL_PROVENANCE_EXAMPLE.md](reproducibility/REAL_PROVENANCE_EXAMPLE.md) for the full provenance boundary.
+The fixture contains the header and first 20 data rows from the upstream source file. It includes supported wind, precipitation, cloud, present-weather, pressure, temperature, and remarks fields where present in that source slice. See [reproducibility/REAL_PROVENANCE_EXAMPLE.md](reproducibility/REAL_PROVENANCE_EXAMPLE.md) for the provenance boundary.
 
 Run and verify:
 
@@ -141,6 +141,6 @@ entry in `reproducibility/checksums.sha256`.
 
 ## Fixture Coverage Note
 
-The primary fixture contains 5 raw rows. The secondary fixture contains 8 raw rows and includes additional NOAA field structures including precipitation (`AA1`-`AA4`), multiple cloud layers (`GA1`-`GA5`), past weather (`AY1`/`AY2`), extreme temperature (`KA1`/`KA2`), and present weather (`MW1`-`MW3`). The three additional station fixtures each contain 4 raw rows.
+The primary fixture contains 5 raw rows. The fully traceable example contains 20 raw rows and includes supported wind, precipitation, cloud, present-weather, pressure, temperature, and remarks fields where present in its source slice. The secondary fixture contains 8 raw rows and includes additional NOAA field structures including precipitation (`AA1`-`AA4`), multiple cloud layers (`GA1`-`GA5`), past weather (`AY1`/`AY2`), extreme temperature (`KA1`/`KA2`), and present weather (`MW1`-`MW3`). The three additional station fixtures each contain 4 raw rows.
 
 These fixtures are reproducibility checks, not a claim of exhaustive NOAA coverage. Only `real_provenance_example/` records a complete source URL and observed upstream checksum; the curated station slices do not replay upstream acquisition. The automated tests exercise additional encoded cases for sentinel handling, QC preservation, deterministic output, CLI behavior, and field parsing.

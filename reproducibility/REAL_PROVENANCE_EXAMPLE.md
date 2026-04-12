@@ -6,25 +6,26 @@ This is the strongest real-world provenance example in the repository. It is sti
 
 | Field | Value |
 | --- | --- |
-| Station ID | `03041099999` |
-| Station name | Aonach Mor, UK |
+| Station ID | `78724099999` |
+| Station name | Choluteca, Honduras |
 | Dataset | NOAA Integrated Surface Database (ISD) / Global Hourly |
-| NOAA source URL | `https://www.ncei.noaa.gov/data/global-hourly/access/2024/03041099999.csv` |
+| NOAA source URL | `https://www.ncei.noaa.gov/data/global-hourly/access/2001/78724099999.csv` |
 | Retrieval date | 2026-04-12 |
-| HTTP `Last-Modified` observed | 2025-02-27 22:27:07 GMT |
+| HTTP `Last-Modified` observed | 2020-03-17 13:48:14 GMT |
+| Upstream source CSV checksum observed | `18eee5a542603cd803e9ebe49de467c2f68f3e510ef1a781d427c50e86ac9214` |
 | Extracted fixture path | `reproducibility/real_provenance_example/station_raw.csv` |
 | Cleaned expected output path | `reproducibility/real_provenance_example/station_cleaned_expected.csv` |
 | Checksum manifest | `reproducibility/checksums.sha256` |
 
 ## Row Selection
 
-The fixture contains the CSV header and the first five data rows from the NOAA source file:
+The fixture contains the CSV header and the first 20 data rows from the NOAA source file:
 
 ```bash
-curl -s https://www.ncei.noaa.gov/data/global-hourly/access/2024/03041099999.csv | head -n 6
+curl -s https://www.ncei.noaa.gov/data/global-hourly/access/2001/78724099999.csv | head -n 21
 ```
 
-This selection is deliberately mechanical and small. It avoids hand-picking unusual rows while keeping the reviewer fixture inspectable.
+This selection is deliberately mechanical and small. It avoids hand-picking unusual rows while keeping the reviewer fixture inspectable. The selected rows include supported wind (`WND`), precipitation (`AA1`), cloud (`GA1`/`GF1`), present-weather (`MW1`), pressure (`MA1`/`MD1`), temperature (`TMP`/`DEW`), and remarks (`REM`) fields where present in the source slice.
 
 ## Cleaning Command
 

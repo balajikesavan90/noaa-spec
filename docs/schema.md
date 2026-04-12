@@ -6,9 +6,9 @@ This guide explains how to read a cleaned CSV produced by:
 noaa-spec clean INPUT.csv OUTPUT.csv
 ```
 
-For the versioned supported-field contract, use [supported_fields.md](supported_fields.md). That registry defines the recognized NOAA field families, public decoded column patterns, QC columns, sentinel handling, and provenance links for NOAA-Spec 1.0.0.
+For the versioned supported-field registry, use [supported_fields.md](supported_fields.md). That registry defines the recognized NOAA field families, public decoded column patterns, QC columns, sentinel handling, and provenance links for NOAA-Spec 1.0.0.
 
-The output schema is deterministic for a given input file and NOAA-Spec version, but the full set of columns depends on which supported NOAA fields are present in the input. NOAA-Spec does not claim a fixed global column set for all possible NOAA ISD / Global Hourly data.
+The output schema is deterministic for a given input file and NOAA-Spec version, but the emitted column set depends on which supported NOAA fields are present in the input. NOAA-Spec does not claim a fixed global column set for all possible NOAA ISD / Global Hourly data.
 
 ## Start Here
 

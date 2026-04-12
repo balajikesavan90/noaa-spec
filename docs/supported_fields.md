@@ -7,7 +7,7 @@ This document defines the supported cleaned-output surface for the JOSS-facing v
 
 Column names below are public cleaned-output names or public name patterns. `{n}` means a NOAA repeat suffix retained in the cleaned column name, for example `AA1 -> precip_amount_1` and `GA2 -> cloud_layer_base_height_m_2`.
 
-## Cross-Cutting Contract
+## Cross-Cutting Supported Behavior
 
 | Surface | Supported behavior |
 | --- | --- |
@@ -20,7 +20,7 @@ Column names below are public cleaned-output names or public name patterns. `{n}
 
 ## Core Supported Fields (Demonstrated in Fixtures)
 
-These fields are central to the JOSS-facing `noaa-spec clean` claim and are demonstrated in the tracked reproducibility fixtures, including the fully traceable real provenance example where applicable.
+These fields are central to the JOSS-facing `noaa-spec clean` claim and are demonstrated in the tracked reproducibility fixtures, including the traceable real provenance example where applicable.
 
 | NOAA field / token family | Decoded output columns | Associated QC columns | Sentinel/null handling | Repeated naming | Provenance references | Support |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -36,7 +36,7 @@ These fields are central to the JOSS-facing `noaa-spec clean` claim and are demo
 
 ## Additional Tested Field Families (Implementation Coverage, Not Exhaustively Demonstrated)
 
-The families below are implemented and regression-tested, but the tracked fixtures are small and do not exhaustively demonstrate every field, repeat suffix, domain value, or edge case. Treat this section as implementation coverage for supported field families, not as a claim of comprehensive NOAA coverage.
+The families below are implemented and regression-tested, but the tracked fixtures are small and do not exhaustively demonstrate every field, repeat suffix, domain value, or edge case. Treat this section as implementation coverage for supported field families, not as a broad NOAA coverage claim.
 
 | NOAA field / token family | Decoded output columns | Associated QC columns | Sentinel/null handling | Repeated naming | Provenance references | Support |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -53,8 +53,8 @@ The families below are implemented and regression-tested, but the tracked fixtur
 | CRN and ground-surface families `CB`, `CF`, `CG`, `CH`, `CI`, `CN1`-`CN4`, `IA1`, `IA2`, `IB1`, `IB2`, `IC1` | Public patterns such as `secondary_precip_depth_mm_{n}`, `crn_fan_speed_rps_{n}`, `rh_temp_avg_c_{n}`, `battery_voltage_avg_v_1`, `ground_surface_observation_code`, `ground_surface_min_temp_c`, `surface_temp_avg_c`, `ground_surface_evaporation_in` | Matching `*_qc`, `*_flag`, or `*_quality_code` columns and numeric sidecars | Family-specific all-9 missing markers become null; width/domain/range checks apply where implemented | CRN `CB`/`CF`/`CG`/`CH`/`CI` repeat forms and fixed `CN1`-`CN4` as implemented | `part-06-climate-reference-network-unique-data.md` and `part-23-ground-surface-data.md`; CRN/ground rules in `constants.py` | Supplemental |
 | Hail and runway/COOP metadata `HAIL`, `ED1`, `CO1`-`CO9`, `CR1` | `hail_size_cm`, `runway_direction_deg`, `runway_visibility_m`, `climate_division_number`, `utc_lst_offset_hours`, `coop_element_id_{n}`, `coop_time_offset_hours_{n}`, `crn_datalogger_version` | `hail_size_quality_code`, `runway_visibility_quality_code`, `crn_datalogger_version_qc`, matching sidecars | Field-specific missing markers become null; fixed-width checks apply where implemented | `CO1` singleton climate division plus `CO2`-`CO9` repeated COOP offsets | `part-14-runway-visual-range-data.md`, `part-22-hail-data.md`, `part-04-additional-data-section.md`; field rules in `constants.py` | Supplemental |
 
-## Unsupported or Non-Contract Surface
+## Unsupported or Non-Core Surface
 
 - NOAA encoded identifiers not listed above are not decoded by the strict parser for this version.
-- Optional `noaa-spec split-domains` output is a secondary convenience view derived from a cleaned CSV. It is not the primary JOSS output contract and does not expand the supported field surface.
+- Optional `noaa-spec split-domains` output is a secondary convenience view derived from a cleaned CSV. It is not the primary JOSS output surface and does not expand the supported field surface.
 - Manifest files written by optional domain splitting are runtime support artifacts for that optional workflow, not part of the core reproducibility claim.

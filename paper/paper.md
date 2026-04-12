@@ -18,7 +18,7 @@ bibliography: paper.bib
 
 # Abstract
 
-NOAA-Spec is open-source software for deterministic cleaning of NOAA Integrated Surface Database (ISD) / Global Hourly observations. Its public `noaa-spec clean` command converts raw NOAA-style CSV rows into a reproducible observation-level CSV with sentinel-coded measurements normalized to nulls, NOAA quality-control codes preserved in explicit columns, and deterministic serialization. The contribution is a documented and test-backed NOAA-specific cleaning contract for supported NOAA field families, reducing sentinel leakage, quality-code loss, inconsistent packed-field interpretation, and nondeterministic cleaned CSVs in project-local preprocessing.
+NOAA-Spec is open-source software for deterministic cleaning of NOAA Integrated Surface Database (ISD) / Global Hourly observations. Its public `noaa-spec clean` command converts raw NOAA-style CSV rows into a reproducible observation-level CSV with sentinel-coded measurements normalized to nulls, NOAA quality-control codes preserved in explicit columns, and deterministic serialization. The contribution is a documented and test-backed NOAA-specific cleaning layer for supported NOAA field families, reducing sentinel leakage, quality-code loss, inconsistent packed-field interpretation, and nondeterministic cleaned CSVs in project-local preprocessing.
 
 # Summary
 
@@ -44,7 +44,7 @@ A second common case is `VIS=999999,9,N,1`. Treating it as ordinary comma-separa
 
 # Comparison With Existing Tools
 
-Existing NOAA tools help users obtain or parse ISD data, but they do not by themselves define the specific cleaned-output decisions targeted here. The closest comparators are project-local preprocessing scripts, parsing-oriented tools such as the R package `isdparser` [@chamberlain_isdparser], and Python packages such as `isd` [@isd_python]. These tools are useful in their intended roles; NOAA-Spec is narrower than a general access or parsing package and focuses on one deterministic cleaning layer, documented decoded columns, and checksum-friendly output for the public `noaa-spec clean` workflow.
+Existing NOAA tools help users obtain or parse ISD data. NOAA-Spec makes a narrower policy choice: for supported fields it defines a deterministic cleaned-output layer with sentinel-to-null handling, QC preservation, documented decoded columns, and checksum-friendly output for the public `noaa-spec clean` workflow. The closest comparators are project-local preprocessing scripts, parsing-oriented tools such as the R package `isdparser` [@chamberlain_isdparser], and Python packages such as `isd` [@isd_python].
 
 | Criterion | Naive pandas/raw CSV loading | Parsing-oriented tools (`isdparser` [@chamberlain_isdparser], `isd` [@isd_python]) | NOAA-Spec |
 | --- | --- | --- | --- |
@@ -52,7 +52,7 @@ Existing NOAA tools help users obtain or parse ISD data, but they do not by them
 | Packed visibility `VIS=999999,9,N,1` | May treat `999999` as an ordinary distance or detach variability fields from the distance they qualify | Parsed structure can be exposed; downstream workflow chooses cleaning policy | Emits null `visibility_m`, preserves visibility QC, and keeps variability fields explicit |
 | Stable decoded column names | Requires project-specific naming | Naming and analysis tables remain workflow-specific | Uses documented release names such as `temperature_c`, `precip_amount_1`, and `cloud_layer_base_height_m_1` for supported fields |
 | QC preservation as output | Easy to drop while extracting measurement values | Available if retained by downstream code | Preserved in explicit columns such as `temperature_quality_code` and `precip_quality_code_1`, with `__qc_*` sidecars for parser decisions |
-| Reproducible cleaned CSV | Requires project-specific serialization and checksums | Not the primary focus of parsing/access packages | Writes deterministic CSV output and includes checksum-backed fixtures and regression tests |
+| Reproducible cleaned CSV | Requires project-specific serialization and checksums | Downstream workflow chooses serialization policy | Writes deterministic CSV output and includes checksum-backed fixtures and regression tests |
 
 # Software Design
 
@@ -72,9 +72,9 @@ The implementation separates the NOAA field-interpretation logic (`cleaning.py` 
 
 # Reproducibility
 
-The repository includes tracked raw inputs, tracked expected cleaned outputs, and checksum-backed verification under `reproducibility/`. The primary reviewer path runs the public CLI against tracked fixtures and verifies that each emitted CSV matches the expected SHA256 checksum. The strongest provenance example uses the first five data rows from the recorded NOAA/NCEI Global Hourly source URL for station `03041099999` in 2024 and records the observed upstream checksum. Smaller curated fixtures exercise additional field structures including precipitation, clouds, past weather, extreme temperature, and present weather while keeping the tracked data reviewer-checkable.
+The repository includes tracked raw inputs, tracked expected cleaned outputs, and checksum-backed verification under `reproducibility/`. The primary reviewer path runs the public CLI against tracked fixtures and verifies that each emitted CSV matches the expected SHA256 checksum. The strongest provenance example uses the first 20 data rows from the recorded NOAA/NCEI Global Hourly source URL for station `78724099999` in 2001 and records the observed upstream checksum. That traceable slice includes supported wind, precipitation, cloud, present-weather, pressure, temperature, and remarks fields where present in the source rows. Smaller curated fixtures exercise additional field structures including precipitation, clouds, past weather, extreme temperature, and present weather while keeping the tracked data reviewer-checkable.
 
-The fixtures are deliberately small and reviewer-checkable. They demonstrate deterministic behavior for committed input/output pairs; the automated tests provide broader regression coverage for sentinel handling, quality-code preservation, deterministic output, CLI behavior, and encoded field parsing. The fully traceable source example is documented in `reproducibility/REAL_PROVENANCE_EXAMPLE.md`; the older curated station slices are documented in `reproducibility/FIXTURE_PROVENANCE.md`. The paper does not claim exhaustive NOAA coverage or a general NOAA download workflow.
+The fixtures are deliberately small and reviewer-checkable. They demonstrate deterministic behavior for committed input/output pairs; the automated tests provide broader regression coverage for sentinel handling, quality-code preservation, deterministic output, CLI behavior, and encoded field parsing. The traceable source example is documented in `reproducibility/REAL_PROVENANCE_EXAMPLE.md`; the older curated station slices are documented in `reproducibility/FIXTURE_PROVENANCE.md`. The paper does not claim exhaustive NOAA coverage or a general NOAA download workflow.
 
 # Limitations
 

@@ -80,7 +80,8 @@ def _parse_args() -> argparse.Namespace:
         epilog=(
             "Primary workflow: noaa-spec clean INPUT.csv OUTPUT.csv "
             "or noaa-spec clean INPUT.csv --out OUTPUT.csv. "
-            "Optional convenience: noaa-spec split-domains CLEANED.csv OUTPUT_DIR."
+            "Optional utility outside the core JOSS contribution: "
+            "noaa-spec split-domains CLEANED.csv OUTPUT_DIR."
         ),
     )
     parser.add_argument(
@@ -120,11 +121,15 @@ def _parse_args() -> argparse.Namespace:
 
     split_parser = subparsers.add_parser(
         "split-domains",
-        help="Optionally split a canonical cleaned CSV into convenience domain CSVs.",
+        help=(
+            "Optional utility outside the core JOSS contribution: split a "
+            "cleaned CSV into convenience domain CSVs."
+        ),
         description=(
             "Read an existing canonical cleaned CSV and write analysis-friendly "
             "domain subsets. This is a convenience layer derived from cleaned "
-            "output, not the primary reproducibility workflow."
+            "output, not the core JOSS contribution or primary reproducibility "
+            "workflow."
         ),
     )
     split_parser.add_argument(

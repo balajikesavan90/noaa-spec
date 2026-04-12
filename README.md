@@ -29,7 +29,7 @@ The canonical checksum list is `reproducibility/checksums.sha256`.
 
 The Dockerfile uses the floating `python:3.12-slim` base image and upgrades bootstrap packaging tools during build. Treat it as a tested reviewer environment, not an immutable archived runtime.
 
-## Fully Traceable Example
+## Traceable Example
 
 The strongest provenance example is:
 
@@ -38,13 +38,13 @@ The strongest provenance example is:
 - Checksums: `reproducibility/checksums.sha256`
 - Provenance note: `reproducibility/REAL_PROVENANCE_EXAMPLE.md`
 
-It uses the first five data rows from the NOAA/NCEI Global Hourly CSV for station `03041099999`:
+It uses the first 20 data rows from the NOAA/NCEI Global Hourly CSV for station `78724099999`:
 
 ```text
-https://www.ncei.noaa.gov/data/global-hourly/access/2024/03041099999.csv
+https://www.ncei.noaa.gov/data/global-hourly/access/2001/78724099999.csv
 ```
 
-Run it directly after installing the package:
+After Docker or local install, run:
 
 ```bash
 noaa-spec clean \
@@ -57,15 +57,24 @@ Compare the generated checksum with the matching
 `reproducibility/real_provenance_example/station_cleaned_expected.csv` entry in
 `reproducibility/checksums.sha256`.
 
-Expected output snapshot for the first five rows:
+Analysis-view snapshot from the expected output:
 
-| STATION | DATE | temperature_c | temperature_quality_code | visibility_m | visibility_quality_code | wind_speed_ms | wind_speed_quality_code |
+| STATION | DATE | temperature_c | temperature_quality_code | visibility_m | wind_speed_ms | precip_amount_1 | cloud_layer_base_height_m_1 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 03041099999 | 2024-01-01T00:00:00 | -1.8 | 1 |  | 9.0 |  | 9.0 |
-| 03041099999 | 2024-01-01T01:00:00 | -1.6 | 1 |  | 9.0 |  | 9.0 |
-| 03041099999 | 2024-01-01T02:00:00 | -1.5 | 1 |  | 9.0 |  | 9.0 |
-| 03041099999 | 2024-01-01T03:00:00 | -1.6 | 1 |  | 9.0 |  | 9.0 |
-| 03041099999 | 2024-01-01T04:00:00 | -1.8 | 1 |  | 9.0 |  | 9.0 |
+| 78724099999 | 2001-01-01T00:00:00 | 30.0 | 1 | 11265.0 | 8.7 |  | 840.0 |
+| 78724099999 | 2001-01-01T15:00:00 | 29.3 | 1 | 28000.0 | 8.2 | 0.0 | 960.0 |
+
+### How to read one row
+
+For `2001-01-01T15:00:00`, read the decoded measurement columns first and ignore `__qc_*` sidecars on the first pass. `temperature_c=29.3` is the decoded air temperature and `temperature_quality_code=1` is the NOAA QC flag. `visibility_m=28000.0` is decoded visibility and `visibility_quality_code=1.0` is its QC flag. `wind_speed_ms=8.2` is decoded wind speed and `wind_speed_quality_code=1.0` is its QC flag. `precip_amount_1=0.0` is decoded precipitation for the first `AA1` precipitation group.
+
+| column | meaning |
+| --- | --- |
+| `temperature_c` | decoded temperature |
+| `temperature_quality_code` | NOAA QC flag for temperature |
+| `visibility_m` | decoded visibility |
+| `wind_speed_ms` | decoded wind speed |
+| `precip_amount_1` | decoded precipitation amount |
 
 ## First Output: What To Look At
 
@@ -83,7 +92,7 @@ Start with decoded measurement columns and their NOAA quality-code columns. Igno
 | `wind_speed_quality_code` | NOAA QC code preserved for wind speed. |
 | `sea_level_pressure_hpa` | Decoded sea-level pressure; `99999` becomes null. |
 
-For a slightly fuller guide, see [docs/first_output_guide.md](docs/first_output_guide.md). For the field contract, see [docs/supported_fields.md](docs/supported_fields.md).
+For a slightly longer guide, see [docs/first_output_guide.md](docs/first_output_guide.md). For the supported field registry, see [docs/supported_fields.md](docs/supported_fields.md).
 
 ## Why Not Pandas?
 
@@ -100,6 +109,10 @@ Run the minimal comparison:
 ```bash
 python examples/pandas_vs_noaa_spec.py
 ```
+
+## Why Not Existing NOAA Parsers?
+
+Existing NOAA parsers are useful for exposing NOAA records and parsed structures. NOAA-Spec makes an explicit cleaned-output policy choice for the supported fields: documented sentinels become nulls, NOAA QC codes stay in explicit columns, and decoded column names plus CSV serialization are deterministic for the same input.
 
 ## Local Install
 
@@ -124,7 +137,7 @@ python -m noaa_spec.cli clean INPUT.csv OUTPUT.csv
 
 The tracked fixtures are small by design:
 
-- `reproducibility/real_provenance_example/`: five rows from a recorded NOAA/NCEI Global Hourly source URL; this is the strongest provenance example.
+- `reproducibility/real_provenance_example/`: 20 rows from a recorded NOAA/NCEI Global Hourly source URL; this is the strongest provenance example.
 - `reproducibility/minimal/`: five raw rows for the compact reviewer fixture.
 - `reproducibility/minimal_second/`: eight raw rows covering additional encoded fields.
 - `reproducibility/station_03041099999_aonach_mor/`, `reproducibility/station_01116099999_stokka/`, and `reproducibility/station_94368099999_hamilton_island/`: four-row curated station slices. Their exact upstream retrieval metadata was not retained.
@@ -139,7 +152,7 @@ These fixtures prove deterministic behavior for committed input/output pairs. Th
 noaa-spec split-domains CLEANED.csv OUTPUT_DIR --prefix example
 ```
 
-This command is optional. It is not part of the core JOSS contribution, not part of the reviewer checksum workflow, and not part of the primary reproducibility claim. Manifest files written by this optional command are runtime support artifacts for that optional workflow only.
+This command is an optional utility, not part of the core JOSS contribution. It is not part of the reviewer checksum workflow or the primary reproducibility claim. Manifest files written by this optional command are runtime support artifacts for that optional workflow only.
 
 ## Run Tests
 

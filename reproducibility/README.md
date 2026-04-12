@@ -5,7 +5,7 @@ This directory contains the tracked artifacts behind the public reproducibility 
 - `minimal/station_raw.csv` is the bundled raw reviewer fixture.
 - `minimal/station_cleaned_expected.csv` is the tracked expected cleaned output.
 - `minimal_second/` contains a second small raw/expected pair for broader field coverage.
-- `real_provenance_example/` contains the strongest traceable real-world example: five rows from a recorded NOAA/NCEI Global Hourly source URL and the expected cleaned output.
+- `real_provenance_example/` contains the strongest traceable real-world example: 20 rows from a recorded NOAA/NCEI Global Hourly source URL and the expected cleaned output.
 - `REAL_PROVENANCE_EXAMPLE.md` records the source URL, retrieval date, upstream checksum observed at retrieval, row selection method, and exact cleaning command for `real_provenance_example/`.
 - `checksums.sha256` is the canonical checksum manifest for tracked reproducibility artifacts.
 - `station_03041099999_aonach_mor/`, `station_01116099999_stokka/`, and `station_94368099999_hamilton_island/` contain 4-row station fixtures selected from local real-station examples to broaden reviewer evidence without adding large data files.
