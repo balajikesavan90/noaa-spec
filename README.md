@@ -6,7 +6,7 @@ NOAA-Spec is a deterministic cleaning layer for NOAA ISD / Global Hourly CSV obs
 noaa-spec clean INPUT.csv OUTPUT.csv
 ```
 
-The command writes an observation-level cleaned CSV with documented NOAA sentinels normalized to empty null cells, NOAA quality codes preserved in explicit columns, and deterministic row/order serialization. NOAA-Spec does not download NOAA data, orchestrate station batches, produce releases, or run analyses.
+The command writes an observation-level cleaned CSV with documented NOAA sentinels normalized to empty null cells, NOAA quality codes preserved in explicit columns, and deterministic row/order serialization. The value is not parsing alone; it is making NOAA cleaning decisions explicit, testable, provenance-aware, and checksum-stable so downstream researchers can start from the same documented interpretation rather than divergent local scripts. NOAA-Spec does not download NOAA data, orchestrate station batches, produce releases, or run analyses.
 
 ## Reviewer Path
 
@@ -27,11 +27,11 @@ Output directory: /tmp/noaa-spec-reproducibility
 
 The canonical checksum list is `reproducibility/checksums.sha256`.
 
-The Dockerfile uses the floating `python:3.12-slim` base image and upgrades bootstrap packaging tools during build. Treat it as a tested reviewer environment, not an immutable archived runtime.
+The Dockerfile uses the floating `python:3.12-slim` base image and upgrades bootstrap packaging tools during build. Treat it as a tested reviewer environment, not an immutable archived runtime. `requirements-review.txt` pins the Docker/reviewer path only; it is not required for standard local installation.
 
 ## Traceable Example
 
-The strongest provenance example is:
+The only upstream-traceable provenance example is:
 
 - Raw input: `reproducibility/real_provenance_example/station_raw.csv`
 - Expected cleaned output: `reproducibility/real_provenance_example/station_cleaned_expected.csv`
@@ -110,9 +110,11 @@ Run the minimal comparison:
 python examples/pandas_vs_noaa_spec.py
 ```
 
+For a compact reviewer-facing table of selected real-row edge cases, see [docs/reviewer_cleaning_examples.md](docs/reviewer_cleaning_examples.md).
+
 ## Why Not Existing NOAA Parsers?
 
-Existing NOAA parsers are useful for exposing NOAA records and parsed structures. NOAA-Spec makes an explicit cleaned-output policy choice for the supported fields: documented sentinels become nulls, NOAA QC codes stay in explicit columns, and decoded column names plus CSV serialization are deterministic for the same input.
+Existing NOAA parsers are useful for exposing NOAA records and parsed structures. NOAA-Spec makes an explicit cleaned-output policy choice for the supported fields: documented sentinels become nulls, NOAA QC codes stay in explicit columns, and decoded column names plus CSV serialization are deterministic for the same committed input.
 
 ## Local Install
 
@@ -133,20 +135,22 @@ If the console script is not on `PATH`, use:
 python -m noaa_spec.cli clean INPUT.csv OUTPUT.csv
 ```
 
+The positional output path is the canonical form. `noaa-spec clean INPUT.csv --out OUTPUT.csv` remains supported as a legacy alternate, but reviewer documentation uses `noaa-spec clean INPUT.csv OUTPUT.csv`.
+
 ## Reproducibility Fixtures
 
 The tracked fixtures are small by design:
 
-- `reproducibility/real_provenance_example/`: 20 rows from a recorded NOAA/NCEI Global Hourly source URL; this is the strongest provenance example.
+- `reproducibility/real_provenance_example/`: 20 rows from a recorded NOAA/NCEI Global Hourly source URL; this is the only upstream-traceable provenance example.
 - `reproducibility/minimal/`: five raw rows for the compact reviewer fixture.
 - `reproducibility/minimal_second/`: eight raw rows covering additional encoded fields.
 - `reproducibility/station_03041099999_aonach_mor/`, `reproducibility/station_01116099999_stokka/`, and `reproducibility/station_94368099999_hamilton_island/`: four-row curated station slices. Their exact upstream retrieval metadata was not retained.
 
-These fixtures prove deterministic behavior for committed input/output pairs. They do not claim exhaustive NOAA coverage. See [REPRODUCIBILITY.md](REPRODUCIBILITY.md) and [reproducibility/FIXTURE_PROVENANCE.md](reproducibility/FIXTURE_PROVENANCE.md).
+These fixtures prove deterministic behavior for committed input/output pairs: `clean(committed_input) = committed_output`, verified by checksums. Only `reproducibility/real_provenance_example/` additionally records the upstream NOAA URL, retrieval date, and observed upstream checksum. The other curated fixtures do not replay upstream NOAA acquisition and do not claim exhaustive NOAA coverage. See [REPRODUCIBILITY.md](REPRODUCIBILITY.md) and [reproducibility/FIXTURE_PROVENANCE.md](reproducibility/FIXTURE_PROVENANCE.md).
 
 ## Optional, Outside JOSS Core
 
-`noaa-spec split-domains` can split an already-cleaned CSV into convenience domain CSVs:
+Reviewer evaluation should focus on `noaa-spec clean`. `noaa-spec split-domains` can split an already-cleaned CSV into convenience domain CSVs:
 
 ```bash
 noaa-spec split-domains CLEANED.csv OUTPUT_DIR --prefix example
@@ -161,17 +165,3 @@ python -m pip install -e .
 python -m pip install pytest
 python -m pytest tests -v
 ```
-
-## Repository Map
-
-- `src/noaa_spec/cli.py`: public `noaa-spec clean` entry point.
-- `src/noaa_spec/cleaning.py`: NOAA field interpretation and cleaning logic.
-- `src/noaa_spec/constants.py`: encoded field rules, sentinels, and QC definitions.
-- `src/noaa_spec/deterministic_io.py`: deterministic CSV writer.
-- `docs/first_output_guide.md`: quick guide for reading the first cleaned CSV.
-- `docs/supported_fields.md`: supported cleaned-output field registry.
-- `docs/schema.md`: cleaned CSV interpretation and naming conventions.
-- `docs/rule_provenance.md`: rule-family provenance and source-doc pointers.
-- `reproducibility/`: tracked raw and expected cleaned fixtures.
-- `spec_sources/`: NOAA ISD documentation material used for repository reference.
-- `paper/`: JOSS manuscript source.

@@ -4,7 +4,7 @@ __pycache__/
 *$py.class
 noaa_file_index/state/
 
-# AI tooling configuration
+# Local AI tooling configuration; not part of the reviewer-facing repo surface.
 .codex
 .github/prompts/
 AGENTS.md

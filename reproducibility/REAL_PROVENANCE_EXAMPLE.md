@@ -1,6 +1,6 @@
 # Real Provenance Example
 
-This is the strongest real-world provenance example in the repository. It is still intentionally small: it exists to give reviewers one traceable NOAA source example for `noaa-spec clean`, not to expand NOAA-Spec into a downloader or station-processing workflow.
+This is the only upstream-traceable real-world provenance example in the repository. It is still intentionally small: it exists to give reviewers one traceable NOAA source example for `noaa-spec clean`, not to expand NOAA-Spec into a downloader or station-processing workflow.
 
 ## Source
 
@@ -39,6 +39,6 @@ The same fixture is included in `scripts/verify_reproducibility.sh`, which regen
 
 ## Limitations
 
-- NOAA-Spec does not download NOAA data; the source URL and observed upstream checksum are recorded so reviewers can independently inspect the source used for this example.
+- NOAA-Spec does not download NOAA data; the source URL, retrieval date, and observed upstream checksum are recorded so reviewers can independently inspect the source used for this example.
 - The upstream NOAA URL is an external service. The recorded upstream checksum is evidence for the file as observed on 2026-04-12, not a guarantee that NOAA will never revise or move the file.
 - This example demonstrates one traceable real-world source slice. It does not claim exhaustive NOAA field coverage.

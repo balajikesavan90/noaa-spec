@@ -23,11 +23,29 @@ def test_cli_clean_writes_canonical_csv(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["prog", "clean", str(input_csv), "--out", str(output_csv)],
+        ["prog", "clean", str(input_csv), str(output_csv)],
     )
     cli.main()
 
     assert output_csv.read_text(encoding="utf-8") == expected_csv.read_text(encoding="utf-8")
+
+
+def test_cli_clean_accepts_legacy_out_flag(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    input_csv = repo_root / "reproducibility" / "minimal" / "station_raw.csv"
+    output_csv = tmp_path / "station_cleaned.csv"
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["prog", "clean", str(input_csv), "--out", str(output_csv)],
+    )
+    cli.main()
+
+    assert output_csv.exists()
 
 
 def test_cli_clean_preserves_quality_code_when_sentinel_is_null(

@@ -2,6 +2,12 @@
 
 This document describes the tracked reproducibility checks for the JOSS-facing NOAA-Spec claim: deterministic cleaned CSV output from the public `noaa-spec clean` CLI.
 
+The boundary is deliberately precise:
+
+- Reproducible from the repository alone: `clean(committed_input) = committed_output` for tracked raw fixtures, verified against `reproducibility/checksums.sha256`.
+- Additionally traceable to upstream NOAA retrieval: only `reproducibility/real_provenance_example/` records a NOAA/NCEI source URL, retrieval date, and observed upstream checksum.
+- Not claimed: full upstream NOAA retrieval reproducibility for every curated fixture, NOAA downloading, multi-station orchestration, or exhaustive NOAA coverage.
+
 ## Docker Verification
 
 Docker is the repository-provided reviewer path.
@@ -29,7 +35,7 @@ It then compares each generated CSV checksum to the tracked expected output
 hashes in `reproducibility/checksums.sha256`. That file is the canonical
 checksum manifest for tracked reproducibility artifacts.
 
-Optional domain split CSVs are derived convenience views from cleaned output. They are not part of this primary checksum workflow.
+Optional domain split CSVs are derived convenience views from cleaned output. They are not part of this primary checksum workflow or the JOSS reproducibility claim.
 
 The Dockerfile defines a tested reviewer container, but it is not a fully immutable environment: it currently uses the `python:3.12-slim` tag rather than a digest and upgrades bootstrap packaging tools during the image build.
 
@@ -43,8 +49,9 @@ After verification, reviewers should inspect the raw fixture and expected cleane
 - `reproducibility/REAL_PROVENANCE_EXAMPLE.md`
 - `reproducibility/FIXTURE_PROVENANCE.md`
 - `reproducibility/checksums.sha256`
+- `docs/reviewer_cleaning_examples.md`
 
-The cleaned CSV is wider than a single analysis table because NOAA-Spec preserves decoded measurements, NOAA quality codes, validation sidecars, and row-level usability summaries. Width depends on which optional NOAA encoded fields are present in the input.
+The cleaned CSV is wider than a single analysis table because NOAA-Spec preserves decoded measurements, NOAA quality codes, validation sidecars, and row-level usability summaries. Width depends on which optional NOAA encoded fields are present in the input. Start with `docs/first_output_guide.md` if the first output feels overwhelming.
 
 ## Primary Fixture
 
@@ -93,7 +100,7 @@ Compare the generated checksum with the matching
 
 ## Traceable Example
 
-This is the strongest real-world provenance case in the repository. It is still small and reviewer-checkable, but unlike the older curated station slices it records the upstream NOAA/NCEI source URL and observed upstream checksum.
+This is the only fixture with upstream NOAA retrieval traceability in the repository. It is still small and reviewer-checkable, but unlike the older curated station slices it records the upstream NOAA/NCEI source URL, retrieval date, and observed upstream checksum.
 
 Tracked files:
 
@@ -103,7 +110,7 @@ Tracked files:
 - Upstream source URL: `https://www.ncei.noaa.gov/data/global-hourly/access/2001/78724099999.csv`
 - Upstream source CSV checksum: recorded in `reproducibility/checksums.sha256`
 
-The fixture contains the header and first 20 data rows from the upstream source file. It includes supported wind, precipitation, cloud, present-weather, pressure, temperature, and remarks fields where present in that source slice. See [reproducibility/REAL_PROVENANCE_EXAMPLE.md](reproducibility/REAL_PROVENANCE_EXAMPLE.md) for the provenance boundary.
+The fixture contains the header and first 20 data rows from the upstream source file. It includes supported wind, precipitation, cloud, present-weather, pressure, temperature, and remarks fields where present in that source slice. See [reproducibility/REAL_PROVENANCE_EXAMPLE.md](reproducibility/REAL_PROVENANCE_EXAMPLE.md) for the provenance boundary. The other fixtures remain deterministic committed input/output checks, not upstream replay artifacts.
 
 Run and verify:
 
@@ -143,4 +150,4 @@ entry in `reproducibility/checksums.sha256`.
 
 The primary fixture contains 5 raw rows. The fully traceable example contains 20 raw rows and includes supported wind, precipitation, cloud, present-weather, pressure, temperature, and remarks fields where present in its source slice. The secondary fixture contains 8 raw rows and includes additional NOAA field structures including precipitation (`AA1`-`AA4`), multiple cloud layers (`GA1`-`GA5`), past weather (`AY1`/`AY2`), extreme temperature (`KA1`/`KA2`), and present weather (`MW1`-`MW3`). The three additional station fixtures each contain 4 raw rows.
 
-These fixtures are reproducibility checks, not a claim of exhaustive NOAA coverage. Only `real_provenance_example/` records a complete source URL and observed upstream checksum; the curated station slices do not replay upstream acquisition. The automated tests exercise additional encoded cases for sentinel handling, QC preservation, deterministic output, CLI behavior, and field parsing.
+These fixtures are reproducibility checks, not a claim of exhaustive NOAA coverage. Only `real_provenance_example/` records a complete source URL, retrieval date, and observed upstream checksum; the curated station slices do not replay upstream acquisition. The automated tests exercise additional encoded cases for sentinel handling, QC preservation, deterministic output, CLI behavior, and field parsing.

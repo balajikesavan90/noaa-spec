@@ -78,10 +78,7 @@ def _parse_args() -> argparse.Namespace:
             "columns."
         ),
         epilog=(
-            "Primary workflow: noaa-spec clean INPUT.csv OUTPUT.csv "
-            "or noaa-spec clean INPUT.csv --out OUTPUT.csv. "
-            "Optional utility outside the core JOSS contribution: "
-            "noaa-spec split-domains CLEANED.csv OUTPUT_DIR."
+            "Primary reviewer workflow: noaa-spec clean INPUT.csv OUTPUT.csv"
         ),
     )
     parser.add_argument(
@@ -110,7 +107,10 @@ def _parse_args() -> argparse.Namespace:
         dest="output_csv_flag",
         type=Path,
         default=None,
-        help="Output path for the cleaned CSV.",
+        help=(
+            "Legacy alternate output path form. The canonical reviewer form is "
+            "the positional OUTPUT.csv argument."
+        ),
     )
     clean_parser.add_argument(
         "--verbose",
@@ -122,8 +122,7 @@ def _parse_args() -> argparse.Namespace:
     split_parser = subparsers.add_parser(
         "split-domains",
         help=(
-            "Optional utility outside the core JOSS contribution: split a "
-            "cleaned CSV into convenience domain CSVs."
+            "Non-core optional utility for convenience domain CSVs."
         ),
         description=(
             "Read an existing canonical cleaned CSV and write analysis-friendly "
@@ -182,7 +181,10 @@ def main() -> None:
 
     output_path = args.output_csv_flag or args.output_csv
     if output_path is None:
-        raise SystemExit("Provide an output path as OUTPUT.csv or with --out OUTPUT.csv.")
+        raise SystemExit(
+            "Provide an output path as OUTPUT.csv. "
+            "--out OUTPUT.csv remains supported as a legacy alternate."
+        )
 
     written_path = _clean_csv_to_csv(args.input_csv, output_path)
     print(f"Wrote cleaned CSV to {written_path.resolve()}")
