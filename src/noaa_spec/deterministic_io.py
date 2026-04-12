@@ -9,6 +9,8 @@ import uuid
 
 import pandas as pd
 
+USABLE_METRIC_FRACTION_COLUMN = "usable_metric_fraction"
+
 
 def write_deterministic_csv(
     frame: pd.DataFrame,
@@ -52,4 +54,20 @@ def _prepare_frame(frame: pd.DataFrame, *, sort_by: tuple[str, ...]) -> pd.DataF
     sort_keys = [column for column in sort_by if column in prepared.columns]
     if sort_keys:
         prepared = prepared.sort_values(sort_keys, kind="stable").reset_index(drop=True)
+    if USABLE_METRIC_FRACTION_COLUMN in prepared.columns:
+        prepared[USABLE_METRIC_FRACTION_COLUMN] = prepared[
+            USABLE_METRIC_FRACTION_COLUMN
+        ].map(_format_usable_metric_fraction)
     return prepared
+
+
+def _format_usable_metric_fraction(value: object) -> object:
+    if pd.isna(value):
+        return value
+    if value == "":
+        return value
+
+    formatted = f"{float(value):.6f}".rstrip("0").rstrip(".")
+    if "." not in formatted:
+        formatted = f"{formatted}.0"
+    return formatted

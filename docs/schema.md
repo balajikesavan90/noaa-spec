@@ -12,6 +12,12 @@ This CSV remains at the observation-row level. It does not aggregate observation
 
 NOAA-Spec provides a consistent and reproducible interpretation of NOAA ISD CSV fields, rather than asserting a single authoritative canonical schema for all possible NOAA data.
 
+## Start Here
+
+For a first pass, inspect decoded measurement columns such as `temperature_c`, `dew_point_c`, `visibility_m`, `wind_speed_ms`, `sea_level_pressure_hpa`, and `precip_amount_1`. Then consult NOAA quality-code columns such as `temperature_quality_code` and validation sidecars such as `TMP__qc_status` or `TMP__qc_reason` to understand missing or excluded values. Raw NOAA identifier/source columns such as `STATION`, `REPORT_TYPE`, `REM`, or optional encoded field names can usually be ignored for normal analysis unless you are auditing row traceability back to the source record.
+
+Suggested review workflow: inspect decoded measurement columns first, check the QC/status fields for surprising nulls, and use raw NOAA identifiers only when tracing a cleaned row back to the original observation.
+
 ## Why The Output Is Wide
 
 NOAA source rows can contain many optional encoded fields. NOAA-Spec expands each encoded field that is present in the input into decoded value columns, quality-code columns, and a small set of validation sidecar columns. As a result, output width varies with the source fields present in the input file. A file containing only `TMP` and `VIS` will produce fewer columns than one containing precipitation, cloud layers, present weather, pressure, and extreme-temperature fields.

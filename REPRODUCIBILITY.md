@@ -12,11 +12,11 @@ docker run --rm noaa-spec-review bash scripts/verify_reproducibility.sh
 Expected result:
 
 ```text
-PASS: minimal b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597
-PASS: minimal_second 223efb068df6d605646a1288feedf6621fa55b4c9074c027f6347cbe7ca2f30e
-PASS: station_03041099999_aonach_mor 94913da579dc08b9c80a8a8f80d76cfb996ff9c28376aa2835b41161f0f7f134
-PASS: station_01116099999_stokka 30e71fd2c6bed1fcecf5fd5922f96c47b11b63b4bacb4425ddbcbd078798e92d
-PASS: station_94368099999_hamilton_island 9589ec020704b9d1fdd6e3675272badfd8e758302807f306ed8bbc9f91dc5a1a
+PASS: minimal 20e571805ad6eafd0d538b57f64e94ddc6aebe78280e3c10c48095f375f49850
+PASS: minimal_second e6f8ae6ca75c10bdbbc1714cc61f49d0afcbe7ad6767da58551fc73742dab934
+PASS: station_03041099999_aonach_mor 8a38e712e4fcb81bc26860b5a575c05951b3d6761fc04511a6237acfe454abe2
+PASS: station_01116099999_stokka a13415c7916371aecdfe0b6e8d5c81eae63207ef7a46606e45b98f0e59b7ae6c
+PASS: station_94368099999_hamilton_island 1d741b69938780663c88d8f4b982f1d01fc6a8212fe4b4fa0878040e222f1f4e
 PASS: reproducibility verification succeeded.
 Output directory: /tmp/noaa-spec-reproducibility
 ```
@@ -45,7 +45,7 @@ Tracked files:
 - Raw input: `reproducibility/minimal/station_raw.csv`
 - Raw input SHA256: `50e8bfb9ffae8278652bb7410cfbc9683a48711c35cfcf9e9dd3c38bbc403d47`
 - Expected output: `reproducibility/minimal/station_cleaned_expected.csv`
-- Expected output SHA256: `b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597`
+- Expected output SHA256: `20e571805ad6eafd0d538b57f64e94ddc6aebe78280e3c10c48095f375f49850`
 
 Local verification:
 
@@ -58,7 +58,7 @@ sha256sum /tmp/noaa-spec-sample.csv
 Expected checksum:
 
 ```text
-b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597
+20e571805ad6eafd0d538b57f64e94ddc6aebe78280e3c10c48095f375f49850
 ```
 
 ## Secondary Fixture
@@ -70,7 +70,7 @@ Tracked files:
 - Raw input: `reproducibility/minimal_second/station_raw.csv`
 - Raw input SHA256: `7b77a6b636baaf00f465c747d541e237417757d518e13e6e286045b53d6fe685`
 - Expected output: `reproducibility/minimal_second/station_cleaned_expected.csv`
-- Expected output SHA256: `223efb068df6d605646a1288feedf6621fa55b4c9074c027f6347cbe7ca2f30e`
+- Expected output SHA256: `e6f8ae6ca75c10bdbbc1714cc61f49d0afcbe7ad6767da58551fc73742dab934`
 
 Run and verify:
 
@@ -82,7 +82,7 @@ sha256sum /tmp/noaa-spec-second.csv
 Expected checksum:
 
 ```text
-223efb068df6d605646a1288feedf6621fa55b4c9074c027f6347cbe7ca2f30e
+e6f8ae6ca75c10bdbbc1714cc61f49d0afcbe7ad6767da58551fc73742dab934
 ```
 
 ## Additional Station Fixtures
@@ -91,9 +91,9 @@ These 4-row fixtures were selected from local real-station examples to broaden r
 
 | Fixture | Station | Raw input SHA256 | Expected output SHA256 | Coverage note |
 | --- | --- | --- | --- | --- |
-| `station_03041099999_aonach_mor/` | Aonach Mor, UK | `30f7edbcd4dcc475727ee2c66187a251a6bf35d91bfc7f700aadd39d27cdbcf1` | `94913da579dc08b9c80a8a8f80d76cfb996ff9c28376aa2835b41161f0f7f134` | High-elevation UK station with mandatory fields, sentinel-heavy pressure/visibility cases, supplemental wind, and wave/sea side fields. |
-| `station_01116099999_stokka/` | Stokka, Norway | `cc08ee8aeafe1494b4c8ab73a386a0f425c81db995b66ee0fe9284050fddfc17` | `30e71fd2c6bed1fcecf5fd5922f96c47b11b63b4bacb4425ddbcbd078798e92d` | Norwegian station with multiple cloud layers, present/past weather, runway/weather-extension fields, and station pressure. |
-| `station_94368099999_hamilton_island/` | Hamilton Island Airport, Australia | `ccef9c7c69f8a11e4896277bc5aebb41e44570cf46028c3c567991d10d680851` | `9589ec020704b9d1fdd6e3675272badfd8e758302807f306ed8bbc9f91dc5a1a` | Australian airport station with precipitation, past/present weather, sea-level pressure, and additional weather-code fields. |
+| `station_03041099999_aonach_mor/` | Aonach Mor, UK | `30f7edbcd4dcc475727ee2c66187a251a6bf35d91bfc7f700aadd39d27cdbcf1` | `8a38e712e4fcb81bc26860b5a575c05951b3d6761fc04511a6237acfe454abe2` | High-elevation UK station with mandatory fields, sentinel-heavy pressure/visibility cases, supplemental wind, and wave/sea side fields. |
+| `station_01116099999_stokka/` | Stokka, Norway | `cc08ee8aeafe1494b4c8ab73a386a0f425c81db995b66ee0fe9284050fddfc17` | `a13415c7916371aecdfe0b6e8d5c81eae63207ef7a46606e45b98f0e59b7ae6c` | Norwegian station with multiple cloud layers, present/past weather, runway/weather-extension fields, and station pressure. |
+| `station_94368099999_hamilton_island/` | Hamilton Island Airport, Australia | `ccef9c7c69f8a11e4896277bc5aebb41e44570cf46028c3c567991d10d680851` | `1d741b69938780663c88d8f4b982f1d01fc6a8212fe4b4fa0878040e222f1f4e` | Australian airport station with precipitation, past/present weather, sea-level pressure, and additional weather-code fields. |
 
 Run and verify one station fixture manually:
 
@@ -105,7 +105,7 @@ sha256sum /tmp/noaa-spec-aonach-mor.csv
 Expected checksum:
 
 ```text
-94913da579dc08b9c80a8a8f80d76cfb996ff9c28376aa2835b41161f0f7f134
+8a38e712e4fcb81bc26860b5a575c05951b3d6761fc04511a6237acfe454abe2
 ```
 
 ## Fixture Coverage Note

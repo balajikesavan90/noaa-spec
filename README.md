@@ -26,13 +26,18 @@ docker run --rm noaa-spec-review bash scripts/verify_reproducibility.sh
 Expected result:
 
 ```text
+PASS: minimal 20e571805ad6eafd0d538b57f64e94ddc6aebe78280e3c10c48095f375f49850
+PASS: minimal_second e6f8ae6ca75c10bdbbc1714cc61f49d0afcbe7ad6767da58551fc73742dab934
+PASS: station_03041099999_aonach_mor 8a38e712e4fcb81bc26860b5a575c05951b3d6761fc04511a6237acfe454abe2
+PASS: station_01116099999_stokka a13415c7916371aecdfe0b6e8d5c81eae63207ef7a46606e45b98f0e59b7ae6c
+PASS: station_94368099999_hamilton_island 1d741b69938780663c88d8f4b982f1d01fc6a8212fe4b4fa0878040e222f1f4e
 PASS: reproducibility verification succeeded.
-SHA256: b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597
+Output directory: /tmp/noaa-spec-reproducibility
 ```
 
-The Docker path installs the package, runs `noaa-spec clean` against the tracked fixture, and checks that the generated CSV matches the expected SHA256.
+The Docker path installs the package, runs `noaa-spec clean` against the tracked fixtures, and checks that the generated CSVs match the expected SHA256 values.
 
-After running the fixture, open:
+After running the fixture check, open:
 
 - `reproducibility/minimal/station_raw.csv` for the raw NOAA-style input.
 - `reproducibility/minimal/station_cleaned_expected.csv` for the expected cleaned output.
@@ -42,6 +47,18 @@ After running the fixture, open:
 ## Local Install
 
 Python 3.11 or 3.12 is required.
+
+To install the CLI directly from GitHub without an editable local checkout:
+
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install "git+https://github.com/balajikesavan90/noaa-spec.git"
+noaa-spec clean INPUT.csv OUTPUT.csv
+```
+
+For local development or reviewer work from this repository checkout:
 
 ```bash
 python3.12 -m venv .venv
@@ -55,7 +72,7 @@ python -c "import hashlib, pathlib; print(hashlib.sha256(pathlib.Path('/tmp/stat
 Expected checksum:
 
 ```text
-b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597
+20e571805ad6eafd0d538b57f64e94ddc6aebe78280e3c10c48095f375f49850
 ```
 
 If the console script is not on `PATH`, use:
@@ -93,7 +110,9 @@ DATE                 temperature_c  temperature_quality_code  dew_point_c  visib
 
 The raw token `TMP=+9999,9` becomes a null `temperature_c`, while the NOAA quality code `9` remains available in `temperature_quality_code`.
 
-The full cleaned output is intentionally wide: even a tiny input can expand to around 100+ columns because NOAA packed fields are decomposed and QC/sidecar columns are preserved. Users usually select a domain-relevant subset of columns for analysis. See [docs/schema.md](docs/schema.md) for the full structure.
+The cleaned CSV intentionally includes both raw NOAA identifier/source fields for traceability and decoded semantic columns for analysis. Users typically analyze decoded columns such as `temperature_c`, `visibility_m`, and `wind_speed_ms`; raw NOAA identifiers can usually be ignored unless auditing traceability.
+
+The full cleaned output is intentionally wide: even a tiny input can expand to around 100+ columns because NOAA packed fields are decomposed and QC/sidecar columns are preserved. See [docs/schema.md](docs/schema.md) for the full structure and a short start-here guide.
 
 ## Why Not a Simple Script?
 
@@ -157,6 +176,7 @@ python -m pytest tests -v
 - `src/noaa_spec/constants.py`: encoded field rules, sentinels, and QC definitions.
 - `src/noaa_spec/deterministic_io.py`: deterministic CSV writer.
 - `src/noaa_spec/cli.py`: public `noaa-spec clean` entry point.
+- `spec_sources/`: NOAA ISD documentation material organized for repository reference/provenance.
 - `reproducibility/`: tracked raw and expected cleaned fixtures.
 - `tests/`: reviewer-relevant regression tests.
 - `paper/`: JOSS manuscript source.

@@ -2,6 +2,8 @@
 
 NOAA-Spec implements encoded parsing and normalization rules derived from the official NOAA ISD / Global Hourly documentation represented in `spec_sources/`. This page is reviewer-oriented traceability for representative rules. It is not a claim that every implemented rule is generated from, or linked to, a formal one-rule-to-one-provenance artifact.
 
+The `spec_sources/` directory contains NOAA ISD documentation material converted or organized for repository reference/provenance; NOAA documentation and data are public-domain U.S. government materials.
+
 For detailed source text, inspect the checked-in Markdown documentation under `spec_sources/isd-format-document-parts/`. For implementation details, inspect `src/noaa_spec/constants.py` for field rules and naming maps, and `src/noaa_spec/cleaning.py` for expansion, sentinel normalization, and QC sidecar emission.
 
 | Source field / identifier | What NOAA-Spec does | Implementation to inspect | Supporting checked-in source docs |

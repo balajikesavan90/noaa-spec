@@ -33,3 +33,29 @@ def test_write_deterministic_csv_is_atomic_when_writer_fails(
 
     assert output_path.read_text(encoding="utf-8") == "stable\n"
     assert not list(output_path.parent.glob(f".{output_path.name}.tmp-*"))
+
+
+def test_write_deterministic_csv_formats_usable_metric_fraction(tmp_path: Path) -> None:
+    output_path = tmp_path / "artifact.csv"
+
+    deterministic_io.write_deterministic_csv(
+        pd.DataFrame(
+            {
+                "DATE": ["2000-01-01", "2000-01-02", "2000-01-03"],
+                "usable_metric_fraction": [
+                    0.06666666666666667,
+                    0.3333333333333333,
+                    1.0,
+                ],
+            }
+        ),
+        output_path,
+        sort_by=("DATE",),
+    )
+
+    assert output_path.read_text(encoding="utf-8") == (
+        "DATE,usable_metric_fraction\n"
+        "2000-01-01,0.066667\n"
+        "2000-01-02,0.333333\n"
+        "2000-01-03,1.0\n"
+    )
