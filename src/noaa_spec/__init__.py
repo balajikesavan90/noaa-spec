@@ -1,6 +1,6 @@
 """NOAA-Spec package.
 
-Public API surface (JOSS-reviewed):
+Public package surface:
     cleaning        — canonical interpretation logic
     constants       — field rules, sentinels, QC definitions
     deterministic_io — checksummable CSV writer
@@ -10,7 +10,7 @@ Public API surface (JOSS-reviewed):
 
 Modules under ``internal/`` support maintainer batch workflows and are
 excluded from the installable distribution. They are not part of the
-public API.
+public package API.
 """
 
 __all__ = [

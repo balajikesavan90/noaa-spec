@@ -1,7 +1,7 @@
 # Maintainer Material
 
-> **Not part of the JOSS submission.** This directory is maintainer-internal and is not part of the public JOSS reviewer path.
+This directory contains maintainer and research workflow material for the broader NOAA-Spec repository.
 
-This directory holds maintainer-only records, audit exports, larger internal fixtures, and broader pipeline documentation. None of these files are required to install, use, or verify NOAA-Spec.
+It holds planning records, audit exports, validation notes, larger-run documentation, and broader pipeline references. These materials are useful when working on artifact generation, validation, domain outputs, and release workflows, but they are not the first-run path for the core CLI.
 
-Reviewers and users should start from [../README.md](../README.md) and [../REPRODUCIBILITY.md](../REPRODUCIBILITY.md).
+New users should start from [../README.md](../README.md) and [../REPRODUCIBILITY.md](../REPRODUCIBILITY.md). Maintainers can use [docs/README.md](docs/README.md) as the index for this area.

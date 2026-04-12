@@ -1,7 +1,7 @@
-# Reviewer Guide
+# Legacy Review Notes
 
-This file is retained for maintainer context only. The authoritative public reviewer workflow is [../../REPRODUCIBILITY.md](../../REPRODUCIBILITY.md).
+This file is retained for maintainer context only because older planning records may still point to it.
 
-Use the root [README.md](../../README.md) for ordinary CLI usage and [../../REPRODUCIBILITY.md](../../REPRODUCIBILITY.md) for install, checksum verification, Docker verification, and the public reproducibility boundary.
+Use the root [README.md](../../README.md) for ordinary CLI usage and [../../REPRODUCIBILITY.md](../../REPRODUCIBILITY.md) for install, checksum verification, Docker verification, and the portable reproducibility boundary.
 
-Do not use this file as a second source of reviewer instructions.
+This file is not a second source of active setup instructions.

@@ -19,27 +19,28 @@ INTERNAL_ARCHIVE_DIR = PROJECT_ROOT / "maintainer" / "docs" / "archive"
 INTERNAL_RECORD_BANNER = "INTERNAL DEVELOPMENT RECORD — NOT REVIEWER EVIDENCE"
 
 
-def test_readme_locks_public_contribution_and_workflow() -> None:
+def test_readme_describes_main_branch_architecture_and_workflow() -> None:
     text = README_PATH.read_text(encoding="utf-8")
 
     for section in (
-        "## JOSS Scope",
+        "## What NOAA-Spec Contains",
+        "## Quick Start",
         "## Docker First Run",
-        "## Optional Local Install",
         "## Minimal Workflow",
-        "## Optional Derived Views",
-        "## Further Reading",
-        "## Quick Reviewer Inspection",
-        "## Reproducibility Verification",
+        "## Repository Structure",
+        "## Where To Start",
+        "## Reproducibility Path",
         "## Optional: Download and Clean a New Station",
-        "## Docs",
+        "## Development",
+        "## Further Reading",
     ):
         assert section in text
 
-    assert "deterministic canonicalization layer" in text
-    assert "bundled checksum-backed reproducibility fixture" in text
-    assert "For independent reviewer verification and the cleanest first run, use Docker" in text
-    assert "recommended reviewer-safe path" in text
+    assert "core reusable interface is the `noaa-spec clean` command" in text
+    assert "broader project infrastructure" in text
+    assert "Not every directory serves the same audience" in text
+    assert "Core canonicalization package" in text
+    assert "Broader repository infrastructure" in text
     assert "Requires Python 3.11 or 3.12" in text
     assert "Python 3.13 is not currently supported" in text
     assert "py -3.12 -m venv .venv" in text
@@ -50,10 +51,12 @@ def test_readme_locks_public_contribution_and_workflow() -> None:
     assert "docker build -f Dockerfile -t noaa-spec-review ." in text
     assert "TMP__qc_reason" in text
     assert "SENTINEL_MISSING" in text
-    assert "many users begin with a smaller derived view" in text
+    assert "canonical CSV is intentionally wide" in text
     assert "`metadata`" in text
     assert "clouds_visibility" in text
-    assert "intentionally minimal (5 rows)" in text
+    assert "second fixture with broader field coverage" in text
+    assert "src/noaa_spec/internal/" in text
+    assert "maintainer/README.md" in text
 
 
 def test_docs_index_points_to_single_first_run_and_reproducibility_path() -> None:
@@ -63,7 +66,7 @@ def test_docs_index_points_to_single_first_run_and_reproducibility_path() -> Non
     assert "[UNDERSTANDING_OUTPUT.md](UNDERSTANDING_OUTPUT.md)" in text
     assert "[../REPRODUCIBILITY.md](../REPRODUCIBILITY.md)" in text
     assert "[examples/CANONICAL_WALKTHROUGH.md](examples/CANONICAL_WALKTHROUGH.md)" in text
-    assert "small public documentation set" in text
+    assert "core NOAA-Spec cleaning workflow and output interpretation" in text
     assert "canonical `noaa-spec clean` workflow" in text
 
 
@@ -118,8 +121,8 @@ def test_maintainer_docs_are_moved_out_of_public_docs() -> None:
     maintainer_index_text = MAINTAINER_INDEX_PATH.read_text(encoding="utf-8")
     maintainer_docs_index_text = MAINTAINER_DOCS_INDEX_PATH.read_text(encoding="utf-8")
     assert "Maintainer Material" in maintainer_index_text
-    assert "not part of the public JOSS reviewer path" in maintainer_index_text
-    assert "maintainer material only" in maintainer_docs_index_text
+    assert "broader NOAA-Spec repository" in maintainer_index_text
+    assert "maintainer material for the broader NOAA-Spec repository" in maintainer_docs_index_text
     assert "Operations" in maintainer_docs_index_text
     assert "Archive" in maintainer_docs_index_text
 
@@ -139,27 +142,24 @@ def test_reproducibility_doc_is_single_reproducibility_path() -> None:
     public_text = PUBLIC_REPRODUCIBILITY_PATH.read_text(encoding="utf-8")
     directory_text = REPRODUCIBILITY_README_PATH.read_text(encoding="utf-8")
 
-    assert "Local installation is a convenience path for users and developers." in public_text
-    assert "working Python environment with `venv` support" in public_text
+    assert "core canonical cleaning path" in public_text
+    assert "Local installation is the normal path for users and developers" in public_text
     assert "NOAA-Spec currently declares support for Python `>=3.11,<3.13`" in public_text
-    assert "reviewers should use Python 3.11 or 3.12 for the local path" in public_text
     assert "Python 3.13 is not yet supported" in public_text
-    assert "install Python 3.12 first and then continue" in public_text
     assert "py -3.12 -m venv .venv" in public_text
     assert "python3.12 -m venv .venv" in public_text
     assert "`python3.12` is the standard example used here" in public_text
-    assert "For independent reviewer verification, use Docker" in public_text
+    assert "Docker provides the simplest clean-environment verification path" in public_text
     assert "Inspect a small subset from the tracked canonical fixture:" in public_text
     assert "python3 reproducibility/run_pipeline_example.py --out /tmp/noaa-spec-sample.csv" in public_text
-    assert "Views are available through the public `noaa-spec clean --view ...` CLI" in public_text
-    assert "with `STATION` and `DATE` as the reviewer-visible identifier columns" in public_text
+    assert "Reproducibility verification here is based on the canonical output" in public_text
     assert "`--view metadata`" in public_text
     assert "50e8bfb9ffae8278652bb7410cfbc9683a48711c35cfcf9e9dd3c38bbc403d47" in public_text
     assert "b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597" in public_text
     assert "docker build -f Dockerfile -t noaa-spec-review ." in public_text
     assert "docker run --rm noaa-spec-review bash scripts/verify_reproducibility.sh" in public_text
-    assert "tracked artifacts behind the public reproducibility claim" in directory_text
-    assert "The active reviewer workflow is documented in [../REPRODUCIBILITY.md](../REPRODUCIBILITY.md)." in directory_text
+    assert "tracked artifacts behind NOAA-Spec's portable reproducibility checks" in directory_text
+    assert "The active reproducibility workflow is documented in [../REPRODUCIBILITY.md](../REPRODUCIBILITY.md)." in directory_text
 
 
 def test_readme_command_runner_skips_infra_and_privileged_setup_steps() -> None:
@@ -173,5 +173,6 @@ def test_readme_command_runner_skips_infra_and_privileged_setup_steps() -> None:
     assert _should_skip("python3.12 -m venv .venv")
     assert _should_skip("python -m pip install -e .")
     assert _should_skip("python3 -m pip install -e .")
+    assert _should_skip("python3 -m pytest -q")
     assert _should_skip("python examples/download_and_clean_station.py \\")
     assert not _should_skip("noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/station_cleaned.csv")

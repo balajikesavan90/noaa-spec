@@ -244,7 +244,7 @@ def render_build_readme(
         "",
         (
             "Use and citation note: cite the NOAA-Spec software, the specific build ID, and "
-            "the included manifests when reusing these artifacts in reviewer, research, or "
+            "the included manifests when reusing these artifacts in research or "
             "publication workflows."
         ),
         "",

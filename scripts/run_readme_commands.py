@@ -21,6 +21,8 @@ SKIP_PREFIXES = (
     "source ",
     "python -m pip",
     "python3 -m pip",
+    "python3 -m pytest",
+    "pytest ",
     "python examples/download_and_clean_station.py",
     "python3 examples/download_and_clean_station.py",
     "--station ",

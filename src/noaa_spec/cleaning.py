@@ -1595,7 +1595,7 @@ def clean_noaa_dataframe(
 
         # A1: Strict mode allowlist gate - only expand known NOAA identifiers.
         # Evaluate this only for columns that actually look parseable so metadata
-        # columns like STATION/DATE do not emit reviewer-facing noise.
+        # columns like STATION/DATE do not emit irrelevant strict-mode noise.
         if strict_mode:
             section_identifier_valid = is_valid_section_identifier_token(column)
             if section_identifier_valid is False:

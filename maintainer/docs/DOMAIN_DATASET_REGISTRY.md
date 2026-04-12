@@ -3,7 +3,7 @@
 This document publishes researcher-facing domain dataset definitions from
 `src/noaa_spec/domains/`.
 
-These registry entries describe the intended public contract for NOAA-Spec domain outputs. In this revision, they document the broader software surface, but domain datasets are not part of the bounded reviewer reproducibility example under `reproducibility/`.
+These registry entries describe the intended public contract for NOAA-Spec domain outputs. They document the broader software surface built from the canonical dataset; the portable fixture checks under `reproducibility/` focus on the canonical output.
 
 All domain datasets are observation-level slices derived from canonical cleaned
 observations and are joinable using shared identity keys:
@@ -54,6 +54,6 @@ Domain artifacts are emitted only when at least one cleaned row survives project
 - Domain datasets are not aggregate products.
 - Aggregated rollups (hourly/monthly/yearly summaries) are intentionally out of
   scope for domain dataset contracts.
-- Empty domain projections are omitted rather than emitted as empty reviewer-facing artifacts.
+- Empty domain projections are omitted rather than emitted as empty artifacts.
 - Downstream researchers compose domain joins and analysis on top of canonical
   and domain publication artifacts.

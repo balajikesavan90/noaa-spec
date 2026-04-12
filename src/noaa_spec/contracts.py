@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 PUBLIC_CANONICAL_JOIN_KEYS: tuple[str, ...] = ("STATION", "DATE")
 # Domain and release artifacts may normalize station identifiers for internal joins,
-# but the public canonical CSV contract remains the reviewer-visible STATION/DATE pair.
+# but the public canonical CSV contract remains the STATION/DATE pair.
 DOMAIN_JOIN_KEYS: tuple[str, ...] = ("station_id", "DATE")
 
 REQUIRED_ARTIFACT_METADATA_FIELDS: tuple[str, ...] = (

@@ -1,6 +1,6 @@
 # Cleaning Run Modes
 
-Warning: This section is NOT part of reviewer reproducibility.
+This section documents larger-run maintainer workflows. For a portable first run, use the core CLI and reproducibility fixture documented in the root README and REPRODUCIBILITY guide.
 
 This document defines the production-safe cleaning runner:
 

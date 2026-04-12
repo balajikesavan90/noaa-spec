@@ -10,7 +10,7 @@ TRACKED_EXPECTED="${REPO_ROOT}/reproducibility/minimal/station_cleaned_expected.
 cd "${REPO_ROOT}"
 
 if ! command -v python3 >/dev/null 2>&1; then
-    echo "Missing 'python3' on PATH. Activate the reviewer virtual environment, then rerun this smoke test." >&2
+    echo "Missing 'python3' on PATH. Activate the local virtual environment, then rerun this smoke test." >&2
     exit 1
 fi
 
@@ -32,8 +32,8 @@ fi
 expected_after="$(sha256sum "${TRACKED_EXPECTED}" | cut -d' ' -f1)"
 
 if [[ "${expected_before}" != "${expected_after}" ]]; then
-    echo "Smoke test failed: reviewer flow modified tracked reproducibility files." >&2
+    echo "Smoke test failed: reproducibility flow modified tracked fixture files." >&2
     exit 1
 fi
 
-echo "Smoke test passed: pip-installed noaa_spec can run the bounded reviewer example without mutating tracked fixtures."
+echo "Smoke test passed: pip-installed noaa_spec can run the tracked reproducibility example without mutating tracked fixtures."

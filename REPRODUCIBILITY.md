@@ -1,27 +1,18 @@
 # Reproducibility
 
-This document is the authoritative reproducibility reference for NOAA-Spec.
+This document is the reproducibility reference for NOAA-Spec's core canonical cleaning path. It describes how to rerun tracked fixtures and verify deterministic output checksums for `noaa-spec clean`.
 
-Views are available through the public `noaa-spec clean --view ...` CLI as optional narrower datasets for usability, but reproducibility verification for the scoped JOSS claim remains the canonical output and checksum below. The reviewer-visible canonical output is the emitted CSV shown by the bundled fixture, with `STATION` and `DATE` as the reviewer-visible identifier columns.
+The repository also contains broader infrastructure for domain outputs, quality reports, release manifests, and maintainer validation workflows. Those workflows build on the same canonicalization layer, but the portable in-repository reproducibility checks here are the tracked fixture runs below.
 
-## Quick Reviewer Path
+## Clean-Environment Check
 
-For independent reviewer verification, use Docker:
-
-Docker installed and running is required before these commands will work.
+Docker provides the simplest clean-environment verification path:
 
 ```bash
 docker --version
-```
-
-If this command fails, Docker is not correctly installed or not available on PATH.
-
-```bash
 docker build -f Dockerfile -t noaa-spec-review .
 docker run --rm noaa-spec-review bash scripts/verify_reproducibility.sh
 ```
-
-The `scripts/verify_reproducibility.sh` script is a thin convenience wrapper around the reviewer workflow. General `scripts/` helpers are maintainer tooling and are outside the JOSS evaluation path; reviewers may either use this wrapper or run the underlying `noaa-spec clean` and checksum commands directly.
 
 Successful verification prints:
 
@@ -30,15 +21,13 @@ PASS: reproducibility verification succeeded.
 SHA256: b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597
 ```
 
-## Optional Local Install
+The `scripts/verify_reproducibility.sh` script is a convenience wrapper around the same fixture workflow. It runs the tracked raw input through the canonical cleaner and checks the emitted CSV hash.
 
-Local installation is a convenience path for users and developers. It is not the authoritative reviewer path.
+## Local Install Path
 
-Local installation requires a working Python environment with `venv` support. NOAA-Spec currently declares support for Python `>=3.11,<3.13`; reviewers should use Python 3.11 or 3.12 for the local path. Python 3.13 is not yet supported. If local `venv` setup is unavailable, use Docker instead. Docker is the clean first run path for independent reviewer verification.
+Local installation is the normal path for users and developers who want to run the CLI or tests. NOAA-Spec currently declares support for Python `>=3.11,<3.13`; use Python 3.11 or 3.12. Python 3.13 is not yet supported.
 
-On any platform, if `pyarrow` does not provide a compatible wheel for the active Python version, `pip` may try to build it from source. That source-build path can fail and prevent the `noaa-spec` CLI from being installed. Use Python 3.11 or 3.12 for reviewer-local installs.
-
-Before creating the environment, check that you have Python 3.11 or 3.12 available. If you do not already have a supported interpreter, install Python 3.12 first and then continue with the commands below.
+On any platform, if `pyarrow` does not provide a compatible wheel for the active Python version, `pip` may try to build it from source and fail. Use Python 3.11 or 3.12 for local installs.
 
 ### Windows PowerShell
 
@@ -62,7 +51,7 @@ Expected SHA256: `b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f28875
 
 ### macOS / Linux
 
-The exact command for the installed Python 3.12 interpreter may vary by system, but `python3.12` is the standard example used here.
+The exact command for the installed Python interpreter may vary by system, but `python3.12` is the standard example used here.
 
 ```bash
 python3.12 --version
@@ -76,7 +65,7 @@ python -c "import hashlib, pathlib; print(hashlib.sha256(pathlib.Path('/tmp/stat
 
 Expected SHA256: `b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597`
 
-For a narrower usability-oriented dataset, you can optionally add `--view metadata`, `--view wind`, `--view precipitation`, `--view clouds_visibility`, `--view pressure_temperature`, or `--view remarks`.
+For a narrower usability-oriented dataset, optionally add `--view metadata`, `--view wind`, `--view precipitation`, `--view clouds_visibility`, `--view pressure_temperature`, or `--view remarks`. Reproducibility verification here is based on the canonical output, not a derived view.
 
 Inspect a small subset from the tracked canonical fixture:
 
@@ -131,7 +120,7 @@ b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597
 
 ## Additional Fixture for Broader Field Coverage
 
-A second tracked fixture uses station `78724099999` (8 rows, 50 raw columns) to exercise additional NOAA field structures including precipitation (AA1–AA4), multiple cloud layers (GA1–GA5), past weather (AY1/AY2), extreme temperature (KA1/KA2), and present weather (MW1–MW3).
+A second tracked fixture uses station `78724099999` (8 rows, 50 raw columns) to exercise additional NOAA field structures including precipitation (AA1-AA4), multiple cloud layers (GA1-GA5), past weather (AY1/AY2), extreme temperature (KA1/KA2), and present weather (MW1-MW3).
 
 Tracked files:
 
@@ -155,10 +144,10 @@ Expected result:
 
 ## Reproducibility Boundary
 
-This reproducibility surface covers the scoped JOSS contribution:
+The portable in-repository reproducibility boundary covers:
 
 - the public `noaa-spec clean` CLI
 - the specification-constrained canonical interpretation layer
-- the bundled tracked fixture and checksum-backed verification path
+- the bundled tracked fixtures and checksum-backed verification paths
 
-It does not cover broader repository workflows such as batch orchestration, release manifests, or internal validation/reporting workflows. General `scripts/` helpers are part of that maintainer-oriented surface, with `scripts/verify_reproducibility.sh` carved out only as a convenience wrapper for the commands above.
+Broader repository workflows such as batch orchestration, release manifests, and internal validation/reporting are maintained in the repository, but they are not represented by a frozen release build in this checkout. Treat those areas as maintainer and research infrastructure unless a specific task points to them.

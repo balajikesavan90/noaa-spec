@@ -1,12 +1,12 @@
 # Canonical Walkthrough
 
-This walkthrough shows the reviewer path explicitly:
+This walkthrough shows the core data path:
 
 1. raw encoded NOAA row
 2. canonical normalized row
 3. small practical subset for downstream analysis
 
-It is illustrative only. It uses embedded raw and canonical snippets so the explanation does not depend on local `output/` artifacts. The reproducible reviewer path remains the tracked fixture in [../../REPRODUCIBILITY.md](../../REPRODUCIBILITY.md), and the public CLI can also write canonical-derived views directly with `--view`.
+It is illustrative only. It uses embedded raw and canonical snippets so the explanation does not depend on local `output/` artifacts. The reproducible fixture path is documented in [../../REPRODUCIBILITY.md](../../REPRODUCIBILITY.md), and the public CLI can also write canonical-derived views directly with `--view`.
 
 ## Raw Snippet
 
@@ -26,7 +26,7 @@ STATION,DATE,temperature_c,temperature_quality_code,TMP__qc_reason,dew_point_c,v
 
 ## Practical Subset
 
-The full canonical row is intentionally wider than this snippet. A reviewer can usually start with a small subset:
+The full canonical row is intentionally wider than this snippet. A new user can usually start with a small subset:
 
 ```text
 STATION,DATE,temperature_c,temperature_quality_code,visibility_m,TMP__qc_reason

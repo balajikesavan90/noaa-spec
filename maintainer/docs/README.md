@@ -1,8 +1,8 @@
 # Maintainer Documentation
 
-This section contains maintainer material only. It is not part of the public JOSS review path, first-run workflow, or reproducibility boundary. Public reviewer instructions live in [../../REPRODUCIBILITY.md](../../REPRODUCIBILITY.md).
+This section contains maintainer material for the broader NOAA-Spec repository. It supports architecture records, validation notes, operations, release planning, and internal reports. The first-run CLI workflow and portable fixture checks live in [../../README.md](../../README.md) and [../../REPRODUCIBILITY.md](../../REPRODUCIBILITY.md).
 
-- Reviewer guide: [REVIEWER_GUIDE.md](REVIEWER_GUIDE.md)
+- Legacy review notes: [REVIEWER_GUIDE.md](REVIEWER_GUIDE.md)
 - Local development: [LOCAL_DEV.md](LOCAL_DEV.md)
 - Artifact boundaries: [ARTIFACT_BOUNDARY_POLICY.md](ARTIFACT_BOUNDARY_POLICY.md)
 - Domain registry: [DOMAIN_DATASET_REGISTRY.md](DOMAIN_DATASET_REGISTRY.md)

@@ -8,4 +8,4 @@ Use [CANONICAL_WALKTHROUGH.md](CANONICAL_WALKTHROUGH.md) when you want one short
 - the corresponding canonical row,
 - and a practical downstream subset a researcher might actually inspect first.
 
-For installation, return to [../../README.md](../../README.md). For reviewer verification, use [../../REPRODUCIBILITY.md](../../REPRODUCIBILITY.md).
+For installation, return to [../../README.md](../../README.md). For fixture verification, use [../../REPRODUCIBILITY.md](../../REPRODUCIBILITY.md).

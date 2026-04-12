@@ -1,4 +1,4 @@
-"""Run the tracked public cleaning fixture used for reviewer verification."""
+"""Run the tracked public cleaning fixture used for reproducibility verification."""
 
 from __future__ import annotations
 

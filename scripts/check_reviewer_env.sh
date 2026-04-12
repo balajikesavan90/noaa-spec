@@ -42,7 +42,7 @@ fi
 
 rm -rf "${test_venv_tmp}"
 
-echo "PASS: reviewer environment prerequisites are available."
+echo "PASS: reproducibility environment prerequisites are available."
 echo "python3=$(command -v python3)"
 echo "python3_version=$(python3 -c 'import sys; print(\".\".join(map(str, sys.version_info[:3])))')"
 echo "git=$(command -v git)"

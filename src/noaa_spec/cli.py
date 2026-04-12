@@ -44,7 +44,7 @@ def _parse_args() -> argparse.Namespace:
             "Clean a NOAA ISD / Global Hourly raw CSV into a deterministic "
             "observation-level canonical CSV with normalized sentinels, preserved QC "
             "semantics, and a stable output schema. The public canonical CSV uses "
-            "STATION and DATE as the reviewer-visible identifier columns."
+            "STATION and DATE as identifier columns."
         ),
         epilog=(
             "Primary workflow: noaa-spec clean INPUT.csv OUTPUT.csv "

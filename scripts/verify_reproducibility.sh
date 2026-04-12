@@ -11,7 +11,7 @@ EXPECTED_HASH="b48aba1b8a304451dc3874b963d76275bf79ad68c6f28d9190e0e636f2887597"
 cd "${REPO_ROOT}"
 
 if ! command -v python3 >/dev/null 2>&1; then
-    echo "FAIL: python3 is not available on PATH. Activate the reviewer virtual environment first." >&2
+    echo "FAIL: python3 is not available on PATH. Activate the local virtual environment first." >&2
     exit 1
 fi
 

@@ -60,7 +60,7 @@ Start with the measurement columns:
 
 Many `*_quality_code`, `*_QC`, and `__qc_*` columns can be ignored initially unless you are filtering by quality or investigating why a cleaned value is missing (`NaN`).
 
-For the bundled reviewer fixture, this subset is usually enough for a first read:
+For the bundled fixture, this subset is usually enough for a first read:
 
 | `STATION` | `DATE` | `temperature_c` | `temperature_quality_code` | `visibility_m` | `TMP__qc_reason` |
 | --- | --- | --- | --- | --- | --- |
