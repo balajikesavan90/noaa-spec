@@ -30,7 +30,7 @@ def _parse_args() -> argparse.Namespace:
         "--out",
         type=Path,
         default=None,
-        help="Optional output path for the canonical cleaned CSV",
+        help="Optional output path for the cleaned CSV",
     )
     return parser.parse_args()
 

@@ -41,7 +41,7 @@ NOAA source rows can contain many optional encoded fields. NOAA-Spec expands eac
 | `VIS=010000,1,N,1` | `visibility_m=10000.0`, `visibility_quality_code=1`, `visibility_variability_code=N`, `visibility_variability_quality_code=1`, `VIS__part1__qc_status=PASS` | The composite visibility field is split into distance, quality, variability, and variability-quality columns. |
 | `AA1=24,0000,9,1` | `precip_period_hours_1=24.0`, `precip_amount_1=0.0`, `precip_condition_code_1=9`, `precip_quality_code_1=1` | The repeating precipitation field is decoded with the repeat index preserved in the column names. |
 
-## Stability Contract
+## Stability Notes
 
 The intentional stable patterns are:
 

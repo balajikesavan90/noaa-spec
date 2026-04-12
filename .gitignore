@@ -21,6 +21,12 @@ poetry.lock
 !reproducibility/minimal/**
 !reproducibility/minimal_second/
 !reproducibility/minimal_second/**
+!reproducibility/station_03041099999_aonach_mor/
+!reproducibility/station_03041099999_aonach_mor/**
+!reproducibility/station_01116099999_stokka/
+!reproducibility/station_01116099999_stokka/**
+!reproducibility/station_94368099999_hamilton_island/
+!reproducibility/station_94368099999_hamilton_island/**
 
 # Runtime outputs remain ignored by default.
 output/

@@ -1,7 +1,7 @@
 """NOAA-Spec package.
 
 Public API surface (JOSS-reviewed):
-    cleaning        — canonical interpretation logic
+    cleaning        — cleaned-output interpretation logic
     constants       — field rules, sentinels, QC definitions
     deterministic_io — checksummable CSV writer
     cli             — ``noaa-spec clean`` entry point

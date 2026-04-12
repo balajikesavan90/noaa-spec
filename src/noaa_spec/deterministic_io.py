@@ -1,4 +1,4 @@
-"""Deterministic CSV serialization helpers for canonical NOAA-Spec output."""
+"""Deterministic CSV serialization helpers for NOAA-Spec cleaned output."""
 
 from __future__ import annotations
 

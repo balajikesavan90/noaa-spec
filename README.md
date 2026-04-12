@@ -36,7 +36,7 @@ After running the fixture, open:
 
 - `reproducibility/minimal/station_raw.csv` for the raw NOAA-style input.
 - `reproducibility/minimal/station_cleaned_expected.csv` for the expected cleaned output.
-- `docs/schema.md` for the cleaned CSV schema contract and naming conventions.
+- `docs/schema.md` for cleaned CSV structure and naming conventions.
 - `docs/rule_provenance.md` for representative rule-to-source traceability.
 
 ## Local Install
@@ -93,7 +93,7 @@ DATE                 temperature_c  temperature_quality_code  dew_point_c  visib
 
 The raw token `TMP=+9999,9` becomes a null `temperature_c`, while the NOAA quality code `9` remains available in `temperature_quality_code`.
 
-The full fixture output is intentionally wider than this excerpt. NOAA composite fields such as `WND`, `VIS`, `TMP`, `AA1`, and `GA1` can each expand into decoded measurement columns, preserved NOAA quality-code columns, and `__qc_*` validation sidecars. See [docs/schema.md](docs/schema.md) for the schema contract.
+The full cleaned output is intentionally wide: even a tiny input can expand to around 100+ columns because NOAA packed fields are decomposed and QC/sidecar columns are preserved. Users usually select a domain-relevant subset of columns for analysis. See [docs/schema.md](docs/schema.md) for the full structure.
 
 ## Why Not a Simple Script?
 
@@ -133,8 +133,11 @@ NOAA-Spec does not replace downstream analysis. It gives reviewers and researche
 
 The tracked reproducibility fixtures are small by design:
 
-- `reproducibility/minimal/`: 5 raw rows, used by the Docker and local checksum path.
+- `reproducibility/minimal/`: 5 raw rows, used by the primary Docker and local checksum path.
 - `reproducibility/minimal_second/`: 8 raw rows, covering additional precipitation, cloud, past-weather, extreme-temperature, and present-weather fields.
+- `reproducibility/station_03041099999_aonach_mor/`: 4 raw rows from Aonach Mor, UK.
+- `reproducibility/station_01116099999_stokka/`: 4 raw rows from Stokka, Norway.
+- `reproducibility/station_94368099999_hamilton_island/`: 4 raw rows from Hamilton Island Airport, Australia.
 
 These fixtures prove deterministic behavior for committed input/output pairs. Broader correctness is covered by the automated tests in `tests/`, especially cleaning, QC, deterministic I/O, CLI behavior, field parsing, and fixture reproduction tests.
 
@@ -148,7 +151,7 @@ python -m pytest tests -v
 
 ## Repository Map
 
-- `docs/schema.md`: reviewer-facing cleaned CSV schema contract.
+- `docs/schema.md`: reviewer-facing cleaned CSV structure and naming conventions.
 - `docs/rule_provenance.md`: representative rule provenance and source-doc pointers.
 - `src/noaa_spec/cleaning.py`: NOAA field interpretation and cleaning logic.
 - `src/noaa_spec/constants.py`: encoded field rules, sentinels, and QC definitions.

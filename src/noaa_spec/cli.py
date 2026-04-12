@@ -30,9 +30,10 @@ def _parse_args() -> argparse.Namespace:
         prog="noaa-spec",
         description=(
             "Clean a NOAA ISD / Global Hourly raw CSV into a deterministic "
-            "observation-level canonical CSV with normalized sentinels, preserved QC "
-            "semantics, and a stable output schema. The public canonical CSV uses "
-            "STATION and DATE as the reviewer-visible identifier columns."
+            "observation-level cleaned CSV with normalized sentinels, preserved QC "
+            "semantics, and deterministic output for a given input. The public "
+            "cleaned CSV uses STATION and DATE as the reviewer-visible identifier "
+            "columns."
         ),
         epilog=(
             "Primary workflow: noaa-spec clean INPUT.csv OUTPUT.csv "
@@ -46,10 +47,10 @@ def _parse_args() -> argparse.Namespace:
 
     clean_parser = subparsers.add_parser(
         "clean",
-        help="Clean a NOAA raw CSV into the canonical cleaned CSV.",
+        help="Clean a NOAA raw CSV into the cleaned CSV.",
         description=(
             "Read a NOAA ISD / Global Hourly CSV, replace sentinel-coded values "
-            "with nulls, preserve QC columns, and write a deterministic canonical "
+            "with nulls, preserve QC columns, and write a deterministic "
             "cleaned CSV."
         ),
     )
