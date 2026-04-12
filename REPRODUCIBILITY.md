@@ -24,6 +24,15 @@ python3 -m noaa_spec.cli clean reproducibility/minimal/station_raw.csv /tmp/noaa
 
 It then compares the generated CSV checksum to the tracked expected output.
 
+After verification, reviewers should inspect the raw fixture and expected cleaned output side by side:
+
+- `reproducibility/minimal/station_raw.csv`
+- `reproducibility/minimal/station_cleaned_expected.csv`
+- `docs/schema.md`
+- `docs/rule_provenance.md`
+
+The cleaned CSV is wider than a single analysis table because NOAA-Spec preserves decoded measurements, NOAA quality codes, validation sidecars, and row-level usability summaries. Width depends on which optional NOAA encoded fields are present in the input.
+
 ## Primary Fixture
 
 Tracked files:

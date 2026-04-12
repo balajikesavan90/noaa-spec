@@ -30,7 +30,7 @@ The submitted software surface is intentionally narrow. NOAA-Spec reads raw NOAA
 
 Preprocessing NOAA ISD is not just a matter of loading a CSV into pandas. A token such as `TMP=+9999,9` contains both a numeric segment and a quality code [@noaa_isd_docs]. The numeric segment is not a large temperature; it is a sentinel-coded missing value. A naive parser can therefore leak sentinel values into analysis, while an overly simple cleaner can drop the quality code that explains the state of the measurement.
 
-Project-local cleaning scripts also tend to diverge in small but consequential ways: one script may convert `+9999` to `NaN` but discard the associated QC flag, another may rename columns differently, and another may serialize rows in an order that is hard to checksum. These differences make downstream tables difficult to compare even when the same NOAA source rows were used.
+Project-local cleaning scripts also tend to diverge in small but consequential ways: one script may convert `+9999` to `NaN` but discard the associated QC flag, another may handle composite fields such as `VIS=010000,1,N,1` differently, and another may serialize rows in an order that is hard to checksum. These differences make downstream tables difficult to compare even when the same NOAA source rows were used.
 
 NOAA-Spec addresses this specific gap. For `TMP=+9999,9`, it emits a null `temperature_c`, preserves `temperature_quality_code=9`, and records `TMP__qc_reason=SENTINEL_MISSING`. The output remains observation-level, so downstream researchers can apply their own scientific filters after starting from the same canonical interpretation.
 
@@ -62,7 +62,7 @@ The public CLI is:
 noaa-spec clean INPUT.csv OUTPUT.csv
 ```
 
-The implementation separates the canonicalization logic (`cleaning.py` and `constants.py`) from deterministic CSV writing (`deterministic_io.py`) and the command-line entry point (`cli.py`). The canonical output is intentionally wide because it preserves decoded measurement fields and QC context rather than projecting a single analysis-ready subset.
+The implementation separates the canonicalization logic (`cleaning.py` and `constants.py`) from deterministic CSV writing (`deterministic_io.py`) and the command-line entry point (`cli.py`). The canonical output is intentionally wide because it preserves decoded measurement fields, NOAA quality codes, validation sidecars, and row-level usability summaries rather than projecting a single analysis-ready subset. The repository includes reviewer-facing schema and representative rule-provenance notes in `docs/schema.md` and `docs/rule_provenance.md`.
 
 # Reproducibility
 

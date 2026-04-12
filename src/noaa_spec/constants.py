@@ -8,6 +8,10 @@ from functools import lru_cache
 
 BASE_URL = "https://www.ncei.noaa.gov/data/global-hourly/access"
 
+# Derived from NOAA ISD quality-code tables in the checked-in format docs.
+# See `spec_sources/isd-format-document-parts/part-03-mandatory-data-section.md`
+# and `part-04-additional-data-section.md`. These constants preserve NOAA code
+# vocabulary; interpretation stays visible in cleaned `*_quality_code` columns.
 QUALITY_FLAGS = {
     "0",
     "1",
@@ -843,6 +847,11 @@ QC_REASON_ENUM = frozenset(
 USABILITY_METRIC_INDICATORS = ["qc_pass"]
 
 
+# Field rules below encode representative NOAA token structure: part arity,
+# sentinel values, scales, quality-code parts, and fixed-width checks. The
+# mandatory observation groups (`WND`, `CIG`, `VIS`, `TMP`, `DEW`, `SLP`) are
+# derived from the NOAA ISD mandatory data section in checked-in source docs:
+# `spec_sources/isd-format-document-parts/part-03-mandatory-data-section.md`.
 FIELD_RULES: dict[str, FieldRule] = {
     "CONTROL_POS_1_4": FieldRule(
         code="CONTROL_POS_1_4",
@@ -1206,6 +1215,10 @@ FIELD_RULES: dict[str, FieldRule] = {
             ),  # variability quality
         },
     ),
+    # TMP/DEW are NOAA air-temperature composite fields: value plus quality
+    # code. The sentinel `9999` and tenths-degree scale come from the checked-in
+    # ISD mandatory data documentation; QC code semantics are preserved rather
+    # than collapsed into a boolean.
     "TMP": FieldRule(
         code="TMP",
         parts={
@@ -1248,6 +1261,10 @@ FIELD_RULES: dict[str, FieldRule] = {
             )
         },
     ),
+    # Supplemental field families below are representative parser rules from
+    # checked-in NOAA ISD part docs (additional data, cloud/solar, temperature,
+    # pressure, and related sections). They retain each field's value,
+    # condition, and quality parts and expose validation sidecars in output.
     "OC1": FieldRule(
         code="OC1",
         parts={
@@ -1862,6 +1879,9 @@ FIELD_RULES: dict[str, FieldRule] = {
 }
 
 FIELD_RULE_PREFIXES: dict[str, FieldRule] = {
+    # AA1-AA4: repeated liquid-precipitation fields documented in the NOAA ISD
+    # additional data section. Repeated suffixes are intentionally preserved in
+    # public names such as `precip_amount_1` and `precip_quality_code_1`.
     "AA": FieldRule(
         code="AA*",
         parts={
@@ -3014,6 +3034,9 @@ FIELD_RULE_PREFIXES: dict[str, FieldRule] = {
             ),
         },
     ),
+    # GA1-GA6: repeated cloud-layer fields. Rules here preserve layer index,
+    # value fields, and quality-code parts for reviewer spot-checking against
+    # the NOAA additional data/cloud documentation in `spec_sources/`.
     "GA": FieldRule(
         code="GA*",
         parts={
@@ -3169,6 +3192,9 @@ FIELD_RULE_PREFIXES: dict[str, FieldRule] = {
             ),
         },
     ),
+    # KA1-KA4: repeated extreme-temperature fields. Values are scaled to
+    # degrees C and NOAA quality codes remain explicit in `*_quality_code`
+    # columns.
     "KA": FieldRule(
         code="KA*",
         parts={
@@ -5236,6 +5262,9 @@ for _letter in ("Q", "P", "R", "C", "D"):
 _EQD_PREFIX_RULES.update({f"N{digit}": EQD_UNIT_RULE for digit in "0123456789"})
 FIELD_RULE_PREFIXES.update(_EQD_PREFIX_RULES)
 
+# Repeated-identifier families come from NOAA optional/repeated field families.
+# This registry keeps parser acceptance legible: e.g., AA1-AA4, GA1-GA6, and
+# KA1-KA4 are accepted, while malformed suffixes such as AA01 are rejected.
 _REPEATED_IDENTIFIER_RANGES: dict[str, range] = {
     "AA": range(1, 5),
     "AH": range(1, 7),
@@ -5544,6 +5573,10 @@ KNOWN_IDENTIFIERS: set[str] = _build_known_identifiers()
 
 _EXPANDED_COL_RE = re.compile(r"^(?P<field>[A-Z][A-Z0-9]*)__(?P<suffix>.+)$")
 
+# Public cleaned-column names. These mappings are reviewer-facing schema
+# choices over the NOAA tokens: they expose units, keep quality codes explicit,
+# and leave NOAA-derived sidecar names (`TMP__qc_reason`, etc.) traceable to the
+# source identifier.
 FRIENDLY_COLUMN_MAP: dict[str, str] = {
     "WND__part1": "wind_direction_deg",
     "WND__part2": "wind_direction_quality_code",
