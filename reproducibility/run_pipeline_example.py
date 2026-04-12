@@ -1,4 +1,8 @@
-"""Run the tracked public cleaning fixture used for reviewer verification."""
+"""Internal helper for rerunning the minimal cleaning fixture.
+
+The reviewer-facing workflow is the public `noaa-spec clean` CLI documented in
+REPRODUCIBILITY.md. This helper remains for maintainer convenience only.
+"""
 
 from __future__ import annotations
 

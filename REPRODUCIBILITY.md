@@ -4,7 +4,7 @@ This document describes the tracked reproducibility checks for the JOSS-facing N
 
 ## Docker Verification
 
-Docker is the preferred pinned reviewer path.
+Docker is the repository-provided reviewer path.
 
 ```bash
 docker build -f Dockerfile -t noaa-spec-review .
@@ -33,12 +33,16 @@ It then compares each generated CSV checksum to the tracked expected output.
 
 Optional domain split CSVs are derived convenience views from cleaned output. They are not part of this primary checksum workflow.
 
+The Dockerfile defines a tested reviewer container, but it is not a fully immutable environment: it currently uses the `python:3.12-slim` tag rather than a digest and upgrades bootstrap packaging tools during the image build.
+
 After verification, reviewers should inspect the raw fixture and expected cleaned output side by side:
 
 - `reproducibility/minimal/station_raw.csv`
 - `reproducibility/minimal/station_cleaned_expected.csv`
+- `docs/supported_fields.md`
 - `docs/schema.md`
 - `docs/rule_provenance.md`
+- `reproducibility/FIXTURE_PROVENANCE.md`
 
 The cleaned CSV is wider than a single analysis table because NOAA-Spec preserves decoded measurements, NOAA quality codes, validation sidecars, and row-level usability summaries. Width depends on which optional NOAA encoded fields are present in the input.
 
@@ -60,6 +64,8 @@ python -m pip install -e .
 noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/noaa-spec-sample.csv
 sha256sum /tmp/noaa-spec-sample.csv
 ```
+
+Python 3.11 and 3.12 are supported by project metadata; use `python3.11` in the virtual-environment command if that is the supported interpreter available on your system.
 
 Expected checksum:
 
@@ -93,7 +99,7 @@ e6f8ae6ca75c10bdbbc1714cc61f49d0afcbe7ad6767da58551fc73742dab934
 
 ## Additional Station Fixtures
 
-These 4-row fixtures were selected from local real-station examples to broaden reviewer evidence across geography and reporting characteristics without adding large datasets. Their expected outputs were generated with the same `noaa-spec clean` CLI.
+These 4-row fixtures were selected from local real-station examples to broaden reviewer evidence across geography and reporting characteristics without adding large datasets. Their expected outputs were generated with the same `noaa-spec clean` CLI. The exact upstream retrieval dates and original NOAA URL/year-file metadata were not retained when these slices were curated; see [reproducibility/FIXTURE_PROVENANCE.md](reproducibility/FIXTURE_PROVENANCE.md).
 
 | Fixture | Station | Raw input SHA256 | Expected output SHA256 | Coverage note |
 | --- | --- | --- | --- | --- |
@@ -118,4 +124,4 @@ Expected checksum:
 
 The primary fixture contains 5 raw rows. The secondary fixture contains 8 raw rows and includes additional NOAA field structures including precipitation (`AA1`-`AA4`), multiple cloud layers (`GA1`-`GA5`), past weather (`AY1`/`AY2`), extreme temperature (`KA1`/`KA2`), and present weather (`MW1`-`MW3`). The three additional station fixtures each contain 4 raw rows.
 
-These fixtures are reproducibility checks, not a claim of exhaustive NOAA coverage. The automated tests exercise additional encoded cases for sentinel handling, QC preservation, deterministic output, CLI behavior, and field parsing.
+These fixtures are reproducibility checks, not a claim of exhaustive NOAA coverage or upstream download replay. The automated tests exercise additional encoded cases for sentinel handling, QC preservation, deterministic output, CLI behavior, and field parsing.

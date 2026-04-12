@@ -2,7 +2,7 @@
 
 NOAA-Spec is a deterministic cleaning layer for NOAA ISD / Global Hourly observations. Its primary reviewer-facing workflow is to run `noaa-spec clean` on a raw NOAA-style CSV and get a reproducible cleaned CSV with sentinel-coded values normalized to nulls, NOAA quality-code semantics preserved, and deterministic row/order serialization.
 
-This tool provides a consistent and reproducible interpretation of NOAA ISD CSV fields, rather than asserting a single authoritative schema for all possible NOAA data.
+This tool provides a consistent and reproducible interpretation for the supported NOAA ISD CSV field families in this release, rather than asserting a single authoritative schema for all possible NOAA data.
 
 ## What This Does
 
@@ -16,7 +16,7 @@ NOAA-Spec does not download NOAA data or orchestrate multi-station batch process
 
 ## First Run
 
-Use Docker for the preferred pinned reviewer run:
+Use Docker for the repository-provided reviewer run:
 
 ```bash
 docker build -f Dockerfile -t noaa-spec-review .
@@ -35,19 +35,21 @@ PASS: reproducibility verification succeeded.
 Output directory: /tmp/noaa-spec-reproducibility
 ```
 
-The Docker path installs the package, runs `noaa-spec clean` against the tracked fixtures, and checks that the generated CSVs match the expected SHA256 values. This is the preferred reviewer path because the environment is pinned by the repository Dockerfile.
+The Docker path installs the package, runs `noaa-spec clean` against the tracked fixtures, and checks that the generated CSVs match the expected SHA256 values. This is a repository-defined and tested reviewer path. The base image currently uses the `python:3.12-slim` tag rather than a digest, and the Dockerfile upgrades bootstrap packaging tools during the build, so this should be treated as a tested containerized workflow rather than an immutable environment.
 
 After running the fixture check, open:
 
 - `reproducibility/minimal/station_raw.csv` for the raw NOAA-style input.
 - `reproducibility/minimal/station_cleaned_expected.csv` for the expected cleaned output.
-- `docs/schema.md` for cleaned CSV structure and naming conventions.
-- `docs/rule_provenance.md` for representative rule-to-source traceability.
+- `docs/supported_fields.md` for the versioned supported cleaned-output field registry.
+- `docs/schema.md` for cleaned CSV interpretation and naming conventions.
+- `docs/rule_provenance.md` for auditable rule-family provenance and claim boundaries.
+- `reproducibility/FIXTURE_PROVENANCE.md` for fixture source and selection notes.
 - `spec_sources/README.md` for the NOAA source artifact hierarchy.
 
 ## Local Install
 
-Python 3.11 or 3.12 is required. Local install is a convenience and development path. Create and activate a virtual environment first; installing into system Python may fail on Linux distributions that enforce externally managed Python environments.
+Python 3.11 or 3.12 is required. The examples below use `python3.12`; use `python3.11` instead if that is your available supported interpreter. Local install is a convenience and development path. Create and activate a virtual environment first; installing into system Python may fail on Linux distributions that enforce externally managed Python environments.
 
 To install the CLI directly from GitHub without an editable local checkout:
 
@@ -113,19 +115,21 @@ The raw token `TMP=+9999,9` becomes a null `temperature_c`, while the NOAA quali
 
 The cleaned CSV intentionally includes both raw NOAA identifier/source fields for traceability and decoded semantic columns for analysis. Users typically analyze decoded columns such as `temperature_c`, `visibility_m`, and `wind_speed_ms`; raw NOAA identifiers can usually be ignored unless auditing traceability.
 
-The full cleaned output is intentionally wide: even a tiny input can expand to around 100+ columns because NOAA packed fields are decomposed and QC/sidecar columns are preserved. See [docs/schema.md](docs/schema.md) for the full structure and a short start-here guide.
+The full cleaned output is intentionally wide: even a tiny input can expand to around 100+ columns because NOAA packed fields are decomposed and QC/sidecar columns are preserved. See [docs/supported_fields.md](docs/supported_fields.md) for the versioned supported-field registry and [docs/schema.md](docs/schema.md) for interpretation guidance.
 
 ## How to Read the Cleaned Output First
 
-Start with these decoded measurement columns and their nearby quality-code or QC sidecar columns:
+The first columns in `reproducibility/minimal/station_cleaned_expected.csv` are source identifiers (`STATION`, `DATE`, `SOURCE`, `LATITUDE`, `LONGITUDE`, `ELEVATION`, `REPORT_TYPE`, `CALL_SIGN`, `QUALITY_CONTROL`). Use those to relate a cleaned row back to the NOAA observation.
 
-- Temperature: `temperature_c`, `temperature_quality_code`, `TMP__qc_reason`.
-- Visibility: `visibility_m`, `visibility_quality_code`, `VIS__part1__qc_status`.
-- Wind: `wind_speed_ms`, `wind_direction_deg`, `wind_speed_quality_code`, `WND__part4__qc_status`.
-- Pressure: `sea_level_pressure_hpa`, `station_pressure_hpa`, `SLP__qc_status`.
+Then inspect these decoded measurement columns and their nearby quality-code or QC sidecar columns:
+
+- Temperature: `temperature_c`, `temperature_quality_code`, `TMP__qc_status`, `TMP__qc_reason`.
+- Visibility: `visibility_m`, `visibility_quality_code`, `VIS__part1__qc_status`, `VIS__part1__qc_reason`.
+- Wind: `wind_speed_ms`, `wind_direction_deg`, `wind_speed_quality_code`, `WND__part4__qc_status`, `qc_calm_wind_detected`.
+- Pressure: `sea_level_pressure_hpa`, `station_pressure_hpa`, `SLP__qc_status`, `MA1__part3__qc_status`.
 - Row usability: `row_has_any_usable_metric`, `usable_metric_count`, `usable_metric_fraction`.
 
-The canonical cleaned CSV is intentionally comprehensive and deterministic. Treat it as the stable output contract before using narrower convenience views.
+Empty cells in decoded measurement columns are expected when NOAA sentinels were normalized to null. The matching NOAA quality-code and `__qc_*` sidecar columns explain whether a value passed, was sentinel-missing, failed a quality-code check, or failed a range/format check. Use [docs/supported_fields.md](docs/supported_fields.md) as the supported-field contract and [docs/schema.md](docs/schema.md) for worked examples.
 
 ## Optional Domain Splits
 
@@ -182,7 +186,7 @@ The tracked reproducibility fixtures are small by design:
 - `reproducibility/station_01116099999_stokka/`: 4 raw rows from Stokka, Norway.
 - `reproducibility/station_94368099999_hamilton_island/`: 4 raw rows from Hamilton Island Airport, Australia.
 
-These fixtures prove deterministic behavior for committed input/output pairs. Broader correctness is covered by the automated tests in `tests/`, especially cleaning, QC, deterministic I/O, CLI behavior, field parsing, and fixture reproduction tests.
+These fixtures prove deterministic behavior for committed input/output pairs. The real-station fixtures are curated slices; their exact upstream retrieval metadata was not retained. See [reproducibility/FIXTURE_PROVENANCE.md](reproducibility/FIXTURE_PROVENANCE.md) for the provenance boundary. Broader correctness is covered by the automated tests in `tests/`, especially cleaning, QC, deterministic I/O, CLI behavior, field parsing, and fixture reproduction tests.
 
 ## Run Tests
 
@@ -194,8 +198,9 @@ python -m pytest tests -v
 
 ## Repository Map
 
-- `docs/schema.md`: reviewer-facing cleaned CSV structure and naming conventions.
-- `docs/rule_provenance.md`: representative rule provenance and source-doc pointers.
+- `docs/supported_fields.md`: versioned supported cleaned-output field registry.
+- `docs/schema.md`: reviewer-facing cleaned CSV interpretation and naming conventions.
+- `docs/rule_provenance.md`: auditable rule-family provenance and source-doc pointers.
 - `src/noaa_spec/cleaning.py`: NOAA field interpretation and cleaning logic.
 - `src/noaa_spec/constants.py`: encoded field rules, sentinels, and QC definitions.
 - `src/noaa_spec/deterministic_io.py`: deterministic CSV writer.
