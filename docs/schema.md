@@ -6,7 +6,7 @@ This guide explains how to read a cleaned CSV produced by:
 noaa-spec clean INPUT.csv OUTPUT.csv
 ```
 
-For the versioned supported-field registry, use [supported_fields.md](supported_fields.md). That registry defines the recognized NOAA field families, public decoded column patterns, QC columns, sentinel handling, and provenance links for NOAA-Spec 1.0.0.
+For the documented field registry, use [supported_fields.md](supported_fields.md). That registry defines the recognized NOAA field families, public decoded column patterns, QC columns, sentinel handling, evidence labels, and provenance links for NOAA-Spec 1.0.0.
 
 The output schema is deterministic for a given input file and NOAA-Spec version, but the emitted column set depends on which supported NOAA fields are present in the input. NOAA-Spec does not claim a fixed global column set for all possible NOAA ISD / Global Hourly data.
 
@@ -22,7 +22,7 @@ Raw NOAA identifier/source columns such as `STATION`, `REPORT_TYPE`, `REM`, or o
 
 NOAA source rows can contain many optional encoded fields. NOAA-Spec expands recognized encoded fields that are present in the input into decoded value columns, quality-code columns, and validation sidecar columns. A file containing only `TMP` and `VIS` will produce fewer columns than one containing precipitation, cloud layers, present weather, pressure, and extreme-temperature fields.
 
-Use [supported_fields.md](supported_fields.md) to determine which wide-column groups are part of the supported cleaned-output surface for this release.
+Use [supported_fields.md](supported_fields.md) to determine which wide-column groups are part of the documented cleaning field set for this release.
 
 ## Column Groups
 
@@ -64,7 +64,7 @@ For the same input file, NOAA-Spec version, and execution environment, the outpu
 
 ## What Is Guaranteed
 
-- The supported field surface for NOAA-Spec 1.0.0 is documented in [supported_fields.md](supported_fields.md).
+- The documented cleaning field set for NOAA-Spec 1.0.0 is described in [supported_fields.md](supported_fields.md), including whether behavior is demonstrated by tracked fixtures, reviewer examples, or unit tests.
 - Naming conventions for supported decoded fields are stable within this release.
 - QC columns follow consistent documented patterns.
 - Column ordering and CSV serialization are deterministic for the same input and version.

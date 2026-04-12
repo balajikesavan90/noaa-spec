@@ -1,7 +1,7 @@
-"""Internal helper for rerunning the minimal cleaning fixture.
+"""Maintainer helper for rerunning the minimal cleaning fixture.
 
 The reviewer-facing workflow is the public `noaa-spec clean` CLI documented in
-REPRODUCIBILITY.md. This helper remains for maintainer convenience only.
+REPRODUCIBILITY.md. This helper is not part of the JOSS reviewer path.
 """
 
 from __future__ import annotations

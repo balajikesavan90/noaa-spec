@@ -35,7 +35,7 @@ It then compares each generated CSV checksum to the tracked expected output
 hashes in `reproducibility/checksums.sha256`. That file is the canonical
 checksum manifest for tracked reproducibility artifacts.
 
-Optional domain split CSVs are derived convenience views from cleaned output. They are not part of this primary checksum workflow or the JOSS reproducibility claim.
+Optional domain split CSVs are derived convenience views from cleaned output. They are not part of this primary checksum workflow, the JOSS contribution, or the JOSS reproducibility claim.
 
 The Dockerfile defines a tested reviewer container, but it is not a fully immutable environment: it currently uses the `python:3.12-slim` tag rather than a digest and upgrades bootstrap packaging tools during the image build.
 
@@ -51,7 +51,7 @@ After verification, reviewers should inspect the raw fixture and expected cleane
 - `reproducibility/checksums.sha256`
 - `docs/reviewer_cleaning_examples.md`
 
-The cleaned CSV is wider than a single analysis table because NOAA-Spec preserves decoded measurements, NOAA quality codes, validation sidecars, and row-level usability summaries. Width depends on which optional NOAA encoded fields are present in the input. Start with `docs/first_output_guide.md` if the first output feels overwhelming.
+The cleaned CSV is wider than a single analysis table because NOAA-Spec preserves decoded measurements, NOAA quality codes, validation sidecars, and row-level usability summaries. Width depends on which optional NOAA encoded fields are present in the input. Start with `docs/first_output_guide.md` for a compact first view before reading the full CSV.
 
 ## Primary Fixture
 
@@ -125,7 +125,7 @@ Compare the generated checksum with the matching
 
 ## Additional Station Fixtures
 
-These 4-row fixtures were selected from local real-station examples to broaden reviewer evidence across geography and reporting characteristics without adding large datasets. Their expected outputs were generated with the same `noaa-spec clean` CLI. The exact upstream retrieval dates and original NOAA URL/year-file metadata were not retained when these slices were curated; see [reproducibility/FIXTURE_PROVENANCE.md](reproducibility/FIXTURE_PROVENANCE.md).
+These 4-row fixtures are committed real-station slices that broaden deterministic input/output checks across geography and reporting characteristics without adding large data files. Their expected outputs were generated with the same `noaa-spec clean` CLI. The exact upstream retrieval dates and original NOAA URL/year-file metadata were not retained when these slices were curated; see [reproducibility/FIXTURE_PROVENANCE.md](reproducibility/FIXTURE_PROVENANCE.md).
 
 | Fixture | Station | Coverage note |
 | --- | --- | --- |

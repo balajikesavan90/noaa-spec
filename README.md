@@ -1,16 +1,29 @@
 # NOAA-Spec
 
-NOAA-Spec is a deterministic cleaning layer for NOAA ISD / Global Hourly CSV observations. Its public JOSS-facing workflow is:
+NOAA-Spec provides deterministic, specification-constrained cleaning of NOAA
+Integrated Surface Database (ISD) / Global Hourly CSV observations by
+normalizing documented sentinel values, preserving NOAA quality-code context,
+and producing checksum-stable output for a defined supported field set. Its
+public JOSS-facing workflow is:
 
 ```bash
 noaa-spec clean INPUT.csv OUTPUT.csv
 ```
 
-The command writes an observation-level cleaned CSV with documented NOAA sentinels normalized to empty null cells, NOAA quality codes preserved in explicit columns, and deterministic row/order serialization. The value is not parsing alone; it is making NOAA cleaning decisions explicit, testable, provenance-aware, and checksum-stable so downstream researchers can start from the same documented interpretation rather than divergent local scripts. NOAA-Spec does not download NOAA data, orchestrate station batches, produce releases, or run analyses.
+The command writes an observation-level cleaned CSV with documented NOAA
+sentinels normalized to empty null cells, NOAA quality codes preserved in
+explicit columns, and deterministic row/order serialization. The value is not
+parsing alone; it is making a bounded set of NOAA cleaning decisions explicit,
+testable, provenance-aware, and checksum-stable so downstream researchers can
+start from the same documented interpretation rather than divergent local
+scripts. NOAA-Spec does not download NOAA data, orchestrate station batches,
+produce releases, or run analyses.
 
 ## Reviewer Path
 
-Use the repository-defined, tested Docker reviewer environment:
+Use the repository-defined, tested Docker reviewer environment. This is the
+primary reviewer path; local installation below is a convenience path for users
+who do not want Docker.
 
 ```bash
 docker build -f Dockerfile -t noaa-spec-review .
@@ -38,7 +51,9 @@ The only upstream-traceable provenance example is:
 - Checksums: `reproducibility/checksums.sha256`
 - Provenance note: `reproducibility/REAL_PROVENANCE_EXAMPLE.md`
 
-It uses the first 20 data rows from the NOAA/NCEI Global Hourly CSV for station `78724099999`:
+It uses the first 20 data rows from the NOAA/NCEI Global Hourly CSV for station
+`78724099999`. This demonstrates one traceable source slice; it is not a claim
+of broad NOAA coverage.
 
 ```text
 https://www.ncei.noaa.gov/data/global-hourly/access/2001/78724099999.csv
@@ -57,12 +72,12 @@ Compare the generated checksum with the matching
 `reproducibility/real_provenance_example/station_cleaned_expected.csv` entry in
 `reproducibility/checksums.sha256`.
 
-Analysis-view snapshot from the expected output:
+Analysis-view snapshot from the tracked expected output:
 
-| STATION | DATE | temperature_c | temperature_quality_code | visibility_m | wind_speed_ms | precip_amount_1 | cloud_layer_base_height_m_1 |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 78724099999 | 2001-01-01T00:00:00 | 30.0 | 1 | 11265.0 | 8.7 |  | 840.0 |
-| 78724099999 | 2001-01-01T15:00:00 | 29.3 | 1 | 28000.0 | 8.2 | 0.0 | 960.0 |
+| STATION | DATE | temperature_c | temperature_quality_code | visibility_m | visibility_quality_code | wind_speed_ms | wind_type_code | precip_amount_1 | precip_quality_code_1 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 78724099999 | 2001-01-01T00:00:00 | 30.0 | 1 | 11265.0 | 1.0 | 8.7 | N |  |  |
+| 78724099999 | 2001-01-01T15:00:00 | 29.3 | 1 | 28000.0 | 1.0 | 8.2 | N | 0.0 | 1.0 |
 
 ### How to read one row
 
@@ -78,7 +93,11 @@ For `2001-01-01T15:00:00`, read the decoded measurement columns first and ignore
 
 ## First Output: What To Look At
 
-Start with decoded measurement columns and their NOAA quality-code columns. Ignore `__qc_*` sidecars on the first pass unless a decoded value is empty or surprising.
+The full cleaned CSV is intentionally wide because it preserves decoded
+measurements, NOAA quality codes, parser sidecars, and row-level usability
+signals. For a first pass, start with decoded measurement columns and their NOAA
+quality-code columns. Ignore `__qc_*` sidecars unless a decoded value is empty or
+surprising.
 
 | Column | What to check |
 | --- | --- |
@@ -91,6 +110,13 @@ Start with decoded measurement columns and their NOAA quality-code columns. Igno
 | `wind_speed_ms` | Decoded wind speed from `WND`. |
 | `wind_speed_quality_code` | NOAA QC code preserved for wind speed. |
 | `sea_level_pressure_hpa` | Decoded sea-level pressure; `99999` becomes null. |
+
+Compact excerpt from the tracked primary fixture:
+
+| STATION | DATE | temperature_c | temperature_quality_code | visibility_m | visibility_quality_code | wind_speed_ms | wind_type_code | TMP__qc_reason | VIS__part1__qc_reason |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 40435099999 | 2000-01-10T06:00:00 | 18.0 | 1 | 10000.0 | 1.0 | 0.0 | C |  |  |
+| 40435099999 | 2000-03-17T09:00:00 |  | 9 |  | 9.0 |  |  | SENTINEL_MISSING | SENTINEL_MISSING |
 
 For a slightly longer guide, see [docs/first_output_guide.md](docs/first_output_guide.md). For the supported field registry, see [docs/supported_fields.md](docs/supported_fields.md).
 
@@ -114,11 +140,12 @@ For a compact reviewer-facing table of selected real-row edge cases, see [docs/r
 
 ## Why Not Existing NOAA Parsers?
 
-Existing NOAA parsers are useful for exposing NOAA records and parsed structures. NOAA-Spec makes an explicit cleaned-output policy choice for the supported fields: documented sentinels become nulls, NOAA QC codes stay in explicit columns, and decoded column names plus CSV serialization are deterministic for the same committed input.
+Existing NOAA parsers are useful for exposing NOAA records and parsed structures. NOAA-Spec does not claim those tools produce incorrect values. Its narrower contribution is an explicit cleaned-output policy for the documented fields this release supports: documented sentinels become nulls, NOAA QC codes stay in explicit columns, and decoded column names plus CSV serialization are deterministic for the same committed input.
 
-## Local Install
+## Local Install (Convenience Path)
 
-Python 3.11 or 3.12 is required.
+The Docker commands above are the primary reviewer path. For local use, Python
+3.11 or 3.12 is required.
 
 ```bash
 python3.12 -m venv .venv
@@ -146,17 +173,21 @@ The tracked fixtures are small by design:
 - `reproducibility/minimal_second/`: eight raw rows covering additional encoded fields.
 - `reproducibility/station_03041099999_aonach_mor/`, `reproducibility/station_01116099999_stokka/`, and `reproducibility/station_94368099999_hamilton_island/`: four-row curated station slices. Their exact upstream retrieval metadata was not retained.
 
-These fixtures prove deterministic behavior for committed input/output pairs: `clean(committed_input) = committed_output`, verified by checksums. Only `reproducibility/real_provenance_example/` additionally records the upstream NOAA URL, retrieval date, and observed upstream checksum. The other curated fixtures do not replay upstream NOAA acquisition and do not claim exhaustive NOAA coverage. See [REPRODUCIBILITY.md](REPRODUCIBILITY.md) and [reproducibility/FIXTURE_PROVENANCE.md](reproducibility/FIXTURE_PROVENANCE.md).
+These fixtures verify deterministic behavior for committed input/output pairs:
+`clean(committed_input) = committed_output`, verified by checksums. Only
+`reproducibility/real_provenance_example/` additionally records the upstream NOAA
+URL, retrieval date, and observed upstream checksum. The other curated fixtures
+do not replay upstream NOAA acquisition and do not claim exhaustive NOAA
+coverage. Broader field behavior is supported by tests, not by a claim that the
+small fixtures exercise every NOAA field. See [REPRODUCIBILITY.md](REPRODUCIBILITY.md)
+and [reproducibility/FIXTURE_PROVENANCE.md](reproducibility/FIXTURE_PROVENANCE.md).
 
 ## Optional, Outside JOSS Core
 
-Reviewer evaluation should focus on `noaa-spec clean`. `noaa-spec split-domains` can split an already-cleaned CSV into convenience domain CSVs:
-
-```bash
-noaa-spec split-domains CLEANED.csv OUTPUT_DIR --prefix example
-```
-
-This command is an optional utility, not part of the core JOSS contribution. It is not part of the reviewer checksum workflow or the primary reproducibility claim. Manifest files written by this optional command are runtime support artifacts for that optional workflow only.
+Reviewer evaluation should focus on `noaa-spec clean`. The CLI still includes
+`noaa-spec split-domains` as a non-core convenience utility for splitting an
+already-cleaned CSV into derived CSV views. It is not part of the JOSS
+contribution, reviewer checksum workflow, or primary reproducibility claim.
 
 ## Run Tests
 

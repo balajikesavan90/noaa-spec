@@ -19,15 +19,15 @@ bibliography: paper.bib
 
 # Abstract
 
-NOAA-Spec is open-source software for deterministic cleaning of NOAA Integrated Surface Database (ISD) / Global Hourly observations. Its public `noaa-spec clean` command converts raw NOAA-style CSV rows into a deterministic observation-level CSV with sentinel-coded measurements normalized to nulls, NOAA quality-control codes preserved in explicit columns, and deterministic serialization. The contribution is not parsing alone: it is a documented and test-backed NOAA-specific cleaning layer that makes supported NOAA cleaning decisions explicit, provenance-aware, and checksum-stable so downstream researchers can start from the same documented interpretation rather than divergent local scripts.
+NOAA-Spec is open-source software for deterministic, specification-constrained cleaning of NOAA Integrated Surface Database (ISD) / Global Hourly CSV observations. Its public `noaa-spec clean` command converts raw NOAA-style CSV rows into a deterministic observation-level CSV by normalizing documented sentinel values, preserving NOAA quality-code context, and producing checksum-stable output for a defined supported field set. The contribution is not parsing alone: it is a documented and test-backed NOAA-specific cleaning layer that makes a bounded set of cleaning decisions explicit, provenance-aware, and reproducible for downstream use.
 
 # Summary
 
-NOAA ISD is widely used in weather and climate research, but raw rows require NOAA-specific interpretation before cleaned observation tables can be compared across studies [@smith2011isd; @noaa_isd_docs]. Packed measurement fields combine values and quality codes; sentinel values encode missingness; and many fields have documented widths, scales, ranges, and quality semantics. NOAA-Spec packages those interpretation decisions into one Python library and CLI centered on the `noaa-spec clean` workflow.
+NOAA ISD is widely used in weather and climate research, but raw rows require NOAA-specific interpretation before cleaned observation tables can be compared across studies [@smith2011isd; @noaa_isd_docs]. Packed measurement fields combine values and quality codes; sentinel values encode missingness; and many fields have documented widths, scales, ranges, and quality semantics. NOAA-Spec packages a defined set of those interpretation decisions into one Python library and CLI centered on the `noaa-spec clean` workflow.
 
-The submitted software surface is intentionally narrow. NOAA-Spec reads raw NOAA ISD / Global Hourly CSV rows, applies deterministic field-interpretation rules for recognized fields, and writes a cleaned CSV whose serialization and column set are stable for a given input.
+The submitted software surface is intentionally narrow. NOAA-Spec reads raw NOAA ISD / Global Hourly CSV rows, applies deterministic field-interpretation rules for recognized fields, and writes a cleaned CSV whose serialization and emitted columns are stable for a given input.
 
-This tool provides a consistent and deterministic interpretation for the supported NOAA ISD CSV field families in this release, rather than asserting a single authoritative schema for all possible NOAA data.
+The executable evidence in the repository is also bounded: tracked fixtures demonstrate deterministic input/output reproduction, one fixture records upstream NOAA provenance, and tests exercise broader parser behavior. The paper does not assert exhaustive NOAA coverage or a single authoritative schema for all possible NOAA data.
 
 # Statement of Need
 
@@ -35,19 +35,23 @@ Preprocessing NOAA ISD is not just a matter of loading a CSV into pandas. A toke
 
 Project-local cleaning scripts also tend to diverge in small but consequential ways: one script may convert `+9999` to `NaN` but discard the associated QC flag, another may handle composite fields such as `VIS=010000,1,N,1` differently, and another may serialize rows in an order that is hard to checksum. These differences make downstream tables difficult to compare even when the same NOAA source rows were used, which works against reproducible data preparation practice in computational science [@peng2011reproducible].
 
-NOAA-Spec addresses this gap by making these cleaning choices explicit and testable for the public CLI output. The output remains observation-level, so downstream researchers can apply their own scientific filters after starting from the same documented interpretation for supported fields.
+NOAA-Spec addresses this gap by making these cleaning choices explicit and testable for the public CLI output. The output remains observation-level, so downstream researchers can apply their own scientific filters after starting from the same documented interpretation for the fields supported in this release.
 
 # Demonstrated Cleaning Cases
 
-A curated reviewer-facing evidence set contains 15 examples across 6 stations and covers all 8 edge-case patterns found in the local curation sample. The rows are summarized in `docs/reviewer_cleaning_examples.md`. They demonstrate concrete NOAA field semantics that are easy to lose in local preprocessing:
+A compact reviewer-facing evidence set in `docs/reviewer_cleaning_examples.md`
+summarizes selected NOAA ISD / Global Hourly edge cases. The executable
+reproducibility claim remains the tracked fixture workflow in `reproducibility/`;
+these examples explain why specification-aware cleaning matters and avoid making
+claims about failures in other NOAA tools.
 
-| NOAA token | Cleaning policy demonstrated by the curated rows |
-| --- | --- |
-| `TMP=+9999,9` | `+9999` is a documented missing sentinel, so NOAA-Spec emits null `temperature_c`, preserves `temperature_quality_code=9`, and records a sentinel parser reason. |
-| `VIS=999999,9,N,9` | `999999` is a visibility sentinel, so NOAA-Spec emits null `visibility_m` while preserving the visibility quality and variability fields. |
-| `WND=999,1,C,0000,1` | Direction `999` with wind type `C` is calm wind, not missing wind; NOAA-Spec preserves the calm type and valid zero speed. |
-| `WND=999,1,V,0031,1` | Direction `999` with wind type `V` is variable wind direction, not automatically missing wind; NOAA-Spec preserves the type and valid speed. |
-| `AA1=24,9999,1,9` | A precipitation period can be present while the amount is the `9999` sentinel; NOAA-Spec nullifies the amount selectively and preserves the associated QC code. |
+| NOAA token | Naive risk | NOAA-Spec cleaned-output behavior |
+| --- | --- | --- |
+| `TMP=+9999,9` | Treating `+9999` as `+999.9 C` or dropping the QC flag. | Emits null `temperature_c`, preserves `temperature_quality_code=9`, and records `TMP__qc_reason=SENTINEL_MISSING`. |
+| `VIS=999999,9,N,9` | Treating `999999` as a real visibility distance. | Emits null `visibility_m` while preserving visibility QC and variability context. |
+| `WND=999,1,C,0000,1` | Treating all `999` wind directions as missing observations. | Preserves calm wind context with type code `C` and valid `wind_speed_ms=0.0`. |
+| `WND=999,1,V,0031,1` | Treating variable wind direction as ordinary missing wind. | Preserves type code `V` and the valid wind speed while leaving direction null. |
+| `AA1=24,9999,1,9` | Nullifying or retaining the whole precipitation group as one undifferentiated value. | Preserves the period/QC context while nullifying only the sentinel amount. |
 
 # Comparison With Existing Tools
 
@@ -57,7 +61,7 @@ Existing NOAA tools help users obtain or parse ISD data. NOAA-Spec makes a narro
 | --- | --- | --- | --- |
 | Sentinel normalization for `TMP=+9999,9` | Must be implemented by the local workflow after loading | Parsed structure can be exposed; downstream workflow chooses missing-value handling | Emits null `temperature_c`, preserves `temperature_quality_code=9`, and records `TMP__qc_reason=SENTINEL_MISSING` |
 | Packed visibility `VIS=999999,9,N,1` | Must be implemented by the local workflow after loading | Parsed structure can be exposed; downstream workflow chooses cleaning policy | Emits null `visibility_m`, preserves visibility QC, and keeps variability fields explicit |
-| Stable decoded column names | Requires project-specific naming | Naming and analysis tables remain workflow-specific | Uses documented release names such as `temperature_c`, `precip_amount_1`, and `cloud_layer_base_height_m_1` for supported fields |
+| Stable decoded column names | Requires project-specific naming | Parsed names and analysis tables depend on the downstream workflow | Uses documented release names such as `temperature_c`, `precip_amount_1`, and `cloud_layer_base_height_m_1` for supported fields |
 | QC preservation as output | Easy to drop while extracting measurement values | Available if retained by downstream code | Preserved in explicit columns such as `temperature_quality_code` and `precip_quality_code_1`, with `__qc_*` sidecars for parser decisions |
 | Reproducible cleaned CSV | Requires project-specific serialization and checksums | Downstream workflow chooses serialization policy | Writes deterministic CSV output and includes checksum-backed fixtures and regression tests |
 
@@ -75,7 +79,7 @@ The public CLI is:
 noaa-spec clean INPUT.csv OUTPUT.csv
 ```
 
-The implementation separates the NOAA field-interpretation logic (`cleaning.py` and `constants.py`) from deterministic CSV writing (`deterministic_io.py`) and the command-line entry point (`cli.py`). The cleaned output is intentionally wide because it preserves decoded measurement fields, NOAA quality codes, validation sidecars, and row-level usability summaries rather than projecting a single analysis-ready subset. This is a deliberate tradeoff for explicit QC retention and deterministic field exposure; first-time users may find the output large, and `docs/first_output_guide.md` is the intended aid for reading it. Optional domain-specific CSV views can be derived from the cleaned output, but they are outside the core JOSS contribution and are not part of the primary reproducibility claim. The repository includes a versioned supported-field registry in `docs/supported_fields.md`, an interpretation guide in `docs/schema.md`, and a rule-family provenance inventory in `docs/rule_provenance.md`.
+The implementation separates NOAA field interpretation (`cleaning.py` and `constants.py`) from deterministic CSV writing (`deterministic_io.py`) and the command-line entry point (`cli.py`). The cleaned output is intentionally wide because it preserves decoded measurement fields, NOAA quality codes, validation sidecars, and row-level usability summaries rather than projecting a single analysis-ready subset. This is a tradeoff for explicit QC retention and deterministic field exposure; `docs/first_output_guide.md` provides the recommended compact first view. Optional domain-specific CSV views can be derived from the cleaned output, but they are outside the core JOSS contribution and are not part of the primary reproducibility claim. The repository includes a supported-field registry in `docs/supported_fields.md`, an interpretation guide in `docs/schema.md`, and a rule-family provenance inventory in `docs/rule_provenance.md`.
 
 # Reproducibility
 
@@ -85,7 +89,7 @@ The only upstream-traceable provenance example additionally uses the first 20 da
 
 # Limitations
 
-NOAA-Spec is NOAA-specific software. This JOSS submission covers the deterministic cleaning behavior exposed by the `noaa-spec clean` CLI for the supported field surface documented in the repository. It does not claim to be a data downloader, multi-station orchestration framework, release platform, or statistical analysis package.
+NOAA-Spec is NOAA-specific software. This JOSS submission covers the deterministic cleaning behavior exposed by the `noaa-spec clean` CLI for the documented fields supported in this release. It does not claim to be a data downloader, multi-station orchestration framework, release platform, domain dataset publishing system, or statistical analysis package.
 
 # Acknowledgements
 

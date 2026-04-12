@@ -72,8 +72,9 @@ def _parse_args() -> argparse.Namespace:
         prog="noaa-spec",
         description=(
             "Clean a NOAA ISD / Global Hourly raw CSV into a deterministic "
-            "observation-level cleaned CSV with normalized sentinels, preserved QC "
-            "semantics, and deterministic output for a given input. The public "
+            "observation-level cleaned CSV with normalized documented sentinels, "
+            "preserved QC context, and checksum-stable output for the documented "
+            "supported fields. The public "
             "cleaned CSV uses STATION and DATE as the reviewer-visible identifier "
             "columns."
         ),
@@ -122,13 +123,13 @@ def _parse_args() -> argparse.Namespace:
     split_parser = subparsers.add_parser(
         "split-domains",
         help=(
-            "Non-core optional utility for convenience domain CSVs."
+            "Non-core utility; outside the JOSS reviewer workflow."
         ),
         description=(
             "Read an existing canonical cleaned CSV and write analysis-friendly "
             "domain subsets. This is a convenience layer derived from cleaned "
-            "output, not the core JOSS contribution or primary reproducibility "
-            "workflow."
+            "output, not the JOSS contribution, reviewer path, or primary "
+            "reproducibility workflow."
         ),
     )
     split_parser.add_argument(
@@ -170,7 +171,7 @@ def main() -> None:
             include_other=not args.exclude_other,
         )
         print(
-            "Wrote optional domain split CSVs derived from canonical cleaned output; "
+            "Wrote non-core domain split CSVs derived from cleaned output; "
             f"manifest: {manifest_path.resolve()}"
         )
         return

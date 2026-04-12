@@ -3,7 +3,7 @@
 Version: NOAA-Spec 1.0.0  
 Public workflow: `noaa-spec clean INPUT.csv OUTPUT.csv`
 
-This inventory documents the rule families that NOAA-Spec applies to the supported cleaned-output surface described in [supported_fields.md](supported_fields.md). The inventory is auditable at field-family level: it links rule families to NOAA source sections, implementation locations, and regression-test locations. It does not claim that every scalar constant is generated mechanically from a one-rule-per-row provenance database.
+This inventory documents the rule families that NOAA-Spec applies to the documented cleaned-output field set described in [supported_fields.md](supported_fields.md). The inventory is auditable at field-family level: it links rule families to NOAA source sections, implementation locations, and regression-test locations. It does not claim that every scalar constant is generated mechanically from a one-rule-per-row provenance database.
 
 NOAA-Spec combines documented NOAA field rules with explicitly documented engineering safeguards. Where the code is stricter than simple parsing, the conservative behavior is to emit nulls and QC sidecars or to skip expansion of unsupported identifiers rather than silently reinterpret unknown data.
 
@@ -49,4 +49,4 @@ NOAA-Spec combines documented NOAA field rules with explicitly documented engine
 
 ## Claim Boundary
 
-The phrase “specification-constrained” in this repository means that recognized fields are decoded using the checked-in NOAA documentation plus named engineering safeguards in code and tests. It does not mean that every NOAA field in the ISD format is supported, or that every implemented scalar has a separate generated provenance row. The supported surface for this release is the registry in [supported_fields.md](supported_fields.md).
+The phrase “specification-constrained” in this repository means that recognized fields are decoded using the checked-in NOAA documentation plus named engineering safeguards in code and tests. It does not mean that every NOAA field in the ISD format is supported, or that every implemented scalar has a separate generated provenance row. The documented cleaning field set for this release is the registry in [supported_fields.md](supported_fields.md).

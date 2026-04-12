@@ -6,6 +6,7 @@
 - Implemented deterministic cleaned CSV output for NOAA ISD / Global Hourly observation rows handled by `noaa-spec clean`.
 - Normalized documented sentinel-coded measurements to null cells while preserving NOAA quality codes in explicit output columns.
 - Kept the public output observation-level and checksum-stable through deterministic row ordering and CSV serialization.
+- Defined the JOSS-facing scope as cleaning only: no downloader, release builder, orchestration layer, domain dataset publishing system, or analysis workflow.
 
 ### CLI
 - Added the public reviewer-facing invocation `noaa-spec clean INPUT.csv OUTPUT.csv`.
@@ -23,3 +24,4 @@
 ### Repository
 - Installable package renamed to `noaa-spec` (import as `noaa_spec`).
 - JOSS branch narrowed around the cleaning package, reproducibility fixtures, tests, and manuscript rather than broader publication workflows.
+- Documented the evidence boundary between tracked fixture reproduction, one upstream-traceable example, reviewer-facing edge-case examples, and broader unit-tested parser behavior.
