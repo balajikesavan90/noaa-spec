@@ -14,6 +14,7 @@ import pytest
 FIXTURE_CASES = (
     "minimal",
     "minimal_second",
+    "real_provenance_example",
     "station_03041099999_aonach_mor",
     "station_01116099999_stokka",
     "station_94368099999_hamilton_island",

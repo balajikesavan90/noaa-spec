@@ -9,6 +9,7 @@ OUTPUT_DIR="${1:-/tmp/noaa-spec-reproducibility}"
 FIXTURES=(
     "minimal:20e571805ad6eafd0d538b57f64e94ddc6aebe78280e3c10c48095f375f49850"
     "minimal_second:e6f8ae6ca75c10bdbbc1714cc61f49d0afcbe7ad6767da58551fc73742dab934"
+    "real_provenance_example:e7db5076bc211e1a2a738de5ed83e42ba8543d0b1ce7a686f4cd06f399164e53"
     "station_03041099999_aonach_mor:8a38e712e4fcb81bc26860b5a575c05951b3d6761fc04511a6237acfe454abe2"
     "station_01116099999_stokka:a13415c7916371aecdfe0b6e8d5c81eae63207ef7a46606e45b98f0e59b7ae6c"
     "station_94368099999_hamilton_island:1d741b69938780663c88d8f4b982f1d01fc6a8212fe4b4fa0878040e222f1f4e"

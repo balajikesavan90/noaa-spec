@@ -18,7 +18,7 @@ bibliography: paper.bib
 
 # Abstract
 
-NOAA-Spec is open-source software for deterministic cleaning of NOAA Integrated Surface Database (ISD) / Global Hourly observations. Its public `noaa-spec clean` command converts raw NOAA-style CSV rows into a reproducible observation-level CSV with sentinel-coded measurements normalized to nulls, NOAA quality-control codes preserved in explicit columns, and deterministic serialization. The contribution is a reusable NOAA-specific cleaned-output contract for the supported field families in this release, reducing sentinel leakage, quality-code loss, inconsistent packed-field interpretation, and nondeterministic cleaned artifacts in project-local preprocessing.
+NOAA-Spec is open-source software for deterministic cleaning of NOAA Integrated Surface Database (ISD) / Global Hourly observations. Its public `noaa-spec clean` command converts raw NOAA-style CSV rows into a reproducible observation-level CSV with sentinel-coded measurements normalized to nulls, NOAA quality-control codes preserved in explicit columns, and deterministic serialization. The contribution is a documented and test-backed NOAA-specific cleaning contract for supported NOAA field families, reducing sentinel leakage, quality-code loss, inconsistent packed-field interpretation, and nondeterministic cleaned CSVs in project-local preprocessing.
 
 # Summary
 
@@ -52,7 +52,7 @@ Existing NOAA tools help users obtain or parse ISD data, but they do not by them
 | Packed visibility `VIS=999999,9,N,1` | May treat `999999` as an ordinary distance or detach variability fields from the distance they qualify | Parsed structure can be exposed; downstream workflow chooses cleaning policy | Emits null `visibility_m`, preserves visibility QC, and keeps variability fields explicit |
 | Stable decoded column names | Requires project-specific naming | Naming and analysis tables remain workflow-specific | Uses documented release names such as `temperature_c`, `precip_amount_1`, and `cloud_layer_base_height_m_1` for supported fields |
 | QC preservation as output | Easy to drop while extracting measurement values | Available if retained by downstream code | Preserved in explicit columns such as `temperature_quality_code` and `precip_quality_code_1`, with `__qc_*` sidecars for parser decisions |
-| Reproducible cleaned artifact | Requires project-specific serialization and checksums | Not the primary focus of parsing/access packages | Writes deterministic CSV output and includes checksum-backed fixtures and regression tests |
+| Reproducible cleaned CSV | Requires project-specific serialization and checksums | Not the primary focus of parsing/access packages | Writes deterministic CSV output and includes checksum-backed fixtures and regression tests |
 
 # Software Design
 
@@ -68,17 +68,17 @@ The public CLI is:
 noaa-spec clean INPUT.csv OUTPUT.csv
 ```
 
-The implementation separates the NOAA field-interpretation logic (`cleaning.py` and `constants.py`) from deterministic CSV writing (`deterministic_io.py`) and the command-line entry point (`cli.py`). The cleaned output is intentionally wide because it preserves decoded measurement fields, NOAA quality codes, validation sidecars, and row-level usability summaries rather than projecting a single analysis-ready subset. Optional domain-specific CSV views can be derived from the cleaned output for interpretation, but they are secondary convenience artifacts and are not the primary reproducibility claim. The repository includes a versioned supported-field registry in `docs/supported_fields.md`, an interpretation guide in `docs/schema.md`, and a rule-family provenance inventory in `docs/rule_provenance.md`.
+The implementation separates the NOAA field-interpretation logic (`cleaning.py` and `constants.py`) from deterministic CSV writing (`deterministic_io.py`) and the command-line entry point (`cli.py`). The cleaned output is intentionally wide because it preserves decoded measurement fields, NOAA quality codes, validation sidecars, and row-level usability summaries rather than projecting a single analysis-ready subset. Optional domain-specific CSV views can be derived from the cleaned output for interpretation, but they are outside the core JOSS contribution and are not part of the primary reproducibility claim. The repository includes a versioned supported-field registry in `docs/supported_fields.md`, an interpretation guide in `docs/schema.md`, a first-output guide in `docs/first_output_guide.md`, and a rule-family provenance inventory in `docs/rule_provenance.md`.
 
 # Reproducibility
 
-The repository includes tracked raw inputs, tracked expected cleaned outputs, and checksum-backed verification under `reproducibility/`. The primary reviewer path runs the public CLI against `reproducibility/minimal/station_raw.csv` and verifies that the emitted CSV matches the expected SHA256 checksum. A second small fixture exercises additional field structures including precipitation, clouds, past weather, extreme temperature, and present weather. Three additional 4-row station fixtures from Aonach Mor (UK), Stokka (Norway), and Hamilton Island Airport (Australia) broaden the reproducibility evidence across station characteristics while keeping the tracked data reviewer-checkable.
+The repository includes tracked raw inputs, tracked expected cleaned outputs, and checksum-backed verification under `reproducibility/`. The primary reviewer path runs the public CLI against tracked fixtures and verifies that each emitted CSV matches the expected SHA256 checksum. The strongest provenance example uses the first five data rows from the recorded NOAA/NCEI Global Hourly source URL for station `03041099999` in 2024 and records the observed upstream checksum. Smaller curated fixtures exercise additional field structures including precipitation, clouds, past weather, extreme temperature, and present weather while keeping the tracked data reviewer-checkable.
 
-The fixtures are deliberately small and reviewer-checkable. They demonstrate deterministic behavior for committed input/output pairs; the automated tests provide broader regression coverage for sentinel handling, quality-code preservation, deterministic output, CLI behavior, and encoded field parsing. The real-station fixture slices are documented in `reproducibility/FIXTURE_PROVENANCE.md`; the paper does not claim that the fixtures are exhaustive NOAA coverage or that the upstream NOAA fetch step is replayed in this repository.
+The fixtures are deliberately small and reviewer-checkable. They demonstrate deterministic behavior for committed input/output pairs; the automated tests provide broader regression coverage for sentinel handling, quality-code preservation, deterministic output, CLI behavior, and encoded field parsing. The fully traceable source example is documented in `reproducibility/REAL_PROVENANCE_EXAMPLE.md`; the older curated station slices are documented in `reproducibility/FIXTURE_PROVENANCE.md`. The paper does not claim exhaustive NOAA coverage or a general NOAA download workflow.
 
 # Limitations
 
-NOAA-Spec is NOAA-specific software. This JOSS submission covers the deterministic cleaning behavior exposed by the `noaa-spec clean` CLI for the supported field surface documented in the repository. It does not claim to be a data-download system, multi-station orchestration framework, release platform, or statistical analysis package.
+NOAA-Spec is NOAA-specific software. This JOSS submission covers the deterministic cleaning behavior exposed by the `noaa-spec clean` CLI for the supported field surface documented in the repository. It does not claim to be a data downloader, multi-station orchestration framework, release platform, or statistical analysis package.
 
 # Acknowledgements
 

@@ -3,7 +3,7 @@
 Version: NOAA-Spec 1.0.0  
 Public workflow: `noaa-spec clean INPUT.csv OUTPUT.csv`
 
-This document defines the supported cleaned-output surface for the JOSS-facing release. The output CSV is deterministic for a given input, but it is not a fixed global schema: columns are emitted when the corresponding NOAA ISD / Global Hourly source field is present and recognized by the strict parser. Unknown encoded identifiers are preserved as raw source columns and are not decoded.
+This document defines the supported cleaned-output surface for the JOSS-facing version. The output CSV is deterministic for a given input, but it is not a fixed global schema: columns are emitted when the corresponding NOAA ISD / Global Hourly source field is present and recognized by the strict parser. Unknown encoded identifiers are preserved as raw source columns and are not decoded.
 
 Column names below are public cleaned-output names or public name patterns. `{n}` means a NOAA repeat suffix retained in the cleaned column name, for example `AA1 -> precip_amount_1` and `GA2 -> cloud_layer_base_height_m_2`.
 
@@ -18,7 +18,9 @@ Column names below are public cleaned-output names or public name patterns. `{n}
 | Sidecars | Numeric decoded parts may emit `{source}__qc_pass`, `{source}__qc_status`, and `{source}__qc_reason`. Reasons are one of `SENTINEL_MISSING`, `BAD_QUALITY_CODE`, `OUT_OF_RANGE`, or `MALFORMED_TOKEN` when applicable. |
 | Row usability | When QC sidecars exist, the output includes `row_has_any_usable_metric`, `usable_metric_count`, and `usable_metric_fraction`. These are interpretive aids, not scientific filters. |
 
-## Core Mandatory Fields
+## Core Supported Fields (Demonstrated in Fixtures)
+
+These fields are central to the JOSS-facing `noaa-spec clean` claim and are demonstrated in the tracked reproducibility fixtures, including the fully traceable real provenance example where applicable.
 
 | NOAA field / token family | Decoded output columns | Associated QC columns | Sentinel/null handling | Repeated naming | Provenance references | Support |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -32,7 +34,9 @@ Column names below are public cleaned-output names or public name patterns. `{n}
 | `REM` remarks | `remarks_type_code`, `remarks_text`, `remarks_type_codes`, `remarks_text_blocks_json` | None beyond parsed text availability | Empty or non-structured remarks become null in parsed remark columns; raw `REM` remains available in source columns | Multiple structured blocks are represented in `remarks_type_codes` and JSON text-block list | `part-04-additional-data-section.md`; `src/noaa_spec/cleaning.py` remark parser | Core-sidecar |
 | `EQD` / `QNN` quality metadata forms | `eqd_original_value_*`, `eqd_reason_code_*`, `eqd_parameter_code_*`, `eqd_units_code_*`; `qnn_element_ids`, `qnn_source_flags`, `qnn_data_values` | EQD reason/unit code columns; QNN source flags | Empty tokens become null; allowed reason/unit/parameter code checks are applied for recognized EQD forms | `Q01`-`Q99`, `P01`-`P99`, `R01`-`R99`, `C01`-`C99`, `D01`-`D99`, `N01`-`N99` retain the two-digit suffix | `part-04-additional-data-section.md`; `EQD_*` rules in `constants.py` and QNN parser in `cleaning.py` | Partial, metadata-focused |
 
-## Supported Supplemental Families
+## Additional Tested Field Families (Implementation Coverage, Not Exhaustively Demonstrated)
+
+The families below are implemented and regression-tested, but the tracked fixtures are small and do not exhaustively demonstrate every field, repeat suffix, domain value, or edge case. Treat this section as implementation coverage for supported field families, not as a claim of comprehensive NOAA coverage.
 
 | NOAA field / token family | Decoded output columns | Associated QC columns | Sentinel/null handling | Repeated naming | Provenance references | Support |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -51,6 +55,6 @@ Column names below are public cleaned-output names or public name patterns. `{n}
 
 ## Unsupported or Non-Contract Surface
 
-- NOAA encoded identifiers not listed above are not decoded by the strict parser for this release.
+- NOAA encoded identifiers not listed above are not decoded by the strict parser for this version.
 - Optional `noaa-spec split-domains` output is a secondary convenience view derived from a cleaned CSV. It is not the primary JOSS output contract and does not expand the supported field surface.
 - Manifest files written by optional domain splitting are runtime support artifacts for that optional workflow, not part of the core reproducibility claim.
