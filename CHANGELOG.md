@@ -3,12 +3,12 @@
 ## 1.0.0
 
 ### Core
-- Deterministic canonical cleaning contract for NOAA ISD / Global Hourly observations.
+- Deterministic cleaned-output contract for NOAA ISD / Global Hourly observations.
 - Sentinel-coded values replaced with explicit nulls; NOAA quality codes preserved in sidecar columns.
 - Stable observation-level output schema with deterministic serialization and checksum-backed verification.
 
 ### CLI
-- Public `noaa-spec clean` CLI for canonical CSV output.
+- Public `noaa-spec clean` CLI for deterministic cleaned CSV output.
 
 ### Reproducibility
 - Tracked minimal fixture (`reproducibility/minimal/`) with raw input, expected output, and SHA256 checksum.
@@ -21,4 +21,4 @@
 
 ### Repository
 - Installable package renamed to `noaa-spec` (import as `noaa_spec`).
-- JOSS branch narrowed to the canonicalization package, reproducibility fixtures, tests, and manuscript.
+- JOSS branch narrowed to the cleaning package, reproducibility fixtures, tests, and manuscript.

@@ -10,7 +10,7 @@ noaa-spec clean INPUT.csv OUTPUT.csv
 
 This CSV remains at the observation-row level. It does not aggregate observations or select a single analysis subset. Its purpose is to make NOAA ISD / Global Hourly encoded fields easier to inspect while preserving the quality context needed for downstream scientific filtering.
 
-NOAA-Spec provides a consistent and reproducible interpretation of NOAA ISD CSV fields, rather than asserting a single authoritative canonical schema for all possible NOAA data.
+NOAA-Spec provides a consistent and reproducible interpretation of NOAA ISD CSV fields, rather than asserting a single authoritative schema for all possible NOAA data.
 
 ## Start Here
 

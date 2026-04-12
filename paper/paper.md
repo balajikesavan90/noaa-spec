@@ -18,7 +18,7 @@ bibliography: paper.bib
 
 # Abstract
 
-NOAA-Spec is open-source software for deterministic cleaning of NOAA Integrated Surface Database (ISD) / Global Hourly observations. Its public `noaa-spec clean` command converts raw NOAA-style CSV rows into a reproducible observation-level CSV with sentinel-coded measurements normalized to nulls, NOAA quality-control codes preserved in explicit columns, and deterministic serialization. The contribution is a reusable NOAA-specific interpretation layer that downstream analyses can share instead of reimplementing the same cleaning decisions in project-local scripts.
+NOAA-Spec is open-source software for deterministic cleaning of NOAA Integrated Surface Database (ISD) / Global Hourly observations. Its public `noaa-spec clean` command converts raw NOAA-style CSV rows into a reproducible observation-level CSV with sentinel-coded measurements normalized to nulls, NOAA quality-control codes preserved in explicit columns, and deterministic serialization. The contribution is a reusable NOAA-specific cleaned-output contract that reduces sentinel leakage, quality-code loss, inconsistent packed-field interpretation, and nondeterministic cleaned artifacts in project-local preprocessing.
 
 # Summary
 
@@ -26,7 +26,7 @@ NOAA ISD is widely used in weather and climate research, but raw rows require NO
 
 The submitted software surface is intentionally narrow. NOAA-Spec reads raw NOAA ISD / Global Hourly CSV rows, applies deterministic field-interpretation rules, and writes a cleaned CSV whose serialization and column set are stable for a given input.
 
-This tool provides a consistent and reproducible interpretation of NOAA ISD CSV fields, rather than asserting a single authoritative canonical schema for all possible NOAA data.
+This tool provides a consistent and reproducible interpretation of NOAA ISD CSV fields, rather than asserting a single authoritative schema for all possible NOAA data.
 
 # Statement of Need
 
@@ -34,7 +34,7 @@ Preprocessing NOAA ISD is not just a matter of loading a CSV into pandas. A toke
 
 Project-local cleaning scripts also tend to diverge in small but consequential ways: one script may convert `+9999` to `NaN` but discard the associated QC flag, another may handle composite fields such as `VIS=010000,1,N,1` differently, and another may serialize rows in an order that is hard to checksum. These differences make downstream tables difficult to compare even when the same NOAA source rows were used, which works against reproducible data preparation practice in computational science [@peng2011reproducible].
 
-NOAA-Spec addresses this specific gap. For `TMP=+9999,9`, it emits a null `temperature_c`, preserves `temperature_quality_code=9`, and records `TMP__qc_reason=SENTINEL_MISSING`. The output remains observation-level, so downstream researchers can apply their own scientific filters after starting from the same consistent interpretation.
+NOAA-Spec addresses this specific gap by making these cleaning choices explicit and testable for the public CLI output. For `TMP=+9999,9`, it emits a null `temperature_c`, preserves `temperature_quality_code=9`, and records `TMP__qc_reason=SENTINEL_MISSING`. The output remains observation-level, so downstream researchers can apply their own scientific filters after starting from the same consistent interpretation.
 
 # Why Not a Simple Script?
 
@@ -44,7 +44,7 @@ A second common case is `VIS=999999,9,N,1`. Treating it as ordinary comma-separa
 
 # Comparison With Existing Tools
 
-Existing NOAA tools help users obtain or parse ISD data, but they do not by themselves define shared cleaned-output decisions for downstream analysis. The closest comparators are project-local preprocessing scripts, parsing-oriented tools such as the R package `isdparser` [@chamberlain_isdparser], and Python packages such as `isd` [@isd_python]. These tools are useful in their intended roles; NOAA-Spec is narrower than a general access package and focuses on one cleaned-output contract for the public `noaa-spec clean` workflow.
+Existing NOAA tools help users obtain or parse ISD data, but they do not by themselves define shared cleaned-output decisions for downstream analysis. The closest comparators are project-local preprocessing scripts, parsing-oriented tools such as the R package `isdparser` [@chamberlain_isdparser], and Python packages such as `isd` [@isd_python]. These tools are useful in their intended roles; NOAA-Spec is narrower than a general access or parsing package and focuses on one deterministic cleaning layer and cleaned-output contract for the public `noaa-spec clean` workflow.
 
 | Behavior | Naive pandas/raw CSV loading | Parsing-oriented tools (`isdparser` [@chamberlain_isdparser], `isd` [@isd_python]) | NOAA-Spec |
 | --- | --- | --- | --- |

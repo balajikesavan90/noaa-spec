@@ -2,7 +2,7 @@
 
 NOAA-Spec is a deterministic cleaning layer for NOAA ISD / Global Hourly observations. It provides one reviewer-facing workflow: run `noaa-spec clean` on a raw NOAA-style CSV and get a reproducible cleaned CSV with sentinel-coded values normalized to nulls, NOAA quality-code semantics preserved, and deterministic row/order serialization.
 
-This tool provides a consistent and reproducible interpretation of NOAA ISD CSV fields, rather than asserting a single authoritative canonical schema for all possible NOAA data.
+This tool provides a consistent and reproducible interpretation of NOAA ISD CSV fields, rather than asserting a single authoritative schema for all possible NOAA data.
 
 ## What This Does
 
@@ -43,6 +43,7 @@ After running the fixture check, open:
 - `reproducibility/minimal/station_cleaned_expected.csv` for the expected cleaned output.
 - `docs/schema.md` for cleaned CSV structure and naming conventions.
 - `docs/rule_provenance.md` for representative rule-to-source traceability.
+- `spec_sources/README.md` for the NOAA source artifact hierarchy.
 
 ## Local Install
 
