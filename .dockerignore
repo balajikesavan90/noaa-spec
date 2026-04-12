@@ -18,9 +18,6 @@ dist/
 *.egg-info/
 *.log
 paper/*.html
-# Keep maintainer-only material out of the review container.
-# Public reviewer checks should not depend on these paths.
-maintainer/
 reproducibility/__pycache__/
 tests/__pycache__/
 .venv_joss_review/

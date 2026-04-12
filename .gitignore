@@ -15,38 +15,18 @@ AGENTS.md
 # Package manager lock files (project uses setuptools)
 poetry.lock
 
-# Legacy files
-maintainer/docs/archive/legacy_r/
-
 *.csv
 *.parquet
 !reproducibility/minimal/
 !reproducibility/minimal/**
 !reproducibility/minimal_second/
 !reproducibility/minimal_second/**
-!reproducibility/full_station/
-!reproducibility/full_station/**
 
 # Runtime outputs remain ignored by default.
 output/
 logs/
 artifacts/test_runs/
-artifacts/parquet_runs/
-release/
-!release/
-release/*
-!release/README.md
 data/archive/station_reports_full/
-!release/build_*/canonical_cleaned/**/*.csv
-!release/build_*/canonical_cleaned/**/*.parquet
-!release/build_*/domains/**/*.csv
-!release/build_*/domains/**/*.parquet
-!release/build_*/quality_reports/**/*.csv
-!release/build_*/quality_reports/**/*.parquet
-!release/build_*/manifests/**/*.csv
-!release/build_*/manifests/**/*.parquet
-!tests/fixtures/
-!tests/fixtures/**/*.csv
 
 # C extensions
 *.so
