@@ -1,16 +1,18 @@
 # NOAA-Spec
 
-NOAA-Spec is a deterministic canonicalization layer for NOAA ISD / Global Hourly observations. It provides one reviewer-facing workflow: run `noaa-spec clean` on a raw NOAA-style CSV and get a stable canonical CSV with sentinel-coded values normalized to nulls, NOAA quality-code semantics preserved, and deterministic row/order serialization.
+NOAA-Spec is a deterministic cleaning layer for NOAA ISD / Global Hourly observations. It provides one reviewer-facing workflow: run `noaa-spec clean` on a raw NOAA-style CSV and get a reproducible cleaned CSV with sentinel-coded values normalized to nulls, NOAA quality-code semantics preserved, and deterministic row/order serialization.
+
+This tool provides a consistent and reproducible interpretation of NOAA ISD CSV fields, rather than asserting a single authoritative canonical schema for all possible NOAA data.
 
 ## What This Does
 
-- Cleans raw NOAA ISD / Global Hourly CSV rows into a canonical observation-level CSV.
+- Cleans raw NOAA ISD / Global Hourly CSV rows into a reproducible observation-level CSV.
 - Converts documented sentinel-coded measurements such as `+9999,9` into null measurement values.
 - Preserves NOAA quality codes in explicit columns such as `temperature_quality_code`.
 - Emits deterministic CSV output using stable sorting, UTF-8 encoding, LF line endings, and empty-string null serialization.
 - Includes tracked fixtures so reviewers can rerun the same input and compare the exact expected checksum.
 
-NOAA-Spec does not download NOAA data, orchestrate multi-station batch processing, or publish release-manifest bundles on this JOSS branch. Those workflows are outside the submitted software surface.
+NOAA-Spec does not download NOAA data or orchestrate multi-station batch processing. The submitted software surface is the `noaa-spec clean` CLI.
 
 ## First Run
 
@@ -33,7 +35,7 @@ The Docker path installs the package, runs `noaa-spec clean` against the tracked
 After running the fixture, open:
 
 - `reproducibility/minimal/station_raw.csv` for the raw NOAA-style input.
-- `reproducibility/minimal/station_cleaned_expected.csv` for the canonical cleaned output.
+- `reproducibility/minimal/station_cleaned_expected.csv` for the expected cleaned output.
 - `docs/schema.md` for the cleaned CSV schema contract and naming conventions.
 - `docs/rule_provenance.md` for representative rule-to-source traceability.
 
@@ -81,7 +83,7 @@ DATE                 TMP      DEW      VIS
 2000-03-17T09:00:00  +9999,9  +9999,9  999999,9,N,1
 ```
 
-Canonical output excerpt:
+Cleaned output excerpt:
 
 ```text
 DATE                 temperature_c  temperature_quality_code  dew_point_c  visibility_m  TMP__qc_reason
@@ -93,13 +95,37 @@ The raw token `TMP=+9999,9` becomes a null `temperature_c`, while the NOAA quali
 
 The full fixture output is intentionally wider than this excerpt. NOAA composite fields such as `WND`, `VIS`, `TMP`, `AA1`, and `GA1` can each expand into decoded measurement columns, preserved NOAA quality-code columns, and `__qc_*` validation sidecars. See [docs/schema.md](docs/schema.md) for the schema contract.
 
-## Why Not Just Pandas?
+## Why Not a Simple Script?
 
-Loading the raw CSV with pandas is useful, but it does not by itself interpret NOAA ISD encoded fields. NOAA-Spec exists to make a small set of NOAA-specific cleaning decisions explicit and repeatable:
+Loading the raw CSV with pandas is useful, but it does not by itself interpret NOAA ISD encoded fields. NOAA-Spec exists to make a small set of NOAA-specific cleaning decisions explicit and repeatable.
 
-- Sentinel values can look numeric. For example, `TMP=+9999,9` should not become a real 999.9 C measurement.
-- Quality codes are part of the scientific context. Dropping the `9` from `+9999,9` loses why the value is missing.
-- Composite fields require repeated local parsing logic. A token such as `VIS=010000,1,N,1` contains distance, distance quality, variability, and variability quality in one cell.
+### Naive TMP parsing
+
+`TMP=+9999,9` is parsed as numeric and becomes `999.9` or `9999`.
+
+Problem:
+- The sentinel is interpreted as a real value.
+- The quality code is lost or treated as a measurement suffix.
+- The missingness meaning is destroyed.
+
+NOAA-Spec behavior:
+- `temperature_c` becomes null.
+- `temperature_quality_code=9` is preserved.
+- `TMP__qc_reason=SENTINEL_MISSING` is emitted.
+
+### Naive VIS parsing
+
+`VIS=999999,9,N,1` is split as ordinary comma-separated values.
+
+Problem:
+- The visibility sentinel can become a real 999999 m distance.
+- The distance quality code can be dropped.
+- The variability fields can be separated from the measurement they qualify.
+
+NOAA-Spec behavior:
+- `visibility_m` becomes null.
+- `visibility_quality_code=9` is preserved.
+- Visibility variability and variability quality remain explicit columns.
 
 NOAA-Spec does not replace downstream analysis. It gives reviewers and researchers a deterministic cleaned starting point with nulls, quality codes, and validation sidecars visible.
 
@@ -124,7 +150,7 @@ python -m pytest tests -v
 
 - `docs/schema.md`: reviewer-facing cleaned CSV schema contract.
 - `docs/rule_provenance.md`: representative rule provenance and source-doc pointers.
-- `src/noaa_spec/cleaning.py`: NOAA field interpretation and canonicalization logic.
+- `src/noaa_spec/cleaning.py`: NOAA field interpretation and cleaning logic.
 - `src/noaa_spec/constants.py`: encoded field rules, sentinels, and QC definitions.
 - `src/noaa_spec/deterministic_io.py`: deterministic CSV writer.
 - `src/noaa_spec/cli.py`: public `noaa-spec clean` entry point.

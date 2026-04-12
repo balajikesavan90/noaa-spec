@@ -1,12 +1,16 @@
-# Canonical Cleaned CSV Schema
+# Cleaned CSV Schema
 
-The public NOAA-Spec output contract is the canonical cleaned CSV produced by:
+The output schema is deterministic for a given input file and version, but the full set of columns depends on which NOAA fields are present in the input.
+
+The public NOAA-Spec output contract is the cleaned CSV produced by:
 
 ```bash
 noaa-spec clean INPUT.csv OUTPUT.csv
 ```
 
 This CSV remains at the observation-row level. It does not aggregate observations or select a single analysis subset. Its purpose is to make NOAA ISD / Global Hourly encoded fields easier to inspect while preserving the quality context needed for downstream scientific filtering.
+
+NOAA-Spec provides a consistent and reproducible interpretation of NOAA ISD CSV fields, rather than asserting a single authoritative canonical schema for all possible NOAA data.
 
 ## Why The Output Is Wide
 
@@ -48,3 +52,15 @@ The intentional stable patterns are:
 - row-level usability columns named `row_has_any_usable_metric`, `usable_metric_count`, and `usable_metric_fraction`.
 
 Columns appear when the corresponding source fields are present in the input and recognized by the parser. For the same input file, NOAA-Spec version, and execution environment, the output CSV serialization is deterministic.
+
+## What Is Guaranteed
+
+- Naming conventions are stable.
+- QC columns follow consistent patterns.
+- Column ordering is deterministic.
+- The same input, NOAA-Spec version, and execution environment produce the same output serialization.
+
+## What Is NOT Guaranteed
+
+- A fixed global column set across all possible inputs.
+- Exhaustive schema enumeration in this document.
