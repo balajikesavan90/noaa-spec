@@ -1,4 +1,4 @@
-"""Deterministic tabular serialization helpers for release artifacts."""
+"""Deterministic CSV serialization helpers for canonical NOAA-Spec output."""
 
 from __future__ import annotations
 
@@ -29,21 +29,6 @@ def write_deterministic_csv(
             encoding="utf-8",
             float_format=float_format,
         )
-
-    _atomic_replace(output_path, _writer)
-
-
-def write_deterministic_parquet(
-    frame: pd.DataFrame,
-    output_path: Path,
-    *,
-    sort_by: tuple[str, ...] = (),
-) -> None:
-    """Write parquet with deterministic ordering and explicit codec choice."""
-    prepared = _prepare_frame(frame, sort_by=sort_by)
-
-    def _writer(path: Path) -> None:
-        prepared.to_parquet(path, index=False, compression="snappy")
 
     _atomic_replace(output_path, _writer)
 

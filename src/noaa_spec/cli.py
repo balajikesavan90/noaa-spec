@@ -10,28 +10,16 @@ import pandas as pd
 
 from .cleaning import clean_noaa_dataframe
 from .deterministic_io import write_deterministic_csv
-from .domains.publisher import (
-    available_views_text,
-    get_view_definition,
-    project_view_from_canonical,
-)
 from . import __version__
 
 
-def _clean_csv_to_csv(input_csv: Path, output_csv: Path, *, view_name: str | None = None) -> Path:
+def _clean_csv_to_csv(input_csv: Path, output_csv: Path) -> Path:
     raw = pd.read_csv(input_csv, dtype=str)
     cleaned = clean_noaa_dataframe(raw, keep_raw=False, strict_mode=True)
-    output_frame = cleaned
-    sort_by = ("STATION", "DATE")
-
-    if view_name is not None:
-        _definition, output_frame = project_view_from_canonical(cleaned, view_name)
-        sort_by = ("station_id", "DATE")
-
     write_deterministic_csv(
-        output_frame,
+        cleaned,
         output_csv,
-        sort_by=sort_by,
+        sort_by=("STATION", "DATE"),
         float_format="%.1f",
     )
     return output_csv
@@ -48,8 +36,7 @@ def _parse_args() -> argparse.Namespace:
         ),
         epilog=(
             "Primary workflow: noaa-spec clean INPUT.csv OUTPUT.csv "
-            "or noaa-spec clean INPUT.csv --out OUTPUT.csv. "
-            f"Optional views: {available_views_text()}"
+            "or noaa-spec clean INPUT.csv --out OUTPUT.csv."
         ),
     )
     parser.add_argument(
@@ -81,17 +68,6 @@ def _parse_args() -> argparse.Namespace:
         help="Output path for the cleaned CSV.",
     )
     clean_parser.add_argument(
-        "--view",
-        type=str,
-        default=None,
-        help=(
-            "Optional secondary dataset derived from the canonical output. "
-            "View outputs use 'station_id' instead of 'STATION' as the "
-            "station identifier column. "
-            f"Available views: {available_views_text()}."
-        ),
-    )
-    clean_parser.add_argument(
         "--verbose",
         action="store_true",
         default=False,
@@ -113,23 +89,6 @@ def main() -> None:
     output_path = args.output_csv_flag or args.output_csv
     if output_path is None:
         raise SystemExit("Provide an output path as OUTPUT.csv or with --out OUTPUT.csv.")
-
-    if args.view is not None:
-        try:
-            view_definition = get_view_definition(args.view)
-        except KeyError as exc:
-            raise SystemExit(
-                f"Invalid view {args.view!r}. Available views: {available_views_text()}"
-            ) from exc
-        written_path = _clean_csv_to_csv(
-            args.input_csv,
-            output_path,
-            view_name=view_definition.view_name,
-        )
-        print(
-            f"Wrote {view_definition.view_name} view to {written_path.resolve()}"
-        )
-        return
 
     written_path = _clean_csv_to_csv(args.input_csv, output_path)
     print(f"Wrote cleaned CSV to {written_path.resolve()}")

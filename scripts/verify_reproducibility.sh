@@ -22,8 +22,8 @@ fi
 
 expected_before="$(sha256sum "${EXPECTED_PATH}" | cut -d' ' -f1)"
 
-python3 -c "import noaa_spec"
-python3 reproducibility/run_pipeline_example.py --out "${OUTPUT_PATH}"
+PYTHONPATH="${REPO_ROOT}/src${PYTHONPATH:+:${PYTHONPATH}}" \
+    python3 -m noaa_spec.cli clean reproducibility/minimal/station_raw.csv "${OUTPUT_PATH}" >/dev/null
 
 if [[ ! -s "${OUTPUT_PATH}" ]]; then
     echo "FAIL: expected cleaned CSV at ${OUTPUT_PATH}." >&2
