@@ -31,11 +31,11 @@ The executable evidence in the repository is also bounded: tracked fixtures demo
 
 # Statement of Need
 
-Preprocessing NOAA ISD is not just a matter of loading a CSV into pandas. A token such as `TMP=+9999,9` contains both a numeric segment and a quality code [@noaa_isd_docs]. The numeric segment is not a large temperature; it is a sentinel-coded missing value. A naive parser can therefore leak sentinel values into analysis, while an overly simple cleaner can drop the quality code that explains the state of the measurement.
+The decisions required to correctly preprocess NOAA ISD are specific to the format. A token such as `TMP=+9999,9` contains both a numeric segment and a quality code [@noaa_isd_docs]. The numeric segment is not a large temperature; it is a sentinel-coded missing value. An informed researcher can write a project-local script to handle this correctly for a given analysis.
 
-Project-local cleaning scripts also tend to diverge in small but consequential ways: one script may convert `+9999` to `NaN` but discard the associated QC flag, another may handle composite fields such as `VIS=010000,1,N,1` differently, and another may serialize rows in an order that is hard to checksum. These differences make downstream tables difficult to compare even when the same NOAA source rows were used, which works against reproducible data preparation practice in computational science [@peng2011reproducible].
+The problem NOAA-Spec addresses is not that correct individual implementations are impossible — they are straightforward once the format documentation is read — but that they tend not to be shared or coordinated. Each project reimplements its own sentinel table, its own QC handling, and its own serialization, often discarding information silently (for example, converting `+9999` to `NaN` while dropping the associated QC flag, or serializing rows in an order that is not stable across runs). When independent studies start from the same NOAA source rows but apply divergent local scripts, comparing their cleaned tables requires auditing each script's choices rather than verifying a shared, documented interpretation. As analysis datasets accumulate across groups, so does the implicit interpretation divergence — which works against reproducible data preparation practice in computational science [@peng2011reproducible].
 
-NOAA-Spec addresses this gap by making these cleaning choices explicit and testable for the public CLI output. The output remains observation-level, so downstream researchers can apply their own scientific filters after starting from the same documented interpretation for the fields supported in this release.
+NOAA-Spec addresses this by publishing one documented, checksum-backed implementation of a defined set of those cleaning decisions as a versioned Python CLI. It normalizes documented sentinels to null, preserves NOAA QC codes in explicit columns, and writes stable decoded column names for the recognized fields in this release. A downstream researcher using `noaa-spec clean` on the same input obtains the same output, verifiable by checksum. The contribution is that documented interpretation boundary — made shareable, reproducible, and testable — not any individual cleaning step that a local script could not also implement.
 
 The public claim centers on the core cleaned-output policy and the mandatory field families directly exercised by the reviewer workflow (`WND`, `CIG`, `VIS`, `TMP`, `DEW`, and `SLP`, with source/control columns retained). Additional implemented field families are included in the package and covered by tests and selected fixtures, but they are not presented as having identical upstream-traceable real-data support.
 
@@ -47,9 +47,9 @@ reproducibility claim remains the tracked fixture workflow in `reproducibility/`
 these examples explain why specification-aware cleaning matters and avoid making
 claims about failures in other NOAA tools.
 
-| NOAA token | Naive risk | NOAA-Spec cleaned-output behavior |
+| NOAA token | Interpretation risk without documented cleaning | NOAA-Spec cleaned-output behavior |
 | --- | --- | --- |
-| `TMP=+9999,9` | Treating `+9999` as `+999.9 C` or dropping the QC flag. | Emits null `temperature_c`, preserves `temperature_quality_code=9`, and records `TMP__qc_reason=SENTINEL_MISSING`. |
+| `TMP=+9999,9` | Treating `+9999` as `+999.9 C` or dropping the QC flag when nullifying. | Emits null `temperature_c`, preserves `temperature_quality_code=9`, and records `TMP__qc_reason=SENTINEL_MISSING`. |
 | `VIS=999999,9,N,9` | Treating `999999` as a real visibility distance. | Emits null `visibility_m` while preserving visibility QC and variability context. |
 | `WND=999,1,C,0000,1` | Treating all `999` wind directions as missing observations. | Preserves calm wind context with type code `C` and valid `wind_speed_ms=0.0`. |
 | `WND=999,1,V,0031,1` | Treating variable wind direction as ordinary missing wind. | Preserves type code `V` and the valid wind speed while leaving direction null. |
@@ -59,13 +59,14 @@ claims about failures in other NOAA tools.
 
 Existing NOAA tools help users obtain or parse ISD data. NOAA-Spec makes a narrower policy choice: for supported fields it defines a deterministic cleaned-output layer with sentinel-to-null handling, QC preservation, documented decoded columns, and checksum-friendly output for the public `noaa-spec clean` workflow. The closest comparators are project-local preprocessing scripts and parsing-oriented tools such as the R package `isdparser` [@chamberlain_isdparser] and Python packages such as `isd` [@isd_python]. This comparison describes scope and output policy; it does not assert that those tools produce incorrect values.
 
-| Criterion | Naive pandas/raw CSV loading | Parsing-oriented tools (`isdparser` [@chamberlain_isdparser], `isd` [@isd_python]) | NOAA-Spec |
+| Criterion | Ad hoc project-local preprocessing | Parsing-oriented tools (`isdparser` [@chamberlain_isdparser], `isd` [@isd_python]) | NOAA-Spec |
 | --- | --- | --- | --- |
-| Sentinel normalization for `TMP=+9999,9` | Must be implemented by the local workflow after loading | Parsed structure can be exposed; downstream workflow chooses missing-value handling | Emits null `temperature_c`, preserves `temperature_quality_code=9`, and records `TMP__qc_reason=SENTINEL_MISSING` |
-| Packed visibility `VIS=999999,9,N,1` | Must be implemented by the local workflow after loading | Parsed structure can be exposed; downstream workflow chooses cleaning policy | Emits null `visibility_m`, preserves visibility QC, and keeps variability fields explicit |
-| Stable decoded column names | Requires project-specific naming | Parsed names and analysis tables depend on the downstream workflow | Uses documented release names such as `temperature_c`, `precip_amount_1`, and `cloud_layer_base_height_m_1` for supported fields |
+| Sentinel normalization for `TMP=+9999,9` | Each project reimplements its own sentinel table; implementations diverge silently | Parsed structure can be exposed; downstream workflow chooses missing-value handling | Emits null `temperature_c`, preserves `temperature_quality_code=9`, and records `TMP__qc_reason=SENTINEL_MISSING` |
+| Packed visibility `VIS=999999,9,N,1` | Each project implements its own cleaning policy | Parsed structure can be exposed; downstream workflow chooses cleaning policy | Emits null `visibility_m`, preserves visibility QC, and keeps variability fields explicit |
+| Stable decoded column names | Requires project-specific naming convention | Parsed names and analysis tables depend on the downstream workflow | Uses documented release names such as `temperature_c`, `precip_amount_1`, and `cloud_layer_base_height_m_1` for supported fields |
 | QC preservation as output | Easy to drop while extracting measurement values | Available if retained by downstream code | Preserved in explicit columns such as `temperature_quality_code` and `precip_quality_code_1`, with `__qc_*` sidecars for parser decisions |
 | Reproducible cleaned CSV | Requires project-specific serialization and checksums | Downstream workflow chooses serialization policy | Writes deterministic CSV output and includes checksum-backed fixtures and regression tests |
+| Shared versioned interpretation | Interpretation decisions are not published or versioned | Downstream cleaning decisions vary by project | Documented cleaning decisions are versioned, testable, and shared across projects |
 
 # Software Design
 
@@ -87,7 +88,7 @@ The implementation separates NOAA field interpretation (`cleaning.py` and `const
 
 The repository includes tracked raw inputs, tracked expected cleaned outputs, and checksum-backed verification under `reproducibility/`. The primary reviewer claim is reproducible from the repository alone: for committed fixtures, `clean(committed_input) = committed_output`, and the emitted CSVs are verified against tracked SHA256 checksums. This is a deterministic cleaning claim for committed input/output pairs, not a claim that every fixture can replay upstream NOAA retrieval.
 
-Three upstream-traceable fixtures additionally record NOAA/NCEI source URLs, retrieval dates, observed upstream checksums, and exact extraction commands: the original 20-row source slice for station `78724099999` in 2001 and two one-row 2014 slices promoted from reviewer edge cases. Those traceable slices include the mandatory families plus selected precipitation, cloud, pressure, temperature-summary, wind-gust, remarks, and EQD fields where present in the source rows. Older curated station fixtures exercise additional field structures while keeping the tracked data reviewer-checkable; their exact upstream retrieval metadata was not retained. The traceable source fixtures are documented in `reproducibility/TRACEABLE_FIXTURES.md`, and the older curated station slices are documented in `reproducibility/FIXTURE_PROVENANCE.md`. The paper does not claim exhaustive NOAA coverage or a general NOAA download workflow.
+Of the eight committed fixture pairs verified by `reproducibility/checksums.sha256`, three (`real_provenance_example/`, `traceable_peru_il_2014_aa1_qc/`, and `traceable_albion_ne_2014_calm_aa1/`) additionally record upstream NOAA/NCEI source URLs, retrieval dates, observed upstream checksums, and exact extraction commands. The remaining five fixtures are checksum-stable committed examples whose exact upstream retrieval metadata was not retained; their provenance is documented in `reproducibility/FIXTURE_PROVENANCE.md`. The three upstream-traceable slices include the mandatory families plus selected precipitation, cloud, pressure, temperature-summary, wind-gust, remarks, and EQD fields where present in the source rows. The paper does not claim exhaustive NOAA coverage or a general NOAA download workflow.
 
 # Limitations
 

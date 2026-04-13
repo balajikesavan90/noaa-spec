@@ -123,13 +123,16 @@ def _parse_args() -> argparse.Namespace:
     split_parser = subparsers.add_parser(
         "split-domains",
         help=(
-            "Non-core utility; outside the JOSS reviewer workflow."
+            "[non-core utility] Project an already-cleaned CSV into optional "
+            "domain-specific views. Not part of the JOSS contribution or "
+            "primary reproducibility workflow."
         ),
         description=(
-            "Read an existing canonical cleaned CSV and write analysis-friendly "
-            "domain subsets. This is a convenience layer derived from cleaned "
-            "output, not the JOSS contribution, reviewer path, or primary "
-            "reproducibility workflow."
+            "[non-core utility] Read an existing canonical cleaned CSV produced "
+            "by `noaa-spec clean` and write analysis-friendly domain subsets. "
+            "This is a convenience layer derived from cleaned output; it is not "
+            "the JOSS contribution, the reviewer path, or part of the primary "
+            "reproducibility claim verified by reproducibility/checksums.sha256."
         ),
     )
     split_parser.add_argument(

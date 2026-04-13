@@ -2,7 +2,7 @@
 __pycache__/
 *.py[codz]
 *$py.class
-noaa_file_index/state/
+noaa_file_index/
 
 # Local AI tooling configuration; not part of the reviewer-facing repo surface.
 .codex

@@ -56,12 +56,7 @@ for the family is exercised by the fixtures.
 
 ## Additional Implemented Field Families
 
-The families below are implemented and regression-tested, but the tracked
-fixtures are small and do not exhaustively demonstrate every field, repeat
-suffix, domain value, or edge case. Treat this section as implementation
-coverage for supported field families, not as broad real-data evidence. Some
-families have selected upstream-traceable or committed-fixture examples; the
-evidence label marks that narrower support.
+These families are implemented in the package and covered by regression tests, but they are **not the evidentiary center of the JOSS-reviewed contribution**. Reviewer evaluation should focus on the Core Reviewed Field Families above. The tracked fixtures are small and do not exhaustively demonstrate every additional family, repeat suffix, domain value, or edge case. Each entry carries an evidence label to mark the narrower support honestly. Treat this section as a transparent implementation inventory, not a claim of broad real-data validation.
 
 | NOAA field / token family | Decoded output columns | Associated QC columns | Sentinel/null handling | Repeated naming | Provenance references | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |

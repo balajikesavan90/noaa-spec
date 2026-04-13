@@ -137,9 +137,22 @@ upstream-traceable real-data evidence. Use [docs/evidence_matrix.md](docs/eviden
 and [docs/supported_fields.md](docs/supported_fields.md) for the evidence
 boundary.
 
-## Why Not Pandas?
+## Why A Shared Cleaning Tool?
 
-Pandas can load the CSV, but it does not know NOAA sentinel semantics. A raw visibility token such as:
+A competent researcher can write a project-local script that correctly handles NOAA
+sentinels for the fields they use. The problem is that those scripts diverge: one
+project drops the QC flag when it nullifies `+9999`, another serializes rows in a
+different order, another names the temperature column `temp_c` instead of
+`temperature_c`. The resulting tables are hard to compare even when the same NOAA
+source rows were used.
+
+NOAA-Spec publishes those cleaning decisions—sentinel handling, QC preservation, decoded
+column names, and deterministic CSV serialization—as a versioned, checksum-backed
+single implementation. The value is not that local scripts are impossible; it is that
+using the same tool makes the interpretation boundary shared and verifiable across
+projects.
+
+As a concrete illustration, a raw visibility token such as:
 
 ```text
 VIS=999999,9,N,1
@@ -155,7 +168,7 @@ python examples/pandas_vs_noaa_spec.py
 
 For a compact reviewer-facing table of selected real-row edge cases, see [docs/reviewer_cleaning_examples.md](docs/reviewer_cleaning_examples.md). For the full curated mined-example artifact, see [artifacts/curated_examples/curated_examples.md](artifacts/curated_examples/curated_examples.md); for claim-to-evidence mapping, see [docs/evidence_matrix.md](docs/evidence_matrix.md).
 
-## Why Not Existing NOAA Parsers?
+## Relationship to Existing NOAA Tools
 
 Existing NOAA parsers are useful for exposing NOAA records and parsed structures. NOAA-Spec does not claim those tools produce incorrect values. Its narrower contribution is an explicit cleaned-output policy for the documented fields this release supports: documented sentinels become nulls, NOAA QC codes stay in explicit columns, and decoded column names plus CSV serialization are deterministic for the same committed input.
 
