@@ -37,22 +37,19 @@ checksum manifest for tracked reproducibility artifacts.
 
 The Dockerfile defines a tested reviewer container and pins the `python:3.12-slim` base image by digest. It is still not a fully immutable archived runtime because it refreshes Debian package metadata and upgrades bootstrap packaging tools during the image build.
 
-After verification, reviewers should inspect the raw fixture and expected cleaned output side by side:
+After verification, reviewers should inspect the core raw fixture and expected cleaned output side by side:
 
 - `reproducibility/minimal/station_raw.csv`
 - `reproducibility/minimal/station_cleaned_expected.csv`
 - `docs/supported_fields.md`
 - `docs/schema.md`
 - `docs/rule_provenance.md`
-- `reproducibility/TRACEABLE_FIXTURES.md`
-- `reproducibility/FIXTURE_PROVENANCE.md`
 - `reproducibility/checksums.sha256`
-- `docs/reviewer_cleaning_examples.md`
 - `docs/evidence_matrix.md`
 
 The cleaned CSV is wider than a single analysis table because NOAA-Spec preserves decoded measurements, NOAA quality codes, validation sidecars, and row-level usability summaries. Width depends on which optional NOAA encoded fields are present in the input. Start with `docs/first_output_guide.md` for a compact first view before reading the full CSV.
 
-The static curated examples under `artifacts/curated_examples/` are optional reviewer context. They are selected from a committed candidate pool to illustrate edge-case rows, but they are not part of this checksum-backed reproducibility contract and are not required by the Docker reviewer path.
+The static curated examples under `artifacts/curated_examples/` are optional appendix material only. They are not part of this checksum-backed reproducibility contract, not required by the Docker reviewer path, and not part of the core acceptance path.
 
 ## Primary Fixture
 
@@ -72,7 +69,7 @@ noaa-spec clean reproducibility/minimal/station_raw.csv /tmp/noaa-spec-sample.cs
 sha256sum /tmp/noaa-spec-sample.csv
 ```
 
-Python 3.11 and 3.12 are supported by project metadata; use `python3.11` in the virtual-environment command if that is the supported interpreter available on your system.
+Python 3.11 and 3.12 are supported by project metadata; use `python3.11` in the virtual-environment command if that is the supported interpreter available on your system. After activation, `python` refers to the virtual-environment interpreter.
 
 Compare the generated checksum with the matching
 `reproducibility/minimal/station_cleaned_expected.csv` entry in
@@ -107,9 +104,9 @@ Tracked fixtures:
 
 | Fixture | Station / year | Rows | Coverage note |
 | --- | --- | --- | --- |
-| `real_provenance_example/` | `78724099999` / 2001 | 20 | Mandatory fields plus selected precipitation, cloud, present-weather, pressure, temperature-summary, remarks, and EQD fields where present. |
-| `traceable_peru_il_2014_aa1_qc/` | `72214904899` / 2014 | 1 | `AA1` precipitation amount sentinel with QC/context preservation, cloud fields, temperature-summary fields, pressure, wind gust, and remarks. |
-| `traceable_albion_ne_2014_calm_aa1/` | `72344154921` / 2014 | 1 | Calm-wind context, `AA1` precipitation amount sentinel with QC/context preservation, cloud fields, temperature-summary fields, pressure, remarks, and EQD metadata. |
+| `real_provenance_example/` | `78724099999` / 2001 | 20 | Core mandatory fields plus incidental additional fields where present. |
+| `traceable_peru_il_2014_aa1_qc/` | `72214904899` / 2014 | 1 | One promoted edge-case row; secondary fields remain outside the primary JOSS claim. |
+| `traceable_albion_ne_2014_calm_aa1/` | `72344154921` / 2014 | 1 | One promoted edge-case row; secondary fields remain outside the primary JOSS claim. |
 
 Checksums are recorded in `reproducibility/checksums.sha256`, including observed upstream source CSV checksums. See [reproducibility/TRACEABLE_FIXTURES.md](reproducibility/TRACEABLE_FIXTURES.md) for NOAA URLs, retrieval dates, row selection, and extraction commands. The older curated station fixtures remain deterministic committed input/output checks, not upstream replay artifacts.
 
@@ -126,13 +123,13 @@ Compare the generated checksum with the matching
 
 ## Additional Station Fixtures
 
-These 4-row fixtures are committed real-station slices that broaden deterministic input/output checks across geography and reporting characteristics without adding large data files. Their expected outputs were generated with the same `noaa-spec clean` CLI. The exact upstream retrieval dates and original NOAA URL/year-file metadata were not retained when these slices were curated; see [reproducibility/FIXTURE_PROVENANCE.md](reproducibility/FIXTURE_PROVENANCE.md).
+These 4-row fixtures are committed real-station slices that broaden deterministic input/output checks without changing the core reviewer claim. Their expected outputs were generated with the same `noaa-spec clean` CLI. The exact upstream retrieval dates and original NOAA URL/year-file metadata were not retained when these slices were curated; see [reproducibility/FIXTURE_PROVENANCE.md](reproducibility/FIXTURE_PROVENANCE.md).
 
 | Fixture | Station | Coverage note |
 | --- | --- | --- |
-| `station_03041099999_aonach_mor/` | Aonach Mor, UK | High-elevation UK station with mandatory fields, sentinel-heavy pressure/visibility cases, supplemental wind, and wave/sea side fields. |
-| `station_01116099999_stokka/` | Stokka, Norway | Norwegian station with multiple cloud layers, present/past weather, runway/weather-extension fields, and station pressure. |
-| `station_94368099999_hamilton_island/` | Hamilton Island Airport, Australia | Australian airport station with precipitation, past/present weather, sea-level pressure, and additional weather-code fields. |
+| `station_03041099999_aonach_mor/` | Aonach Mor, UK | Additional deterministic input/output check; not upstream replay evidence. |
+| `station_01116099999_stokka/` | Stokka, Norway | Additional deterministic input/output check; not upstream replay evidence. |
+| `station_94368099999_hamilton_island/` | Hamilton Island Airport, Australia | Additional deterministic input/output check; not upstream replay evidence. |
 
 Checksums for these files are in `reproducibility/checksums.sha256`.
 
@@ -149,7 +146,7 @@ entry in `reproducibility/checksums.sha256`.
 
 ## Fixture Coverage Note
 
-The primary fixture contains 5 raw rows. The traceable fixtures contain 22 raw rows total: the original 20-row source slice plus two one-row source slices selected for `AA1` sentinel/QC behavior, calm-wind context, cloud, pressure, and temperature-summary fields. The secondary fixture contains 8 raw rows and includes additional NOAA field structures including precipitation (`AA1`-`AA4`), multiple cloud layers (`GA1`-`GA5`), past weather (`AY1`/`AY2`), extreme temperature (`KA1`/`KA2`), and present weather (`MW1`-`MW3`). The three additional station fixtures each contain 4 raw rows.
+The primary fixture contains 5 raw rows. The traceable fixtures contain 22 raw rows total: the original 20-row source slice plus two one-row source slices. The secondary fixture and additional station fixtures include some additional NOAA field structures, but those fields are secondary implementation coverage, not the primary JOSS evidence. The three additional station fixtures each contain 4 raw rows.
 
 These fixtures are reproducibility checks, not a claim of exhaustive NOAA coverage. The three traceable fixture directories record complete source URLs, retrieval dates, and observed upstream checksums; the older curated station slices do not replay upstream acquisition. The automated tests exercise additional encoded cases for sentinel handling, QC preservation, deterministic output, CLI behavior, and field parsing.
 

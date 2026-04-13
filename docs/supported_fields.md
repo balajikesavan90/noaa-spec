@@ -3,12 +3,13 @@
 Version: NOAA-Spec 1.0.0  
 Public workflow: `noaa-spec clean INPUT.csv OUTPUT.csv`
 
-This document defines the documented cleaned-output field set for NOAA-Spec
-1.0.0. The JOSS-reviewed center is intentionally smaller than the full
-implemented registry: `noaa-spec clean`, deterministic cleaned CSV generation,
-sentinel-to-null normalization, explicit QC preservation, stable decoded column
-names, checksum-backed tracked fixtures, and the core field families listed
-below. The output CSV is deterministic for a given input, but it is not a
+This document separates the JOSS-reviewed surface from additional implemented
+coverage. The JOSS-reviewed center is `noaa-spec clean`, deterministic cleaned
+CSV generation, sentinel-to-null normalization, explicit QC preservation, stable
+decoded column names, checksum-backed tracked fixtures, and the core field
+families listed first below. Additional implemented families are documented
+after the core table for transparency, but they are secondary to JOSS
+evaluation. The output CSV is deterministic for a given input, but it is not a
 fixed global schema: columns are emitted when the corresponding NOAA ISD /
 Global Hourly source field is present and recognized by the strict parser.
 Unknown encoded identifiers are preserved as raw source columns and are not
@@ -27,7 +28,7 @@ Evidence labels are deliberately separate:
 - `unit-tested`: covered by regression tests but not exhaustively demonstrated by
   the small real-data fixtures.
 
-Column names below are public cleaned-output names or public name patterns. `{n}` means a NOAA repeat suffix retained in the cleaned column name, for example `AA1 -> precip_amount_1` and `GA2 -> cloud_layer_base_height_m_2`.
+Column names below are public cleaned-output names or public name patterns. `{n}` means a NOAA repeat suffix retained in the cleaned column name for implemented repeated families outside the JOSS core.
 
 ## Cross-Cutting Supported Behavior
 
@@ -35,8 +36,8 @@ Column names below are public cleaned-output names or public name patterns. `{n}
 | --- | --- |
 | Observation identity | The cleaned CSV remains observation-level. It preserves source identifier columns such as `STATION`, `DATE`, `SOURCE`, `REPORT_TYPE`, `CALL_SIGN`, and `QUALITY_CONTROL` when present. |
 | Nulls | Empty CSV cells represent null values in deterministic output. Documented missing sentinels such as `+9999`, `99999`, or field-specific all-9 tokens are normalized to null in decoded measurement columns. |
-| QC preservation | NOAA quality codes are retained in explicit `*_quality_code`, `*_qc`, or source-derived `__quality` columns where the source token supplies them. NOAA-Spec sidecars such as `TMP__qc_status` and `AA1__part2__qc_reason` record parser/validation state. |
-| Repeated fields | Supported repeated NOAA families preserve the repeat index in the output name. Example: `AA1`, `AA2`, and `AA3` become `precip_amount_1`, `precip_amount_2`, and `precip_amount_3`. |
+| QC preservation | NOAA quality codes are retained in explicit `*_quality_code`, `*_qc`, or source-derived `__quality` columns where the source token supplies them. NOAA-Spec sidecars such as `TMP__qc_status` and `VIS__part1__qc_reason` record parser/validation state. |
+| Repeated fields | Implemented repeated NOAA families outside the JOSS core preserve the repeat index in the output name. They remain secondary to JOSS evaluation. |
 | Sidecars | Numeric decoded parts may emit `{source}__qc_pass`, `{source}__qc_status`, and `{source}__qc_reason`. Reasons are one of `SENTINEL_MISSING`, `BAD_QUALITY_CODE`, `OUT_OF_RANGE`, or `MALFORMED_TOKEN` when applicable. |
 | Row usability | When QC sidecars exist, the output includes `row_has_any_usable_metric`, `usable_metric_count`, and `usable_metric_fraction`. These are interpretive aids, not scientific filters. |
 
@@ -58,9 +59,16 @@ for the family is exercised by the fixtures.
 | `DEW` dew point temperature | `dew_point_c` | `dew_point_quality_code`, `DEW__qc_*` | `+9999` / `9999` become null; valid values are scaled from tenths of degrees C | Not repeated | `part-03-mandatory-data-section.md`; `FIELD_RULES["DEW"]` | upstream-traceable fixture-backed; unit-tested |
 | `SLP` sea-level pressure | `sea_level_pressure_hpa` | `sea_level_pressure_quality_code`, `SLP__qc_*` | `99999` becomes null; valid values are scaled from tenths of hPa | Not repeated | `part-03-mandatory-data-section.md`; `FIELD_RULES["SLP"]` | upstream-traceable fixture-backed; unit-tested |
 
-## Secondary: Additional Implemented Field Families
+## Additional Implemented Families (Secondary to JOSS Evaluation)
 
-These families are implemented and useful for users, but they are **not the evidentiary center of the JOSS-reviewed contribution**. Reviewer evaluation should focus on the core families above. The tracked fixtures are small and do not exhaustively demonstrate every additional family, repeat suffix, domain value, or edge case. Each entry carries an evidence label to mark the narrower support honestly. Treat this section as a transparent secondary inventory, not a claim of broad real-data validation.
+This section is **not** the primary reviewed surface. Do not read it as a second
+acceptance checklist for the JOSS submission. These families remain implemented
+and documented so users can see what the parser recognizes, but reviewer
+evaluation should focus on the core table above. The tracked fixtures are small
+and do not exhaustively demonstrate every additional family, repeat suffix,
+domain value, or edge case. Each entry carries an evidence label to mark the
+narrower support honestly. Treat this section as transparent secondary
+inventory, not a claim of broad real-data validation.
 
 | NOAA field / token family | Decoded output columns | Associated QC columns | Sentinel/null handling | Repeated naming | Provenance references | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |

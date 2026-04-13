@@ -53,9 +53,8 @@ The upstream-traceable reproducibility fixtures are:
 - Provenance note: `reproducibility/TRACEABLE_FIXTURES.md`
 
 These demonstrate selected traceable NOAA source slices; they are not a claim
-of broad NOAA coverage. The two one-row additions promote reviewer edge cases
-with `AA1` precipitation sentinels, QC/context preservation, cloud, pressure,
-temperature-summary, and calm-wind context where present.
+of broad NOAA coverage. Reviewer evaluation should focus on the core families:
+`WND`, `CIG`, `VIS`, `TMP`, `DEW`, and `SLP`.
 
 ```text
 https://www.ncei.noaa.gov/data/global-hourly/access/2001/78724099999.csv
@@ -76,12 +75,12 @@ Compare the generated checksum with the matching
 `reproducibility/real_provenance_example/station_cleaned_expected.csv` entry in
 `reproducibility/checksums.sha256`.
 
-Analysis-view snapshot from the tracked expected output:
+Core-field snapshot from the tracked expected output:
 
-| STATION | DATE | temperature_c | temperature_quality_code | visibility_m | visibility_quality_code | wind_speed_ms | wind_type_code | precip_amount_1 | precip_quality_code_1 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 78724099999 | 2001-01-01T00:00:00 | 30.0 | 1 | 11265.0 | 1.0 | 8.7 | N |  |  |
-| 78724099999 | 2001-01-01T15:00:00 | 29.3 | 1 | 28000.0 | 1.0 | 8.2 | N | 0.0 | 1.0 |
+| STATION | DATE | temperature_c | temperature_quality_code | visibility_m | visibility_quality_code | wind_speed_ms | wind_type_code | sea_level_pressure_hpa |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 78724099999 | 2001-01-01T15:00:00 | 29.3 | 1 | 28000.0 | 1.0 | 8.2 | N | 1013.8 |
+| 78724099999 | 2001-01-01T18:00:00 | 32.7 | 1 | 28000.0 | 1.0 | 10.8 | N | 1011.9 |
 
 ### Raw Row Walkthrough
 
@@ -154,20 +153,20 @@ column names, and checksum-backed reproduction of tracked fixtures. The core
 field families are the retained source/control columns plus `WND`, `CIG`,
 `VIS`, `TMP`, `DEW`, and `SLP`.
 
-Additional NOAA families remain implemented and useful for users, but they are
-secondary implementation coverage. They are documented and unit-tested, with
-selected fixture evidence, but they are not the evidentiary center of the JOSS
-claim and are not all backed by equal upstream-traceable real-data fixtures. Use
-[docs/evidence_matrix.md](docs/evidence_matrix.md) and
+Additional NOAA families remain implemented, but they are not part of the
+primary JOSS-reviewed claim. Treat them as secondary implementation inventory:
+documented and tested, but not all backed by equal upstream-traceable real-data
+fixtures. Use [docs/evidence_matrix.md](docs/evidence_matrix.md) and
 [docs/supported_fields.md](docs/supported_fields.md) for the evidence boundary.
 
 ## Why A Shared Cleaning Tool?
 
-A competent researcher can write a project-local cleaning script for the NOAA
-fields used in one study. NOAA-Spec is useful when that interpretation needs to
-be shared: it publishes sentinel handling, QC preservation, decoded column
-names, and deterministic CSV serialization as versioned, checksum-backed common
-behavior instead of leaving each study to carry a private preprocessing policy.
+A careful project-local script can reproduce the core cleaning mechanics for
+one study. NOAA-Spec is useful when that interpretation needs to be shared: it
+publishes stable decoded column names, explicit QC preservation,
+checksum-backed regression behavior, and deterministic CSV serialization as a
+versioned contract across users and studies instead of leaving each study to
+carry a private preprocessing policy.
 
 As a concrete illustration, a raw visibility token such as:
 
@@ -180,10 +179,10 @@ can be naively split into a numeric value of `999999`, which is not a real visib
 Run the minimal comparison:
 
 ```bash
-python examples/pandas_vs_noaa_spec.py
+python3 examples/pandas_vs_noaa_spec.py
 ```
 
-For a compact reviewer-facing table of selected real-row edge cases, see [docs/reviewer_cleaning_examples.md](docs/reviewer_cleaning_examples.md). The static curated appendix in `artifacts/curated_examples/` is optional context only; it is not part of the Docker reviewer path or checksum reproducibility contract. For claim-to-evidence mapping, see [docs/evidence_matrix.md](docs/evidence_matrix.md).
+For a compact reviewer-facing table of selected real-row edge cases, see [docs/reviewer_cleaning_examples.md](docs/reviewer_cleaning_examples.md). For claim-to-evidence mapping, see [docs/evidence_matrix.md](docs/evidence_matrix.md).
 
 ## Relationship to Existing NOAA Tools
 
@@ -201,7 +200,7 @@ python -m pip install --upgrade pip setuptools wheel
 python -m pip install -e .
 ```
 
-Use `python3.11` instead of `python3.12` if that is your supported local interpreter.
+Use `python3.11` instead of `python3.12` if that is your supported local interpreter. After activation, `python` refers to the virtual-environment interpreter.
 
 If the console script is not on `PATH`, use:
 
@@ -216,8 +215,8 @@ The positional output path is the canonical form. `noaa-spec clean INPUT.csv --o
 The tracked fixtures are small by design:
 
 - `reproducibility/real_provenance_example/`: 20 rows from a recorded NOAA/NCEI Global Hourly source URL.
-- `reproducibility/traceable_peru_il_2014_aa1_qc/`: one upstream-traceable row covering `AA1` precipitation amount sentinel handling, cloud fields, temperature-summary fields, pressure, wind gust, and remarks.
-- `reproducibility/traceable_albion_ne_2014_calm_aa1/`: one upstream-traceable row covering calm-wind context, `AA1` precipitation amount sentinel handling, cloud fields, temperature-summary fields, pressure, remarks, and EQD metadata.
+- `reproducibility/traceable_peru_il_2014_aa1_qc/`: one upstream-traceable row promoted from an edge-case example.
+- `reproducibility/traceable_albion_ne_2014_calm_aa1/`: one upstream-traceable row promoted from an edge-case example.
 - `reproducibility/minimal/`: five raw rows for the compact reviewer fixture.
 - `reproducibility/minimal_second/`: eight raw rows covering additional encoded fields.
 - `reproducibility/station_03041099999_aonach_mor/`, `reproducibility/station_01116099999_stokka/`, and `reproducibility/station_94368099999_hamilton_island/`: four-row curated station slices. Their exact upstream retrieval metadata was not retained.
@@ -237,6 +236,7 @@ and [docs/evidence_matrix.md](docs/evidence_matrix.md).
 ## Run Tests
 
 ```bash
+source .venv/bin/activate
 python -m pip install -e .
 python -m pip install pytest
 python -m pytest tests -v
