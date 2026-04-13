@@ -3,8 +3,12 @@
 Version: NOAA-Spec 1.0.0  
 Public workflow: `noaa-spec clean INPUT.csv OUTPUT.csv`
 
-This document defines the documented cleaned-output field set for the JOSS-facing
-version. The output CSV is deterministic for a given input, but it is not a
+This document defines the documented cleaned-output field set for NOAA-Spec
+1.0.0. The JOSS-reviewed center is intentionally smaller than the full
+implemented registry: `noaa-spec clean`, deterministic cleaned CSV generation,
+sentinel-to-null normalization, explicit QC preservation, stable decoded column
+names, checksum-backed tracked fixtures, and the core field families listed
+below. The output CSV is deterministic for a given input, but it is not a
 fixed global schema: columns are emitted when the corresponding NOAA ISD /
 Global Hourly source field is present and recognized by the strict parser.
 Unknown encoded identifiers are preserved as raw source columns and are not
@@ -36,7 +40,7 @@ Column names below are public cleaned-output names or public name patterns. `{n}
 | Sidecars | Numeric decoded parts may emit `{source}__qc_pass`, `{source}__qc_status`, and `{source}__qc_reason`. Reasons are one of `SENTINEL_MISSING`, `BAD_QUALITY_CODE`, `OUT_OF_RANGE`, or `MALFORMED_TOKEN` when applicable. |
 | Row usability | When QC sidecars exist, the output includes `row_has_any_usable_metric`, `usable_metric_count`, and `usable_metric_fraction`. These are interpretive aids, not scientific filters. |
 
-## Core Reviewed Field Families
+## JOSS Core: Reviewed Field Families
 
 These fields are central to the JOSS-facing `noaa-spec clean` claim: retained
 source/control columns and the mandatory NOAA observation families. They are
@@ -54,9 +58,9 @@ for the family is exercised by the fixtures.
 | `DEW` dew point temperature | `dew_point_c` | `dew_point_quality_code`, `DEW__qc_*` | `+9999` / `9999` become null; valid values are scaled from tenths of degrees C | Not repeated | `part-03-mandatory-data-section.md`; `FIELD_RULES["DEW"]` | upstream-traceable fixture-backed; unit-tested |
 | `SLP` sea-level pressure | `sea_level_pressure_hpa` | `sea_level_pressure_quality_code`, `SLP__qc_*` | `99999` becomes null; valid values are scaled from tenths of hPa | Not repeated | `part-03-mandatory-data-section.md`; `FIELD_RULES["SLP"]` | upstream-traceable fixture-backed; unit-tested |
 
-## Additional Implemented Field Families
+## Secondary: Additional Implemented Field Families
 
-These families are implemented in the package and covered by regression tests, but they are **not the evidentiary center of the JOSS-reviewed contribution**. Reviewer evaluation should focus on the Core Reviewed Field Families above. The tracked fixtures are small and do not exhaustively demonstrate every additional family, repeat suffix, domain value, or edge case. Each entry carries an evidence label to mark the narrower support honestly. Treat this section as a transparent implementation inventory, not a claim of broad real-data validation.
+These families are implemented and useful for users, but they are **not the evidentiary center of the JOSS-reviewed contribution**. Reviewer evaluation should focus on the core families above. The tracked fixtures are small and do not exhaustively demonstrate every additional family, repeat suffix, domain value, or edge case. Each entry carries an evidence label to mark the narrower support honestly. Treat this section as a transparent secondary inventory, not a claim of broad real-data validation.
 
 | NOAA field / token family | Decoded output columns | Associated QC columns | Sentinel/null handling | Repeated naming | Provenance references | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -75,8 +79,6 @@ These families are implemented in the package and covered by regression tests, b
 | CRN and ground-surface families `CB`, `CF`, `CG`, `CH`, `CI`, `CN1`-`CN4`, `IA1`, `IA2`, `IB1`, `IB2`, `IC1` | Public patterns such as `secondary_precip_depth_mm_{n}`, `crn_fan_speed_rps_{n}`, `rh_temp_avg_c_{n}`, `battery_voltage_avg_v_1`, `ground_surface_observation_code`, `ground_surface_min_temp_c`, `surface_temp_avg_c`, `ground_surface_evaporation_in` | Matching `*_qc`, `*_flag`, or `*_quality_code` columns and numeric sidecars | Family-specific all-9 missing markers become null; width/domain/range checks apply where implemented | CRN `CB`/`CF`/`CG`/`CH`/`CI` repeat forms and fixed `CN1`-`CN4` as implemented | `part-06-climate-reference-network-unique-data.md` and `part-23-ground-surface-data.md`; CRN/ground rules in `constants.py` | unit-tested |
 | Hail and runway/COOP metadata `HAIL`, `ED1`, `CO1`-`CO9`, `CR1` | `hail_size_cm`, `runway_direction_deg`, `runway_visibility_m`, `climate_division_number`, `utc_lst_offset_hours`, `coop_element_id_{n}`, `coop_time_offset_hours_{n}`, `crn_datalogger_version` | `hail_size_quality_code`, `runway_visibility_quality_code`, `crn_datalogger_version_qc`, matching sidecars | Field-specific missing markers become null; fixed-width checks apply where implemented | `CO1` singleton climate division plus `CO2`-`CO9` repeated COOP offsets | `part-14-runway-visual-range-data.md`, `part-22-hail-data.md`, `part-04-additional-data-section.md`; field rules in `constants.py` | unit-tested |
 
-## Unsupported or Non-Core Surface
+## Unsupported Surface
 
 - NOAA encoded identifiers not listed above are not decoded by the strict parser for this version.
-- Optional `noaa-spec split-domains` output is a secondary convenience view derived from a cleaned CSV. It is not the primary JOSS output and does not expand the documented cleaning field set.
-- Manifest files written by optional domain splitting are runtime support artifacts for that optional workflow, not part of the core reproducibility claim.

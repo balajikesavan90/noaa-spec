@@ -35,8 +35,6 @@ It then compares each generated CSV checksum to the tracked expected output
 hashes in `reproducibility/checksums.sha256`. That file is the canonical
 checksum manifest for tracked reproducibility artifacts.
 
-Optional domain split CSVs are derived convenience views from cleaned output. They are not part of this primary checksum workflow, the JOSS contribution, or the JOSS reproducibility claim.
-
 The Dockerfile defines a tested reviewer container and pins the `python:3.12-slim` base image by digest. It is still not a fully immutable archived runtime because it refreshes Debian package metadata and upgrades bootstrap packaging tools during the image build.
 
 After verification, reviewers should inspect the raw fixture and expected cleaned output side by side:

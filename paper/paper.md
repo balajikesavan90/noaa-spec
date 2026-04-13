@@ -37,7 +37,9 @@ The problem NOAA-Spec addresses is not that correct individual implementations a
 
 NOAA-Spec addresses this by publishing one documented, checksum-backed implementation of a defined set of those cleaning decisions as a versioned Python CLI. It normalizes documented sentinels to null, preserves NOAA QC codes in explicit columns, and writes stable decoded column names for the recognized fields in this release. A downstream researcher using `noaa-spec clean` on the same input obtains the same output, verifiable by checksum. The contribution is that documented interpretation boundary — made shareable, reproducible, and testable — not any individual cleaning step that a local script could not also implement.
 
-The public claim centers on the core cleaned-output policy and the mandatory field families directly exercised by the reviewer workflow (`WND`, `CIG`, `VIS`, `TMP`, `DEW`, and `SLP`, with source/control columns retained). Additional implemented field families are included in the package and covered by tests and selected fixtures, but they are not presented as having identical upstream-traceable real-data support.
+The practical comparator is therefore not an uninformed script, but a careful local script maintained by one researcher or lab. Such a script can be appropriate for one study. NOAA-Spec becomes useful when the same NOAA interpretation needs to be reused, cited, reviewed, or compared across users: the sentinel rules, QC retention, decoded column names, and output serialization are common reference behavior rather than private preprocessing choices.
+
+The public claim centers on the core cleaned-output policy, checksum-backed reproduction of tracked fixtures, and the mandatory field families directly exercised by the reviewer workflow (`WND`, `CIG`, `VIS`, `TMP`, `DEW`, and `SLP`, with source/control columns retained). Additional implemented field families are useful to users and remain documented, but they are secondary implementation coverage. They are not presented as having identical upstream-traceable real-data support.
 
 # Demonstrated Cleaning Cases
 
@@ -82,7 +84,7 @@ The public CLI is:
 noaa-spec clean INPUT.csv OUTPUT.csv
 ```
 
-The implementation separates NOAA field interpretation (`cleaning.py` and `constants.py`) from deterministic CSV writing (`deterministic_io.py`) and the command-line entry point (`cli.py`). The cleaned output is intentionally wide because it preserves decoded measurement fields, NOAA quality codes, validation sidecars, and row-level usability summaries rather than projecting a single analysis-ready subset. This is a tradeoff for explicit QC retention and deterministic field exposure; `docs/first_output_guide.md` provides the recommended compact first view. Optional domain-specific CSV views can be derived from the cleaned output, but they are outside the core JOSS contribution and are not part of the primary reproducibility claim. The repository includes a supported-field registry in `docs/supported_fields.md`, an interpretation guide in `docs/schema.md`, and a rule-family provenance inventory in `docs/rule_provenance.md`.
+The implementation separates NOAA field interpretation (`cleaning.py` and `constants.py`) from deterministic CSV writing (`deterministic_io.py`) and the command-line entry point (`cli.py`). The cleaned output is intentionally wide because it preserves decoded measurement fields, NOAA quality codes, validation sidecars, and row-level usability summaries rather than projecting a single analysis-ready subset. This is a tradeoff for explicit QC retention and deterministic field exposure; `docs/first_output_guide.md` provides the recommended compact first view. The repository includes a supported-field registry in `docs/supported_fields.md`, an interpretation guide in `docs/schema.md`, and a rule-family provenance inventory in `docs/rule_provenance.md`.
 
 # Reproducibility
 

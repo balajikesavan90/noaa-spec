@@ -4,7 +4,7 @@ NOAA-Spec provides deterministic, specification-constrained cleaning of NOAA
 Integrated Surface Database (ISD) / Global Hourly CSV observations by
 normalizing documented sentinel values, preserving NOAA quality-code context,
 and producing checksum-stable output for a defined supported field set. Its
-public JOSS-facing workflow is:
+public JOSS-facing workflow is the single command:
 
 ```bash
 noaa-spec clean INPUT.csv OUTPUT.csv
@@ -17,7 +17,7 @@ parsing alone; it is making a bounded set of NOAA cleaning decisions explicit,
 testable, provenance-aware, and checksum-stable so downstream researchers can
 start from the same documented interpretation rather than divergent local
 scripts. NOAA-Spec does not download NOAA data, orchestrate station batches,
-produce releases, or run analyses.
+split datasets into analysis domains, produce releases, or run analyses.
 
 ## Reviewer Path
 
@@ -83,17 +83,38 @@ Analysis-view snapshot from the tracked expected output:
 | 78724099999 | 2001-01-01T00:00:00 | 30.0 | 1 | 11265.0 | 1.0 | 8.7 | N |  |  |
 | 78724099999 | 2001-01-01T15:00:00 | 29.3 | 1 | 28000.0 | 1.0 | 8.2 | N | 0.0 | 1.0 |
 
-### How to read one row
+### Raw Row Walkthrough
 
-For `2001-01-01T15:00:00`, read the decoded measurement columns first and ignore `__qc_*` sidecars on the first pass. `temperature_c=29.3` is the decoded air temperature and `temperature_quality_code=1` is the NOAA QC flag. `visibility_m=28000.0` is decoded visibility and `visibility_quality_code=1.0` is its QC flag. `wind_speed_ms=8.2` is decoded wind speed and `wind_speed_quality_code=1.0` is its QC flag. `precip_amount_1=0.0` is decoded precipitation for the first `AA1` precipitation group.
+From the tracked primary fixture, this raw row snippet:
 
-| column | meaning |
-| --- | --- |
-| `temperature_c` | decoded temperature |
-| `temperature_quality_code` | NOAA QC flag for temperature |
-| `visibility_m` | decoded visibility |
-| `wind_speed_ms` | decoded wind speed |
-| `precip_amount_1` | decoded precipitation amount |
+```text
+STATION=40435099999
+DATE=2000-03-17T09:00:00
+TMP=+9999,9
+VIS=999999,9,N,1
+WND=999,9,9,9999,9
+SLP=99999,9
+```
+
+becomes the following compact cleaned view. This is not the full schema; it is
+the first-pass interpretation a reviewer should inspect.
+
+| Output column | Meaning | Result |
+| --- | --- | --- |
+| `STATION` | Source station | `40435099999` |
+| `DATE` | Observation timestamp | `2000-03-17T09:00:00` |
+| `temperature_c` | Decoded air temperature | empty null |
+| `temperature_quality_code` | NOAA QC flag from `TMP` | `9` |
+| `TMP__qc_reason` | Why temperature is null | `SENTINEL_MISSING` |
+| `visibility_m` | Decoded visibility distance | empty null |
+| `visibility_quality_code` | NOAA QC flag from `VIS` | `9.0` |
+| `VIS__part1__qc_reason` | Why visibility is null | `SENTINEL_MISSING` |
+| `wind_speed_ms` | Decoded wind speed | empty null |
+| `wind_speed_quality_code` | NOAA QC flag from `WND` | `9.0` |
+| `sea_level_pressure_hpa` | Decoded sea-level pressure | empty null |
+
+The useful behavior is explicit: sentinel-coded measurements become null while
+the NOAA quality-code context remains visible.
 
 ## First Output: What To Look At
 
@@ -126,31 +147,27 @@ For a slightly longer guide, see [docs/first_output_guide.md](docs/first_output_
 
 ## Core Reviewed Contribution vs Extended Coverage
 
-Reviewer evaluation should center on the core JOSS contribution: deterministic
-cleaning through `noaa-spec clean`, documented sentinel-to-null normalization,
-NOAA QC preservation, checksum-stable cleaned CSV generation, and the mandatory
-NOAA field families exposed in the public cleaned output (`WND`, `CIG`, `VIS`,
-`TMP`, `DEW`, and `SLP`, with source/control columns retained). Additional NOAA
-families are implemented, documented, and unit-tested, and selected additional
-families appear in tracked fixtures, but they are not all backed by equal
-upstream-traceable real-data evidence. Use [docs/evidence_matrix.md](docs/evidence_matrix.md)
-and [docs/supported_fields.md](docs/supported_fields.md) for the evidence
-boundary.
+Reviewer evaluation should center on the core JOSS contribution:
+`noaa-spec clean`, deterministic cleaned CSV generation, documented
+sentinel-to-null normalization, explicit NOAA QC preservation, stable decoded
+column names, and checksum-backed reproduction of tracked fixtures. The core
+field families are the retained source/control columns plus `WND`, `CIG`,
+`VIS`, `TMP`, `DEW`, and `SLP`.
+
+Additional NOAA families remain implemented and useful for users, but they are
+secondary implementation coverage. They are documented and unit-tested, with
+selected fixture evidence, but they are not the evidentiary center of the JOSS
+claim and are not all backed by equal upstream-traceable real-data fixtures. Use
+[docs/evidence_matrix.md](docs/evidence_matrix.md) and
+[docs/supported_fields.md](docs/supported_fields.md) for the evidence boundary.
 
 ## Why A Shared Cleaning Tool?
 
-A competent researcher can write a project-local script that correctly handles NOAA
-sentinels for the fields they use. The problem is that those scripts diverge: one
-project drops the QC flag when it nullifies `+9999`, another serializes rows in a
-different order, another names the temperature column `temp_c` instead of
-`temperature_c`. The resulting tables are hard to compare even when the same NOAA
-source rows were used.
-
-NOAA-Spec publishes those cleaning decisions—sentinel handling, QC preservation, decoded
-column names, and deterministic CSV serialization—as a versioned, checksum-backed
-single implementation. The value is not that local scripts are impossible; it is that
-using the same tool makes the interpretation boundary shared and verifiable across
-projects.
+A competent researcher can write a project-local cleaning script for the NOAA
+fields used in one study. NOAA-Spec is useful when that interpretation needs to
+be shared: it publishes sentinel handling, QC preservation, decoded column
+names, and deterministic CSV serialization as versioned, checksum-backed common
+behavior instead of leaving each study to carry a private preprocessing policy.
 
 As a concrete illustration, a raw visibility token such as:
 
@@ -216,13 +233,6 @@ claim that the small fixtures exercise every NOAA field. See [REPRODUCIBILITY.md
 [reproducibility/TRACEABLE_FIXTURES.md](reproducibility/TRACEABLE_FIXTURES.md),
 [reproducibility/FIXTURE_PROVENANCE.md](reproducibility/FIXTURE_PROVENANCE.md),
 and [docs/evidence_matrix.md](docs/evidence_matrix.md).
-
-## Optional, Outside JOSS Core
-
-Reviewer evaluation should focus on `noaa-spec clean`. The CLI still includes
-`noaa-spec split-domains` as a non-core convenience utility for splitting an
-already-cleaned CSV into derived CSV views. It is not part of the JOSS
-contribution, reviewer checksum workflow, or primary reproducibility claim.
 
 ## Run Tests
 

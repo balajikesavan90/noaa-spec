@@ -37,3 +37,37 @@ Read empty decoded measurements together with their quality-code and sidecar
 columns. For example, the second row shows sentinel-coded temperature and
 visibility normalized to null while preserving the source QC code and parser
 reason.
+
+## One Raw Row To Cleaned Columns
+
+The second row above comes from this raw fixture snippet:
+
+```text
+STATION=40435099999
+DATE=2000-03-17T09:00:00
+TMP=+9999,9
+VIS=999999,9,N,1
+WND=999,9,9,9999,9
+SLP=99999,9
+```
+
+Read the compact cleaned output this way:
+
+| Output column | Meaning | Result |
+| --- | --- | --- |
+| `STATION` | Source station | `40435099999` |
+| `DATE` | Observation timestamp | `2000-03-17T09:00:00` |
+| `temperature_c` | Decoded `TMP` value | empty null |
+| `temperature_quality_code` | NOAA QC from `TMP` | `9` |
+| `TMP__qc_status` | Parser status for `TMP` value | `MISSING` |
+| `TMP__qc_reason` | Parser reason for `TMP` value | `SENTINEL_MISSING` |
+| `visibility_m` | Decoded `VIS` distance | empty null |
+| `visibility_quality_code` | NOAA QC from `VIS` | `9.0` |
+| `VIS__part1__qc_reason` | Parser reason for `VIS` distance | `SENTINEL_MISSING` |
+| `wind_speed_ms` | Decoded `WND` speed | empty null |
+| `wind_speed_quality_code` | NOAA QC from `WND` speed | `9.0` |
+| `sea_level_pressure_hpa` | Decoded `SLP` value | empty null |
+
+This is the intended first-pass view: do not inspect the entire wide schema
+before confirming that decoded values, source QC codes, and parser reasons line
+up for the row you care about.

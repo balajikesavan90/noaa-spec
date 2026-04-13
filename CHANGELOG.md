@@ -24,4 +24,4 @@
 ### Repository
 - Installable package renamed to `noaa-spec` (import as `noaa_spec`).
 - JOSS branch narrowed around the cleaning package, reproducibility fixtures, tests, and manuscript rather than broader publication workflows.
-- Documented the evidence boundary between tracked fixture reproduction, one upstream-traceable example, reviewer-facing edge-case examples, and broader unit-tested parser behavior.
+- Documented the evidence boundary between tracked fixture reproduction, three upstream-traceable fixtures, reviewer-facing edge-case examples, and broader unit-tested parser behavior.
