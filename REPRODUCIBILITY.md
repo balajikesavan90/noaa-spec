@@ -50,6 +50,7 @@ After verification, reviewers should inspect the raw fixture and expected cleane
 - `reproducibility/FIXTURE_PROVENANCE.md`
 - `reproducibility/checksums.sha256`
 - `docs/reviewer_cleaning_examples.md`
+- `docs/evidence_matrix.md`
 
 The cleaned CSV is wider than a single analysis table because NOAA-Spec preserves decoded measurements, NOAA quality codes, validation sidecars, and row-level usability summaries. Width depends on which optional NOAA encoded fields are present in the input. Start with `docs/first_output_guide.md` for a compact first view before reading the full CSV.
 
@@ -151,3 +152,5 @@ entry in `reproducibility/checksums.sha256`.
 The primary fixture contains 5 raw rows. The fully traceable example contains 20 raw rows and includes supported wind, precipitation, cloud, present-weather, pressure, temperature, and remarks fields where present in its source slice. The secondary fixture contains 8 raw rows and includes additional NOAA field structures including precipitation (`AA1`-`AA4`), multiple cloud layers (`GA1`-`GA5`), past weather (`AY1`/`AY2`), extreme temperature (`KA1`/`KA2`), and present weather (`MW1`-`MW3`). The three additional station fixtures each contain 4 raw rows.
 
 These fixtures are reproducibility checks, not a claim of exhaustive NOAA coverage. Only `real_provenance_example/` records a complete source URL, retrieval date, and observed upstream checksum; the curated station slices do not replay upstream acquisition. The automated tests exercise additional encoded cases for sentinel handling, QC preservation, deterministic output, CLI behavior, and field parsing.
+
+For a concise claim-to-evidence map, including which claims are fixture-backed, upstream-traceable fixture-backed, unit-test-backed, or documentation-only, see [docs/evidence_matrix.md](docs/evidence_matrix.md).

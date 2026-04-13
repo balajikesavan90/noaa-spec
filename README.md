@@ -136,7 +136,7 @@ Run the minimal comparison:
 python examples/pandas_vs_noaa_spec.py
 ```
 
-For a compact reviewer-facing table of selected real-row edge cases, see [docs/reviewer_cleaning_examples.md](docs/reviewer_cleaning_examples.md).
+For a compact reviewer-facing table of selected real-row edge cases, see [docs/reviewer_cleaning_examples.md](docs/reviewer_cleaning_examples.md). For the full curated mined-example artifact, see [artifacts/curated_examples/curated_examples.md](artifacts/curated_examples/curated_examples.md); for claim-to-evidence mapping, see [docs/evidence_matrix.md](docs/evidence_matrix.md).
 
 ## Why Not Existing NOAA Parsers?
 
@@ -179,8 +179,9 @@ These fixtures verify deterministic behavior for committed input/output pairs:
 URL, retrieval date, and observed upstream checksum. The other curated fixtures
 do not replay upstream NOAA acquisition and do not claim exhaustive NOAA
 coverage. Broader field behavior is supported by tests, not by a claim that the
-small fixtures exercise every NOAA field. See [REPRODUCIBILITY.md](REPRODUCIBILITY.md)
-and [reproducibility/FIXTURE_PROVENANCE.md](reproducibility/FIXTURE_PROVENANCE.md).
+small fixtures exercise every NOAA field. See [REPRODUCIBILITY.md](REPRODUCIBILITY.md),
+[reproducibility/FIXTURE_PROVENANCE.md](reproducibility/FIXTURE_PROVENANCE.md),
+and [docs/evidence_matrix.md](docs/evidence_matrix.md).
 
 ## Optional, Outside JOSS Core
 

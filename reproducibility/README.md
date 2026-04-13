@@ -14,3 +14,4 @@ This directory contains the tracked artifacts behind the public reproducibility 
 
 The active reviewer workflow is documented in [../REPRODUCIBILITY.md](../REPRODUCIBILITY.md). Use that document for the exact commands and `checksums.sha256` for checksum targets.
 The in-repo fixtures are intentionally small and serve as deterministic reproducibility checks: `clean(committed_input) = committed_output`. Only `real_provenance_example/` adds upstream URL/date/checksum traceability.
+For the claim-to-evidence boundary, see [../docs/evidence_matrix.md](../docs/evidence_matrix.md).
