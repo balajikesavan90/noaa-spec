@@ -1,14 +1,8 @@
 # Curated Example Selection Summary
 
-Generated from `artifacts/example_row_mining/all_matches.csv` by `tools/select_curated_examples.py`.
+Static appendix examples selected from the committed candidate pool `artifacts/curated_examples/candidate_pool.csv`.
 
-Selection is deterministic. Rows are aggregated by station, source-pool row key, timestamp, and raw token summary; duplicate mined pattern hits for the same source row become one candidate with multiple pattern labels. The selector first ensures each available mined pattern is represented where possible, then greedily adds rows that improve pattern, rule-behavior, field-family, and station coverage while penalizing near-duplicates.
-
-Rerun the canonical repo artifact with:
-
-```bash
-python3 tools/select_curated_examples.py --input artifacts/example_row_mining/all_matches.csv --output-dir artifacts/curated_examples --target-count 18
-```
+The curated examples are optional reviewer context. They are not part of the Docker reviewer path, the checksum-backed reproducibility contract, or the core `noaa-spec clean` validation path. The committed candidate pool is a compact source table retained only to explain where these illustrative appendix rows came from.
 
 Selected rows: 18
 
@@ -17,7 +11,7 @@ Selected rows: 18
 | Dimension | Values |
 | --- | --- |
 | Field families | AA1 (11), TMP (18), VIS (18), WND (18) |
-| Mined patterns | aa1_missing_sentinel (5), aa1_valid_precip (1), mixed_validity (4), multi_family_informative (3), tmp_missing_sentinel (4), vis_missing_sentinel (6), wnd_fully_missing (4), wnd_missing_dir_valid_spd (3) |
+| Selection labels | aa1_missing_sentinel (5), aa1_valid_precip (1), mixed_validity (4), multi_family_informative (3), tmp_missing_sentinel (4), vis_missing_sentinel (6), wnd_fully_missing (4), wnd_missing_dir_valid_spd (3) |
 | Rule behaviors | aa1_amount_sentinel (5), aa1_period_sentinel (5), calm_wind_context (6), estimated_qc_preserved (2), four_family_context (11), mixed_validity (4), tmp_missing_sentinel (5), valid_precip_zero (6), valid_wind_speed_with_missing_direction (6), vis_missing_sentinel (6), wnd_fully_missing (5) |
 | Stations | 46737399999 (1), 55696099999 (1), 63250099999 (7), 72214904899 (2), 72344154921 (1), 72547299999 (6) |
 

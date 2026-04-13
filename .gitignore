@@ -38,6 +38,7 @@ poetry.lock
 output/
 logs/
 artifacts/test_runs/
+!artifacts/curated_examples/candidate_pool.csv
 !artifacts/curated_examples/curated_examples.csv
 data/archive/station_reports_full/
 

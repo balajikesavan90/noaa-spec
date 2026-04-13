@@ -10,6 +10,8 @@ __pycache__/
 .coverage.*
 data/
 noaa_file_index/
+# Optional curated-example appendix artifacts are not needed for the Docker
+# checksum verification path.
 artifacts/
 output/
 logs/

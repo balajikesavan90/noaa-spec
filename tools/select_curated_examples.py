@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Select a compact, reviewer-facing subset from mined NOAA-Spec examples."""
+"""Maintain the static curated-example appendix from a committed candidate pool."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-DEFAULT_INPUT = Path("artifacts/example_row_mining/all_matches.csv")
+DEFAULT_INPUT = Path("artifacts/curated_examples/candidate_pool.csv")
 DEFAULT_OUTPUT_DIR = Path("artifacts/curated_examples")
 DEFAULT_TARGET_COUNT = 18
 
@@ -192,7 +192,7 @@ def _read_candidates(path: Path) -> list[Candidate]:
         for row in reader:
             key = (
                 row["station_id"],
-                row["line_number"],
+                row.get("candidate_pool_line_number", row.get("line_number", "")),
                 row["date"],
                 row["raw_row"],
             )
@@ -209,7 +209,14 @@ def _read_candidates(path: Path) -> list[Candidate]:
         datetime = str(row.get("date", ""))  # type: ignore[union-attr]
         noaa_source_url = _noaa_source_url(station_id=station_id, datetime=datetime)
         noaa_csv_line_number = _verified_noaa_csv_line_number(row)  # type: ignore[arg-type]
-        source_pool_line_number = int(str(row.get("line_number", "0")))  # type: ignore[union-attr]
+        source_pool_line_number = int(
+            str(
+                row.get(  # type: ignore[union-attr]
+                    "candidate_pool_line_number",
+                    row.get("line_number", "0"),  # type: ignore[union-attr]
+                )
+            )
+        )
         base_score = (
             20 * len(patterns)
             + 8 * len(behaviors)
@@ -403,7 +410,7 @@ def _write_curated_markdown(rows: list[dict[str, str]], output_path: Path) -> No
     lines = [
         "# Curated NOAA-Spec Cleaning Examples",
         "",
-        "This table is generated from the existing mined example pool. It is a compact reviewer-facing view, not a new data-mining pass and not a claim of exhaustive NOAA coverage.",
+        "These examples are a static illustrative appendix selected from the committed candidate pool in `artifacts/curated_examples/candidate_pool.csv`. They are optional reviewer context, not part of the checksum-backed reproducibility contract and not a claim of exhaustive NOAA coverage.",
         "",
         "| Example | Station / datetime | NOAA source | Families | Rule behaviors | Provenance | Why selected |",
         "| --- | --- | --- | --- | --- | --- | --- |",
@@ -434,15 +441,9 @@ def _write_summary(rows: list[dict[str, str]], output_path: Path, input_path: Pa
     lines = [
         "# Curated Example Selection Summary",
         "",
-        f"Generated from `{input_path}` by `tools/select_curated_examples.py`.",
+        f"Static appendix examples selected from the committed candidate pool `{input_path}`.",
         "",
-        "Selection is deterministic. Rows are aggregated by station, source-pool row key, timestamp, and raw token summary; duplicate mined pattern hits for the same source row become one candidate with multiple pattern labels. The selector first ensures each available mined pattern is represented where possible, then greedily adds rows that improve pattern, rule-behavior, field-family, and station coverage while penalizing near-duplicates.",
-        "",
-        "Rerun the canonical repo artifact with:",
-        "",
-        "```bash",
-        f"python3 tools/select_curated_examples.py --input {input_path} --output-dir {DEFAULT_OUTPUT_DIR} --target-count {len(rows)}",
-        "```",
+        "The curated examples are optional reviewer context. They are not part of the Docker reviewer path, the checksum-backed reproducibility contract, or the core `noaa-spec clean` validation path. The committed candidate pool is a compact source table retained only to explain where these illustrative appendix rows came from.",
         "",
         f"Selected rows: {len(rows)}",
         "",
@@ -451,7 +452,7 @@ def _write_summary(rows: list[dict[str, str]], output_path: Path, input_path: Pa
         "| Dimension | Values |",
         "| --- | --- |",
         f"| Field families | {_format_counter(family_counts)} |",
-        f"| Mined patterns | {_format_counter(pattern_counts)} |",
+        f"| Selection labels | {_format_counter(pattern_counts)} |",
         f"| Rule behaviors | {_format_counter(behavior_counts)} |",
         f"| Stations | {_format_counter(station_counts)} |",
         "",
@@ -495,25 +496,25 @@ def run(input_path: Path, output_dir: Path, target_count: int) -> list[dict[str,
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Select deterministic curated examples from the mined example pool."
+        description="Maintain the static curated-example appendix from a committed candidate pool."
     )
     parser.add_argument(
         "--input",
         type=Path,
         default=DEFAULT_INPUT,
-        help=f"Mined all_matches.csv path. Default: {DEFAULT_INPUT}",
+        help=f"Committed candidate-pool CSV path. Default: {DEFAULT_INPUT}",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
         default=DEFAULT_OUTPUT_DIR,
-        help=f"Directory for generated curated artifacts. Default: {DEFAULT_OUTPUT_DIR}",
+        help=f"Directory for curated appendix artifacts. Default: {DEFAULT_OUTPUT_DIR}",
     )
     parser.add_argument(
         "--target-count",
         type=int,
         default=DEFAULT_TARGET_COUNT,
-        help=f"Approximate curated row count. Default: {DEFAULT_TARGET_COUNT}",
+        help=f"Curated appendix row count. Default: {DEFAULT_TARGET_COUNT}",
     )
     return parser.parse_args()
 

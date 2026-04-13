@@ -166,7 +166,7 @@ Run the minimal comparison:
 python examples/pandas_vs_noaa_spec.py
 ```
 
-For a compact reviewer-facing table of selected real-row edge cases, see [docs/reviewer_cleaning_examples.md](docs/reviewer_cleaning_examples.md). For the full curated mined-example artifact, see [artifacts/curated_examples/curated_examples.md](artifacts/curated_examples/curated_examples.md); for claim-to-evidence mapping, see [docs/evidence_matrix.md](docs/evidence_matrix.md).
+For a compact reviewer-facing table of selected real-row edge cases, see [docs/reviewer_cleaning_examples.md](docs/reviewer_cleaning_examples.md). The static curated appendix in `artifacts/curated_examples/` is optional context only; it is not part of the Docker reviewer path or checksum reproducibility contract. For claim-to-evidence mapping, see [docs/evidence_matrix.md](docs/evidence_matrix.md).
 
 ## Relationship to Existing NOAA Tools
 

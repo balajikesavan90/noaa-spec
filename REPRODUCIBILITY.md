@@ -54,6 +54,8 @@ After verification, reviewers should inspect the raw fixture and expected cleane
 
 The cleaned CSV is wider than a single analysis table because NOAA-Spec preserves decoded measurements, NOAA quality codes, validation sidecars, and row-level usability summaries. Width depends on which optional NOAA encoded fields are present in the input. Start with `docs/first_output_guide.md` for a compact first view before reading the full CSV.
 
+The static curated examples under `artifacts/curated_examples/` are optional reviewer context. They are selected from a committed candidate pool to illustrate edge-case rows, but they are not part of this checksum-backed reproducibility contract and are not required by the Docker reviewer path.
+
 ## Primary Fixture
 
 Tracked files:
