@@ -27,7 +27,7 @@ NOAA ISD is widely used in weather and climate research, but raw rows require NO
 
 The submitted software surface is intentionally narrow. NOAA-Spec reads raw NOAA ISD / Global Hourly CSV rows, applies deterministic field-interpretation rules for recognized fields, and writes a cleaned CSV whose serialization and emitted columns are stable for a given input.
 
-The executable evidence in the repository is also bounded: tracked fixtures demonstrate deterministic input/output reproduction, one fixture records upstream NOAA provenance, and tests exercise broader parser behavior. The paper does not assert exhaustive NOAA coverage or a single authoritative schema for all possible NOAA data.
+The executable evidence in the repository is also bounded: tracked fixtures demonstrate deterministic input/output reproduction, three small fixtures record upstream NOAA provenance, and tests exercise broader parser behavior. The paper does not assert exhaustive NOAA coverage or a single authoritative schema for all possible NOAA data.
 
 # Statement of Need
 
@@ -36,6 +36,8 @@ Preprocessing NOAA ISD is not just a matter of loading a CSV into pandas. A toke
 Project-local cleaning scripts also tend to diverge in small but consequential ways: one script may convert `+9999` to `NaN` but discard the associated QC flag, another may handle composite fields such as `VIS=010000,1,N,1` differently, and another may serialize rows in an order that is hard to checksum. These differences make downstream tables difficult to compare even when the same NOAA source rows were used, which works against reproducible data preparation practice in computational science [@peng2011reproducible].
 
 NOAA-Spec addresses this gap by making these cleaning choices explicit and testable for the public CLI output. The output remains observation-level, so downstream researchers can apply their own scientific filters after starting from the same documented interpretation for the fields supported in this release.
+
+The public claim centers on the core cleaned-output policy and the mandatory field families directly exercised by the reviewer workflow (`WND`, `CIG`, `VIS`, `TMP`, `DEW`, and `SLP`, with source/control columns retained). Additional implemented field families are included in the package and covered by tests and selected fixtures, but they are not presented as having identical upstream-traceable real-data support.
 
 # Demonstrated Cleaning Cases
 
@@ -85,7 +87,7 @@ The implementation separates NOAA field interpretation (`cleaning.py` and `const
 
 The repository includes tracked raw inputs, tracked expected cleaned outputs, and checksum-backed verification under `reproducibility/`. The primary reviewer claim is reproducible from the repository alone: for committed fixtures, `clean(committed_input) = committed_output`, and the emitted CSVs are verified against tracked SHA256 checksums. This is a deterministic cleaning claim for committed input/output pairs, not a claim that every fixture can replay upstream NOAA retrieval.
 
-The only upstream-traceable provenance example additionally uses the first 20 data rows from the recorded NOAA/NCEI Global Hourly source URL for station `78724099999` in 2001 and records the observed upstream checksum. That traceable slice includes supported wind, precipitation, cloud, present-weather, pressure, temperature, and remarks fields where present in the source rows. Smaller curated fixtures exercise additional field structures while keeping the tracked data reviewer-checkable; their exact upstream retrieval metadata was not retained. The traceable source example is documented in `reproducibility/REAL_PROVENANCE_EXAMPLE.md`, and the older curated station slices are documented in `reproducibility/FIXTURE_PROVENANCE.md`. The paper does not claim exhaustive NOAA coverage or a general NOAA download workflow.
+Three upstream-traceable fixtures additionally record NOAA/NCEI source URLs, retrieval dates, observed upstream checksums, and exact extraction commands: the original 20-row source slice for station `78724099999` in 2001 and two one-row 2014 slices promoted from reviewer edge cases. Those traceable slices include the mandatory families plus selected precipitation, cloud, pressure, temperature-summary, wind-gust, remarks, and EQD fields where present in the source rows. Older curated station fixtures exercise additional field structures while keeping the tracked data reviewer-checkable; their exact upstream retrieval metadata was not retained. The traceable source fixtures are documented in `reproducibility/TRACEABLE_FIXTURES.md`, and the older curated station slices are documented in `reproducibility/FIXTURE_PROVENANCE.md`. The paper does not claim exhaustive NOAA coverage or a general NOAA download workflow.
 
 # Limitations
 

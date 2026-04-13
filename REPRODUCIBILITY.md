@@ -5,7 +5,7 @@ This document describes the tracked reproducibility checks for the JOSS-facing N
 The boundary is deliberately precise:
 
 - Reproducible from the repository alone: `clean(committed_input) = committed_output` for tracked raw fixtures, verified against `reproducibility/checksums.sha256`.
-- Additionally traceable to upstream NOAA retrieval: only `reproducibility/real_provenance_example/` records a NOAA/NCEI source URL, retrieval date, and observed upstream checksum.
+- Additionally traceable to upstream NOAA retrieval: `reproducibility/real_provenance_example/`, `reproducibility/traceable_peru_il_2014_aa1_qc/`, and `reproducibility/traceable_albion_ne_2014_calm_aa1/` record NOAA/NCEI source URLs, retrieval dates, and observed upstream checksums.
 - Not claimed: full upstream NOAA retrieval reproducibility for every curated fixture, NOAA downloading, multi-station orchestration, or exhaustive NOAA coverage.
 
 ## Docker Verification
@@ -37,7 +37,7 @@ checksum manifest for tracked reproducibility artifacts.
 
 Optional domain split CSVs are derived convenience views from cleaned output. They are not part of this primary checksum workflow, the JOSS contribution, or the JOSS reproducibility claim.
 
-The Dockerfile defines a tested reviewer container, but it is not a fully immutable environment: it currently uses the `python:3.12-slim` tag rather than a digest and upgrades bootstrap packaging tools during the image build.
+The Dockerfile defines a tested reviewer container and pins the `python:3.12-slim` base image by digest. It is still not a fully immutable archived runtime because it refreshes Debian package metadata and upgrades bootstrap packaging tools during the image build.
 
 After verification, reviewers should inspect the raw fixture and expected cleaned output side by side:
 
@@ -46,7 +46,7 @@ After verification, reviewers should inspect the raw fixture and expected cleane
 - `docs/supported_fields.md`
 - `docs/schema.md`
 - `docs/rule_provenance.md`
-- `reproducibility/REAL_PROVENANCE_EXAMPLE.md`
+- `reproducibility/TRACEABLE_FIXTURES.md`
 - `reproducibility/FIXTURE_PROVENANCE.md`
 - `reproducibility/checksums.sha256`
 - `docs/reviewer_cleaning_examples.md`
@@ -99,21 +99,21 @@ Compare the generated checksum with the matching
 `reproducibility/minimal_second/station_cleaned_expected.csv` entry in
 `reproducibility/checksums.sha256`.
 
-## Traceable Example
+## Traceable Fixtures
 
-This is the only fixture with upstream NOAA retrieval traceability in the repository. It is still small and reviewer-checkable, but unlike the older curated station slices it records the upstream NOAA/NCEI source URL, retrieval date, and observed upstream checksum.
+These are the fixtures with upstream NOAA retrieval traceability in the repository. They are still small and reviewer-checkable, but unlike the older curated station slices they record NOAA/NCEI source URLs, retrieval dates, observed upstream checksums, and exact extraction commands.
 
-Tracked files:
+Tracked fixtures:
 
-- Raw input: `reproducibility/real_provenance_example/station_raw.csv`
-- Expected output: `reproducibility/real_provenance_example/station_cleaned_expected.csv`
-- Checksums: `reproducibility/checksums.sha256`
-- Upstream source URL: `https://www.ncei.noaa.gov/data/global-hourly/access/2001/78724099999.csv`
-- Upstream source CSV checksum: recorded in `reproducibility/checksums.sha256`
+| Fixture | Station / year | Rows | Coverage note |
+| --- | --- | --- | --- |
+| `real_provenance_example/` | `78724099999` / 2001 | 20 | Mandatory fields plus selected precipitation, cloud, present-weather, pressure, temperature-summary, remarks, and EQD fields where present. |
+| `traceable_peru_il_2014_aa1_qc/` | `72214904899` / 2014 | 1 | `AA1` precipitation amount sentinel with QC/context preservation, cloud fields, temperature-summary fields, pressure, wind gust, and remarks. |
+| `traceable_albion_ne_2014_calm_aa1/` | `72344154921` / 2014 | 1 | Calm-wind context, `AA1` precipitation amount sentinel with QC/context preservation, cloud fields, temperature-summary fields, pressure, remarks, and EQD metadata. |
 
-The fixture contains the header and first 20 data rows from the upstream source file. It includes supported wind, precipitation, cloud, present-weather, pressure, temperature, and remarks fields where present in that source slice. See [reproducibility/REAL_PROVENANCE_EXAMPLE.md](reproducibility/REAL_PROVENANCE_EXAMPLE.md) for the provenance boundary. The other fixtures remain deterministic committed input/output checks, not upstream replay artifacts.
+Checksums are recorded in `reproducibility/checksums.sha256`, including observed upstream source CSV checksums. See [reproducibility/TRACEABLE_FIXTURES.md](reproducibility/TRACEABLE_FIXTURES.md) for NOAA URLs, retrieval dates, row selection, and extraction commands. The older curated station fixtures remain deterministic committed input/output checks, not upstream replay artifacts.
 
-Run and verify:
+Run and verify one traceable fixture manually:
 
 ```bash
 noaa-spec clean reproducibility/real_provenance_example/station_raw.csv /tmp/noaa-spec-real-provenance.csv
@@ -149,8 +149,8 @@ entry in `reproducibility/checksums.sha256`.
 
 ## Fixture Coverage Note
 
-The primary fixture contains 5 raw rows. The fully traceable example contains 20 raw rows and includes supported wind, precipitation, cloud, present-weather, pressure, temperature, and remarks fields where present in its source slice. The secondary fixture contains 8 raw rows and includes additional NOAA field structures including precipitation (`AA1`-`AA4`), multiple cloud layers (`GA1`-`GA5`), past weather (`AY1`/`AY2`), extreme temperature (`KA1`/`KA2`), and present weather (`MW1`-`MW3`). The three additional station fixtures each contain 4 raw rows.
+The primary fixture contains 5 raw rows. The traceable fixtures contain 22 raw rows total: the original 20-row source slice plus two one-row source slices selected for `AA1` sentinel/QC behavior, calm-wind context, cloud, pressure, and temperature-summary fields. The secondary fixture contains 8 raw rows and includes additional NOAA field structures including precipitation (`AA1`-`AA4`), multiple cloud layers (`GA1`-`GA5`), past weather (`AY1`/`AY2`), extreme temperature (`KA1`/`KA2`), and present weather (`MW1`-`MW3`). The three additional station fixtures each contain 4 raw rows.
 
-These fixtures are reproducibility checks, not a claim of exhaustive NOAA coverage. Only `real_provenance_example/` records a complete source URL, retrieval date, and observed upstream checksum; the curated station slices do not replay upstream acquisition. The automated tests exercise additional encoded cases for sentinel handling, QC preservation, deterministic output, CLI behavior, and field parsing.
+These fixtures are reproducibility checks, not a claim of exhaustive NOAA coverage. The three traceable fixture directories record complete source URLs, retrieval dates, and observed upstream checksums; the older curated station slices do not replay upstream acquisition. The automated tests exercise additional encoded cases for sentinel handling, QC preservation, deterministic output, CLI behavior, and field parsing.
 
 For a concise claim-to-evidence map, including which claims are fixture-backed, upstream-traceable fixture-backed, unit-test-backed, or documentation-only, see [docs/evidence_matrix.md](docs/evidence_matrix.md).

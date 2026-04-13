@@ -40,23 +40,27 @@ Output directory: /tmp/noaa-spec-reproducibility
 
 The canonical checksum list is `reproducibility/checksums.sha256`.
 
-The Dockerfile uses the floating `python:3.12-slim` base image and upgrades bootstrap packaging tools during build. Treat it as a tested reviewer environment, not an immutable archived runtime. `requirements-review.txt` pins the Docker/reviewer path only; it is not required for standard local installation.
+The Dockerfile pins the `python:3.12-slim` base image by digest, but it still refreshes Debian package metadata and upgrades bootstrap packaging tools during build. Treat it as a tested reviewer environment, not an immutable archived runtime. `requirements-review.txt` pins the Docker/reviewer Python dependency path only; it is not required for standard local installation.
 
-## Traceable Example
+## Traceable Fixtures
 
-The only upstream-traceable provenance example is:
+The upstream-traceable reproducibility fixtures are:
 
-- Raw input: `reproducibility/real_provenance_example/station_raw.csv`
-- Expected cleaned output: `reproducibility/real_provenance_example/station_cleaned_expected.csv`
+- `reproducibility/real_provenance_example/`: 20 rows from station `78724099999` in 2001.
+- `reproducibility/traceable_peru_il_2014_aa1_qc/`: one row from station `72214904899` in 2014.
+- `reproducibility/traceable_albion_ne_2014_calm_aa1/`: one row from station `72344154921` in 2014.
 - Checksums: `reproducibility/checksums.sha256`
-- Provenance note: `reproducibility/REAL_PROVENANCE_EXAMPLE.md`
+- Provenance note: `reproducibility/TRACEABLE_FIXTURES.md`
 
-It uses the first 20 data rows from the NOAA/NCEI Global Hourly CSV for station
-`78724099999`. This demonstrates one traceable source slice; it is not a claim
-of broad NOAA coverage.
+These demonstrate selected traceable NOAA source slices; they are not a claim
+of broad NOAA coverage. The two one-row additions promote reviewer edge cases
+with `AA1` precipitation sentinels, QC/context preservation, cloud, pressure,
+temperature-summary, and calm-wind context where present.
 
 ```text
 https://www.ncei.noaa.gov/data/global-hourly/access/2001/78724099999.csv
+https://www.ncei.noaa.gov/data/global-hourly/access/2014/72214904899.csv
+https://www.ncei.noaa.gov/data/global-hourly/access/2014/72344154921.csv
 ```
 
 After Docker or local install, run:
@@ -120,6 +124,19 @@ Compact excerpt from the tracked primary fixture:
 
 For a slightly longer guide, see [docs/first_output_guide.md](docs/first_output_guide.md). For the supported field registry, see [docs/supported_fields.md](docs/supported_fields.md).
 
+## Core Reviewed Contribution vs Extended Coverage
+
+Reviewer evaluation should center on the core JOSS contribution: deterministic
+cleaning through `noaa-spec clean`, documented sentinel-to-null normalization,
+NOAA QC preservation, checksum-stable cleaned CSV generation, and the mandatory
+NOAA field families exposed in the public cleaned output (`WND`, `CIG`, `VIS`,
+`TMP`, `DEW`, and `SLP`, with source/control columns retained). Additional NOAA
+families are implemented, documented, and unit-tested, and selected additional
+families appear in tracked fixtures, but they are not all backed by equal
+upstream-traceable real-data evidence. Use [docs/evidence_matrix.md](docs/evidence_matrix.md)
+and [docs/supported_fields.md](docs/supported_fields.md) for the evidence
+boundary.
+
 ## Why Not Pandas?
 
 Pandas can load the CSV, but it does not know NOAA sentinel semantics. A raw visibility token such as:
@@ -168,18 +185,22 @@ The positional output path is the canonical form. `noaa-spec clean INPUT.csv --o
 
 The tracked fixtures are small by design:
 
-- `reproducibility/real_provenance_example/`: 20 rows from a recorded NOAA/NCEI Global Hourly source URL; this is the only upstream-traceable provenance example.
+- `reproducibility/real_provenance_example/`: 20 rows from a recorded NOAA/NCEI Global Hourly source URL.
+- `reproducibility/traceable_peru_il_2014_aa1_qc/`: one upstream-traceable row covering `AA1` precipitation amount sentinel handling, cloud fields, temperature-summary fields, pressure, wind gust, and remarks.
+- `reproducibility/traceable_albion_ne_2014_calm_aa1/`: one upstream-traceable row covering calm-wind context, `AA1` precipitation amount sentinel handling, cloud fields, temperature-summary fields, pressure, remarks, and EQD metadata.
 - `reproducibility/minimal/`: five raw rows for the compact reviewer fixture.
 - `reproducibility/minimal_second/`: eight raw rows covering additional encoded fields.
 - `reproducibility/station_03041099999_aonach_mor/`, `reproducibility/station_01116099999_stokka/`, and `reproducibility/station_94368099999_hamilton_island/`: four-row curated station slices. Their exact upstream retrieval metadata was not retained.
 
 These fixtures verify deterministic behavior for committed input/output pairs:
-`clean(committed_input) = committed_output`, verified by checksums. Only
-`reproducibility/real_provenance_example/` additionally records the upstream NOAA
-URL, retrieval date, and observed upstream checksum. The other curated fixtures
-do not replay upstream NOAA acquisition and do not claim exhaustive NOAA
-coverage. Broader field behavior is supported by tests, not by a claim that the
-small fixtures exercise every NOAA field. See [REPRODUCIBILITY.md](REPRODUCIBILITY.md),
+`clean(committed_input) = committed_output`, verified by checksums. The
+`real_provenance_example/`, `traceable_peru_il_2014_aa1_qc/`, and
+`traceable_albion_ne_2014_calm_aa1/` fixtures additionally record upstream NOAA
+URLs, retrieval dates, and observed upstream checksums. The older curated
+station fixtures do not replay upstream NOAA acquisition and do not claim
+exhaustive NOAA coverage. Broader field behavior is supported by tests, not by a
+claim that the small fixtures exercise every NOAA field. See [REPRODUCIBILITY.md](REPRODUCIBILITY.md),
+[reproducibility/TRACEABLE_FIXTURES.md](reproducibility/TRACEABLE_FIXTURES.md),
 [reproducibility/FIXTURE_PROVENANCE.md](reproducibility/FIXTURE_PROVENANCE.md),
 and [docs/evidence_matrix.md](docs/evidence_matrix.md).
 

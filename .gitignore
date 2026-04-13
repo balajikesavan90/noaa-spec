@@ -23,6 +23,10 @@ poetry.lock
 !reproducibility/minimal_second/**
 !reproducibility/real_provenance_example/
 !reproducibility/real_provenance_example/**
+!reproducibility/traceable_peru_il_2014_aa1_qc/
+!reproducibility/traceable_peru_il_2014_aa1_qc/**
+!reproducibility/traceable_albion_ne_2014_calm_aa1/
+!reproducibility/traceable_albion_ne_2014_calm_aa1/**
 !reproducibility/station_03041099999_aonach_mor/
 !reproducibility/station_03041099999_aonach_mor/**
 !reproducibility/station_01116099999_stokka/
