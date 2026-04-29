@@ -1512,6 +1512,10 @@ def clean_noaa_dataframe(
         DataFrame with expanded, cleaned, and QC columns
     """
     cleaned = df.copy()
+    strict_skip_summary = {
+        "malformed_section_identifier_columns": [],
+        "unknown_identifier_columns": [],
+    }
     rejected_mask = pd.Series(False, index=cleaned.index)
     raw_line_col = "raw_line" if "raw_line" in cleaned.columns else ("RAW_LINE" if "RAW_LINE" in cleaned.columns else None)
     if raw_line_col is not None:
@@ -1601,6 +1605,7 @@ def clean_noaa_dataframe(
         if strict_mode:
             section_identifier_valid = is_valid_section_identifier_token(column)
             if section_identifier_valid is False:
+                strict_skip_summary["malformed_section_identifier_columns"].append(column)
                 logger.warning(
                     f"[PARSE_STRICT] Skipping malformed section identifier token: {column}"
                 )
@@ -1613,6 +1618,7 @@ def clean_noaa_dataframe(
             )
             if not known_identifier:
                 # Skip expansion for unknown identifiers, keep raw column.
+                strict_skip_summary["unknown_identifier_columns"].append(column)
                 logger.warning(f"[PARSE_STRICT] Skipping unknown identifier: {column}")
                 continue
 
@@ -1689,5 +1695,16 @@ def clean_noaa_dataframe(
         )
 
     _assert_unique_cleaned_columns(columns=cleaned.columns, stage="final")
+
+    if strict_mode:
+        malformed_columns = strict_skip_summary["malformed_section_identifier_columns"]
+        unknown_columns = strict_skip_summary["unknown_identifier_columns"]
+        skipped_columns = tuple(malformed_columns + unknown_columns)
+        cleaned.attrs["strict_parse_summary"] = {
+            "malformed_section_identifier_columns": tuple(malformed_columns),
+            "unknown_identifier_columns": tuple(unknown_columns),
+            "skipped_encoded_columns": skipped_columns,
+            "skipped_encoded_column_count": len(skipped_columns),
+        }
 
     return cleaned

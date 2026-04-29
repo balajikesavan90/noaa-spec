@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import logging
 from pathlib import Path
+import sys
 
 import pandas as pd
 
@@ -16,6 +17,7 @@ from .deterministic_io import write_deterministic_csv
 def _clean_csv_to_csv(input_csv: Path, output_csv: Path) -> Path:
     raw = pd.read_csv(input_csv, dtype=str)
     cleaned = clean_noaa_dataframe(raw, keep_raw=False, strict_mode=True)
+    _print_strict_parse_summary(cleaned)
     write_deterministic_csv(
         cleaned,
         output_csv,
@@ -23,6 +25,38 @@ def _clean_csv_to_csv(input_csv: Path, output_csv: Path) -> Path:
         float_format="%.1f",
     )
     return output_csv
+
+
+def _print_strict_parse_summary(cleaned: pd.DataFrame) -> None:
+    summary = cleaned.attrs.get("strict_parse_summary")
+    if not summary:
+        return
+
+    skipped_count = int(summary.get("skipped_encoded_column_count", 0))
+    if skipped_count <= 0:
+        return
+
+    malformed_columns = list(summary.get("malformed_section_identifier_columns", ()))
+    unknown_columns = list(summary.get("unknown_identifier_columns", ()))
+    details: list[str] = []
+    if malformed_columns:
+        details.append(
+            "malformed section identifier token(s): "
+            + ", ".join(sorted(malformed_columns))
+        )
+    if unknown_columns:
+        details.append(
+            "unsupported identifier(s): " + ", ".join(sorted(unknown_columns))
+        )
+
+    noun = "column" if skipped_count == 1 else "columns"
+    detail_text = "; ".join(details)
+    sys.stderr.write(
+        "WARNING: strict parsing left "
+        f"{skipped_count} encoded NOAA-looking {noun} unexpanded"
+        + (f" ({detail_text})" if detail_text else "")
+        + ". Use --verbose for detailed parse warnings.\n"
+    )
 
 
 def _parse_args() -> argparse.Namespace:

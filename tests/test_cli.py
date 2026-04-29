@@ -125,3 +125,32 @@ def test_cli_clean_exposes_raw_line_structural_validation(
     assert "__parse_error" in cleaned.columns
     assert cleaned.loc[0, "__parse_error"] == "mandatory_section_short"
     assert "temperature_c" not in cleaned.columns
+
+
+def test_cli_clean_reports_skipped_unsupported_encoded_field(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    input_csv = tmp_path / "unsupported_field_input.csv"
+    output_csv = tmp_path / "unsupported_field_output.csv"
+    input_csv.write_text(
+        textwrap.dedent(
+            """\
+            STATION,DATE,ZZZ,TMP
+            12345678901,2000-01-01T00:00:00,"abc,def","+0010,1"
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["prog", "clean", str(input_csv), str(output_csv)],
+    )
+    cli.main()
+
+    captured = capsys.readouterr()
+    assert "strict parsing left 1 encoded NOAA-looking column unexpanded" in captured.err
+    assert "unsupported identifier(s): ZZZ" in captured.err
