@@ -10,7 +10,7 @@ CHECKSUM_MANIFEST="${REPO_ROOT}/reproducibility/checksums.sha256"
 cd "${REPO_ROOT}"
 
 if ! command -v python3 >/dev/null 2>&1; then
-    echo "FAIL: python3 is not available on PATH. Activate the reviewer virtual environment first." >&2
+    echo "FAIL: python3 is not available on PATH. Activate the reproducibility virtual environment first." >&2
     exit 1
 fi
 

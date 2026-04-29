@@ -64,7 +64,7 @@ For the same input file, NOAA-Spec version, and execution environment, the outpu
 
 ## What Is Guaranteed
 
-- The documented cleaning field set for NOAA-Spec 1.0.0 is described in [supported_fields.md](supported_fields.md), including whether behavior is demonstrated by tracked fixtures, reviewer examples, or unit tests.
+- The documented cleaning field set for NOAA-Spec 1.0.0 is described in [supported_fields.md](supported_fields.md), including whether behavior is demonstrated by tracked fixtures, inspection examples, or unit tests.
 - Naming conventions for supported decoded fields are stable within this release.
 - QC columns follow consistent documented patterns.
 - Column ordering and CSV serialization are deterministic for the same input and version.

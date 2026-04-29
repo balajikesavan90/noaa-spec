@@ -69,10 +69,10 @@ def _parse_args() -> argparse.Namespace:
             "supported fields. When the input includes a `raw_line` or `RAW_LINE` "
             "source column, the cleaner also performs raw record/header structural "
             "validation on that column. The public cleaned CSV uses STATION and DATE "
-            "as the reviewer-visible identifier columns."
+            "as the primary observation identifier columns."
         ),
         epilog=(
-            "Primary reviewer workflow: noaa-spec clean INPUT.csv OUTPUT.csv"
+            "Primary reproducibility workflow: noaa-spec clean INPUT.csv OUTPUT.csv"
         ),
     )
     parser.add_argument(

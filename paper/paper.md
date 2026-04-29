@@ -39,11 +39,11 @@ NOAA-Spec addresses this by publishing one documented, checksum-backed implement
 
 The practical comparator is therefore not an uninformed script, but a careful local script maintained by one researcher or lab. Such a script can be appropriate for one study. NOAA-Spec becomes useful when the same NOAA interpretation needs to be reused, cited, reviewed, or compared across users rather than remaining a private preprocessing policy.
 
-The public claim centers on the core cleaned-output policy, checksum-backed reproduction of tracked fixtures, and the mandatory field families directly exercised by the reviewer workflow (`WND`, `CIG`, `VIS`, `TMP`, `DEW`, and `SLP`, with source/control columns retained). Additional implemented field families are secondary implementation coverage only; they are documented for transparency, not presented as having identical upstream-traceable real-data support or as the primary JOSS contribution.
+The public claim centers on the core cleaned-output policy, checksum-backed reproduction of tracked fixtures, and the mandatory field families directly exercised by the reproducibility workflow (`WND`, `CIG`, `VIS`, `TMP`, `DEW`, and `SLP`, with source/control columns retained). Additional implemented field families are secondary implementation coverage only; they are documented for transparency, not presented as having identical upstream-traceable real-data support or as the primary JOSS contribution.
 
 # Demonstrated Cleaning Cases
 
-A compact reviewer-facing evidence set in `docs/reviewer_cleaning_examples.md`
+A compact edge-case evidence set in `docs/reviewer_cleaning_examples.md`
 summarizes selected NOAA ISD / Global Hourly edge cases. The executable
 reproducibility claim remains the tracked fixture workflow in `reproducibility/`;
 these examples explain why specification-aware cleaning matters and avoid making
@@ -87,7 +87,7 @@ The implementation separates NOAA field interpretation (`cleaning.py` and `const
 
 # Reproducibility
 
-The repository includes tracked raw inputs, tracked expected cleaned outputs, and checksum-backed verification under `reproducibility/`. The primary reviewer claim is reproducible from the repository alone: for committed fixtures, `clean(committed_input) = committed_output`, and the emitted CSVs are verified against tracked SHA256 checksums. This is a deterministic cleaning claim for committed input/output pairs, not a claim that every fixture can replay upstream NOAA retrieval.
+The repository includes tracked raw inputs, tracked expected cleaned outputs, and checksum-backed verification under `reproducibility/`. The core public claim is reproducible from the repository alone: for committed fixtures, `clean(committed_input) = committed_output`, and the emitted CSVs are verified against tracked SHA256 checksums. This is a deterministic cleaning claim for committed input/output pairs, not a claim that every fixture can replay upstream NOAA retrieval.
 
 Of the eight committed fixture pairs verified by `reproducibility/checksums.sha256`, three (`real_provenance_example/`, `traceable_peru_il_2014_aa1_qc/`, and `traceable_albion_ne_2014_calm_aa1/`) additionally record upstream NOAA/NCEI source URLs, retrieval dates, observed upstream checksums, and exact extraction commands. The remaining five fixtures are checksum-stable committed examples whose exact upstream retrieval metadata was not retained; their provenance is documented in `reproducibility/FIXTURE_PROVENANCE.md`. The upstream-traceable slices support the core mandatory-family claim and contain some additional fields incidentally; those additional fields are not the center of the JOSS evidence. The paper does not claim exhaustive NOAA coverage or a general NOAA download workflow.
 

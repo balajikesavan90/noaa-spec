@@ -1,6 +1,6 @@
 # Curated NOAA-Spec Cleaning Examples
 
-These examples are a static illustrative appendix selected from the committed candidate pool in `artifacts/curated_examples/candidate_pool.csv`. They are optional reviewer context, not part of the checksum-backed reproducibility contract and not a claim of exhaustive NOAA coverage.
+These examples are a static illustrative appendix selected from the committed candidate pool in `artifacts/curated_examples/candidate_pool.csv`. They are optional context, not part of the checksum-backed reproducibility contract and not a claim of exhaustive NOAA coverage.
 
 | Example | Station / datetime | NOAA source | Families | Rule behaviors | Provenance | Why selected |
 | --- | --- | --- | --- | --- | --- | --- |

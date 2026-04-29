@@ -3044,8 +3044,8 @@ FIELD_RULE_PREFIXES: dict[str, FieldRule] = {
         },
     ),
     # GA1-GA6: repeated cloud-layer fields. Rules here preserve layer index,
-    # value fields, and quality-code parts for reviewer spot-checking against
-    # the NOAA additional data/cloud documentation in `spec_sources/`.
+    # value fields, and quality-code parts for direct inspection against the
+    # NOAA additional data/cloud documentation in `spec_sources/`.
     "GA": FieldRule(
         code="GA*",
         parts={
@@ -5582,10 +5582,10 @@ KNOWN_IDENTIFIERS: set[str] = _build_known_identifiers()
 
 _EXPANDED_COL_RE = re.compile(r"^(?P<field>[A-Z][A-Z0-9]*)__(?P<suffix>.+)$")
 
-# Public cleaned-column names. These mappings are reviewer-facing schema
-# choices over the NOAA tokens: they expose units, keep quality codes explicit,
-# and leave NOAA-derived sidecar names (`TMP__qc_reason`, etc.) traceable to the
-# source identifier.
+# Public cleaned-column names. These mappings are schema choices over the NOAA
+# tokens: they expose units, keep quality codes explicit, and leave
+# NOAA-derived sidecar names (`TMP__qc_reason`, etc.) traceable to the source
+# identifier.
 FRIENDLY_COLUMN_MAP: dict[str, str] = {
     "WND__part1": "wind_direction_deg",
     "WND__part2": "wind_direction_quality_code",

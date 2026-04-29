@@ -1,6 +1,6 @@
 # Traceable Reproducibility Fixtures
 
-This document records the upstream-traceable real-world fixtures in the repository. They are intentionally small: they give reviewers NOAA/NCEI source URLs, retrieval dates, observed upstream checksums, and exact extraction commands for selected `noaa-spec clean` slices. They do not turn NOAA-Spec into a downloader or station-processing workflow.
+This document records the upstream-traceable real-world fixtures in the repository. They are intentionally small: they provide NOAA/NCEI source URLs, retrieval dates, observed upstream checksums, and exact extraction commands for selected `noaa-spec clean` slices. They do not turn NOAA-Spec into a downloader or station-processing workflow.
 
 ## Fixture Summary
 
@@ -30,7 +30,7 @@ curl -fsSL https://www.ncei.noaa.gov/data/global-hourly/access/2001/78724099999.
   > reproducibility/real_provenance_example/station_raw.csv
 ```
 
-The two additional one-row fixtures promote already documented reviewer edge cases into upstream-traceable committed fixtures:
+The two additional one-row fixtures promote already documented edge cases into upstream-traceable committed fixtures:
 
 ```bash
 curl -fsSL -o /tmp/noaa_2014_72214904899.csv \
@@ -66,6 +66,6 @@ The same fixtures are included in `scripts/verify_reproducibility.sh`, which reg
 
 ## Limitations
 
-- NOAA-Spec does not download NOAA data; source URLs, retrieval dates, and observed upstream checksums are recorded so reviewers can independently inspect the source files used for these examples.
+- NOAA-Spec does not download NOAA data; source URLs, retrieval dates, and observed upstream checksums are recorded so users can independently inspect the source files used for these examples.
 - The upstream NOAA URLs are external services. The recorded upstream checksums are evidence for the files as observed on the retrieval dates above, not a guarantee that NOAA will never revise or move them.
 - These fixtures demonstrate selected traceable real-world source slices. They do not claim exhaustive NOAA field coverage or equal real-data evidence for every implemented field family.

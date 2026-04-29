@@ -45,5 +45,5 @@ noaa-spec --help
 
 - Preserve deterministic outputs and stable schema contracts.
 - Keep production code under `src/noaa_spec/`.
-- Keep reviewer-facing helper scripts minimal and reproducibility-oriented.
+- Keep reproducibility helper scripts minimal and reproducibility-oriented.
 - Update tests and documentation in the same change whenever paths, commands, or contracts change.

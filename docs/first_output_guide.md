@@ -3,7 +3,7 @@
 The full cleaned CSV is intentionally wide because NOAA-Spec preserves decoded
 measurements, NOAA quality codes, validation sidecars, and row-level usability
 signals. Start with decoded measurement columns and their NOAA quality-code
-columns. Ignore `__qc_*` sidecars on the first pass unless a decoded value is
+columns. Leave `__qc_*` sidecars for a second pass unless a decoded value is
 empty or surprising.
 
 | Column | Meaning | Why it matters first |

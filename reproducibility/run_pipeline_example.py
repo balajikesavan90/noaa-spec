@@ -1,7 +1,7 @@
 """Maintainer helper for rerunning the minimal cleaning fixture.
 
-The reviewer-facing workflow is the public `noaa-spec clean` CLI documented in
-REPRODUCIBILITY.md. This helper is not part of the JOSS reviewer path.
+The public workflow is the `noaa-spec clean` CLI documented in
+REPRODUCIBILITY.md. This helper is not part of the JOSS reproducibility path.
 """
 
 from __future__ import annotations

@@ -21,10 +21,10 @@ start from the same documented interpretation rather than divergent local
 scripts. NOAA-Spec does not download NOAA data, orchestrate station batches,
 split datasets into analysis domains, produce releases, or run analyses.
 
-## Reviewer Path
+## Reproducibility Verification
 
-Use the repository-defined, tested Docker reviewer environment. This is the
-primary reviewer path; local installation below is a convenience path for users
+Use the repository-defined, tested Docker environment. This is the primary
+reproducibility path; local installation below is a convenience path for users
 who do not want Docker.
 
 ```bash
@@ -42,7 +42,7 @@ Output directory: /tmp/noaa-spec-reproducibility
 
 The canonical checksum list is `reproducibility/checksums.sha256`.
 
-The Dockerfile pins the `python:3.12-slim` base image by digest, but it still refreshes Debian package metadata and upgrades bootstrap packaging tools during build. Treat it as a tested reviewer environment, not an immutable archived runtime. `requirements-review.txt` pins the Docker/reviewer Python dependency path only; it is not required for standard local installation.
+The Dockerfile pins the `python:3.12-slim` base image by digest, but it still refreshes Debian package metadata and upgrades bootstrap packaging tools during build. Treat it as a tested reproducibility environment, not an immutable archived runtime. `requirements-review.txt` pins the Docker verification Python dependency path only; it is not required for standard local installation.
 
 ## Traceable Fixtures
 
@@ -55,7 +55,7 @@ The upstream-traceable reproducibility fixtures are:
 - Provenance note: `reproducibility/TRACEABLE_FIXTURES.md`
 
 These demonstrate selected traceable NOAA source slices; they are not a claim
-of broad NOAA coverage. Reviewer evaluation should focus on the core families:
+of broad NOAA coverage. The strongest core evidence in these fixtures is for
 `WND`, `CIG`, `VIS`, `TMP`, `DEW`, and `SLP`.
 
 ```text
@@ -98,7 +98,7 @@ SLP=99999,9
 ```
 
 becomes the following compact cleaned view. This is not the full schema; it is
-the first-pass interpretation a reviewer should inspect.
+a useful first-pass interpretation.
 
 | Output column | Meaning | Result |
 | --- | --- | --- |
@@ -117,12 +117,12 @@ the first-pass interpretation a reviewer should inspect.
 The useful behavior is explicit: sentinel-coded measurements become null while
 the NOAA quality-code context remains visible.
 
-## First Output: What To Look At
+## First Output: Suggested First Inspection
 
 The full cleaned CSV is intentionally wide because it preserves decoded
 measurements, NOAA quality codes, parser sidecars, and row-level usability
 signals. For a first pass, start with decoded measurement columns and their NOAA
-quality-code columns. Ignore `__qc_*` sidecars unless a decoded value is empty or
+quality-code columns. Leave `__qc_*` sidecars for a second pass unless a decoded value is empty or
 surprising.
 
 | Column | What to check |
@@ -146,14 +146,13 @@ Compact excerpt from the tracked primary fixture:
 
 For a slightly longer guide, see [docs/first_output_guide.md](docs/first_output_guide.md). For the supported field registry, see [docs/supported_fields.md](docs/supported_fields.md).
 
-## Core Reviewed Contribution vs Extended Coverage
+## Core Contribution vs Extended Coverage
 
-Reviewer evaluation should center on the core JOSS contribution:
-`noaa-spec clean`, deterministic cleaned CSV generation, documented
-sentinel-to-null normalization, explicit NOAA QC preservation, stable decoded
-column names, and checksum-backed reproduction of tracked fixtures. The core
-field families are the retained source/control columns plus `WND`, `CIG`,
-`VIS`, `TMP`, `DEW`, and `SLP`.
+The core JOSS-facing contribution is `noaa-spec clean`, deterministic cleaned
+CSV generation, documented sentinel-to-null normalization, explicit NOAA QC
+preservation, stable decoded column names, and checksum-backed reproduction of
+tracked fixtures. The core field families are the retained source/control
+columns plus `WND`, `CIG`, `VIS`, `TMP`, `DEW`, and `SLP`.
 
 Additional NOAA families remain implemented, but they are not part of the
 primary JOSS-reviewed claim. Treat them as secondary implementation inventory:
@@ -184,7 +183,7 @@ Run the minimal comparison:
 python3 examples/pandas_vs_noaa_spec.py
 ```
 
-For a compact reviewer-facing table of selected real-row edge cases, see [docs/reviewer_cleaning_examples.md](docs/reviewer_cleaning_examples.md). For claim-to-evidence mapping, see [docs/evidence_matrix.md](docs/evidence_matrix.md).
+For a compact edge-case table of selected real rows, see [docs/reviewer_cleaning_examples.md](docs/reviewer_cleaning_examples.md). For claim-to-evidence mapping, see [docs/evidence_matrix.md](docs/evidence_matrix.md).
 
 ## Relationship to Existing NOAA Tools
 
@@ -192,7 +191,7 @@ Existing NOAA parsers are useful for exposing NOAA records and parsed structures
 
 ## Local Install (Convenience Path)
 
-The Docker commands above are the primary reviewer path. The local convenience
+The Docker commands above are the primary reproducibility path. The local convenience
 path works on macOS, Linux, and Windows, but the virtual-environment commands
 are platform-specific. Python 3.11 or 3.12 is required.
 
@@ -234,7 +233,7 @@ The tracked fixtures are small by design:
 - `reproducibility/real_provenance_example/`: 20 rows from a recorded NOAA/NCEI Global Hourly source URL.
 - `reproducibility/traceable_peru_il_2014_aa1_qc/`: one upstream-traceable row promoted from an edge-case example.
 - `reproducibility/traceable_albion_ne_2014_calm_aa1/`: one upstream-traceable row promoted from an edge-case example.
-- `reproducibility/minimal/`: five raw rows for the compact reviewer fixture.
+- `reproducibility/minimal/`: five raw rows for the compact reproducibility fixture.
 - `reproducibility/minimal_second/`: eight raw rows covering additional encoded fields.
 - `reproducibility/station_03041099999_aonach_mor/`, `reproducibility/station_01116099999_stokka/`, and `reproducibility/station_94368099999_hamilton_island/`: four-row curated station slices. Their exact upstream retrieval metadata was not retained.
 

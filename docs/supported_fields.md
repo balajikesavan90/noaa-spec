@@ -3,13 +3,13 @@
 Version: NOAA-Spec 1.0.0  
 Public workflow: `noaa-spec clean INPUT.csv OUTPUT.csv`
 
-This document separates the JOSS-reviewed surface from additional implemented
-coverage. The JOSS-reviewed center is `noaa-spec clean`, deterministic cleaned
+This document separates the core JOSS-facing surface from additional implemented
+coverage. The JOSS-facing center is `noaa-spec clean`, deterministic cleaned
 CSV generation, sentinel-to-null normalization, explicit QC preservation, stable
 decoded column names, checksum-backed tracked fixtures, and the core field
 families listed first below. Additional implemented families are documented
-after the core table for transparency, but they are secondary to JOSS
-evaluation. The output CSV is deterministic for a given input, but it is not a
+after the core table for transparency, but they are secondary to the core
+submission surface. The output CSV is deterministic for a given input, but it is not a
 fixed global schema: columns are emitted when the corresponding NOAA ISD /
 Global Hourly source field is present and recognized by the strict parser.
 Unknown encoded identifiers are preserved as raw source columns and are not
@@ -23,7 +23,7 @@ Evidence labels are deliberately separate:
 - `fixture-backed`: demonstrated by the committed raw/expected fixture pairs
   used in checksum verification, without necessarily replaying upstream NOAA
   acquisition.
-- `reviewer example`: highlighted in `docs/reviewer_cleaning_examples.md` as a
+- `inspection example`: highlighted in `docs/reviewer_cleaning_examples.md` as a
   compact interpretive edge case.
 - `unit-tested`: covered by regression tests but not exhaustively demonstrated by
   the small real-data fixtures.
@@ -37,11 +37,11 @@ Column names below are public cleaned-output names or public name patterns. `{n}
 | Observation identity | The cleaned CSV remains observation-level. It preserves source identifier columns such as `STATION`, `DATE`, `SOURCE`, `REPORT_TYPE`, `CALL_SIGN`, and `QUALITY_CONTROL` when present. |
 | Nulls | Empty CSV cells represent null values in deterministic output. Documented missing sentinels such as `+9999`, `99999`, or field-specific all-9 tokens are normalized to null in decoded measurement columns. |
 | QC preservation | NOAA quality codes are retained in explicit `*_quality_code`, `*_qc`, or source-derived `__quality` columns where the source token supplies them. NOAA-Spec sidecars such as `TMP__qc_status` and `VIS__part1__qc_reason` record parser/validation state. |
-| Repeated fields | Implemented repeated NOAA families outside the JOSS core preserve the repeat index in the output name. They remain secondary to JOSS evaluation. |
+| Repeated fields | Implemented repeated NOAA families outside the JOSS core preserve the repeat index in the output name. They remain secondary to the core submission surface. |
 | Sidecars | Numeric decoded parts may emit `{source}__qc_pass`, `{source}__qc_status`, and `{source}__qc_reason`. Reasons are one of `SENTINEL_MISSING`, `BAD_QUALITY_CODE`, `OUT_OF_RANGE`, or `MALFORMED_TOKEN` when applicable. |
 | Row usability | When QC sidecars exist, the output includes `row_has_any_usable_metric`, `usable_metric_count`, and `usable_metric_fraction`. These are interpretive aids, not scientific filters. |
 
-## JOSS Core: Reviewed Field Families
+## JOSS Core: Field Families
 
 These fields are central to the JOSS-facing `noaa-spec clean` claim: retained
 source/control columns and the mandatory NOAA observation families. They are
@@ -52,29 +52,28 @@ for the family is exercised by the fixtures.
 | NOAA field / token family | Decoded output columns | Associated QC columns | Sentinel/null handling | Repeated naming | Provenance references | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | Control/source columns: `STATION`, `DATE`, `SOURCE`, `LATITUDE`, `LONGITUDE`, `ELEVATION`, `REPORT_TYPE`, `CALL_SIGN`, `QUALITY_CONTROL` | Source columns retained; lat/lon/elevation normalized when valid | `qc_control_invalid_*`, `qc_domain_invalid_CONTROL` | Fixed-width missing markers and invalid domains become null in normalized checks; original source columns remain visible when retained by CLI input | Not repeated | `spec_sources/isd-format-document-parts/part-02-control-data-section.md`; `src/noaa_spec/cleaning.py` control validation | upstream-traceable fixture-backed; fixture-backed; unit-tested |
-| `WND` wind observation | `wind_direction_deg`, `wind_type_code`, `wind_speed_ms`, `wind_direction_variable` | `wind_direction_quality_code`, `wind_speed_quality_code`, `WND__part1__qc_*`, `WND__part4__qc_*`, `qc_calm_wind_detected` | Direction `999` and speed `9999` become null except documented calm/variable handling sidecars preserve context | Not repeated | `part-03-mandatory-data-section.md`; `src/noaa_spec/constants.py` `FIELD_RULES["WND"]` | upstream-traceable fixture-backed; reviewer example; unit-tested |
+| `WND` wind observation | `wind_direction_deg`, `wind_type_code`, `wind_speed_ms`, `wind_direction_variable` | `wind_direction_quality_code`, `wind_speed_quality_code`, `WND__part1__qc_*`, `WND__part4__qc_*`, `qc_calm_wind_detected` | Direction `999` and speed `9999` become null except documented calm/variable handling sidecars preserve context | Not repeated | `part-03-mandatory-data-section.md`; `src/noaa_spec/constants.py` `FIELD_RULES["WND"]` | upstream-traceable fixture-backed; inspection example; unit-tested |
 | `CIG` sky-condition ceiling | `ceiling_height_m`, `ceiling_determination_code`, `ceiling_cavok_code` | `ceiling_height_quality_code`, `CIG__part1__qc_*`, `CIG__quality` | Height `99999` and documented code sentinels become null; ceiling height is capped to documented cleaned upper value used by implementation | Not repeated | `part-03-mandatory-data-section.md`; `FIELD_RULES["CIG"]` | upstream-traceable fixture-backed; unit-tested |
-| `VIS` visibility | `visibility_m`, `visibility_variability_code` | `visibility_quality_code`, `visibility_variability_quality_code`, `VIS__part1__qc_*` | Distance `999999` and variability `9` become null; visibility is capped to the cleaned upper value used by implementation | Not repeated | `part-03-mandatory-data-section.md`; `FIELD_RULES["VIS"]` | upstream-traceable fixture-backed; reviewer example; unit-tested |
-| `TMP` air temperature | `temperature_c` | `temperature_quality_code`, `TMP__qc_*` | `+9999` / `9999` become null; valid values are scaled from tenths of degrees C | Not repeated | `part-03-mandatory-data-section.md`; `FIELD_RULES["TMP"]` | upstream-traceable fixture-backed; reviewer example; unit-tested |
+| `VIS` visibility | `visibility_m`, `visibility_variability_code` | `visibility_quality_code`, `visibility_variability_quality_code`, `VIS__part1__qc_*` | Distance `999999` and variability `9` become null; visibility is capped to the cleaned upper value used by implementation | Not repeated | `part-03-mandatory-data-section.md`; `FIELD_RULES["VIS"]` | upstream-traceable fixture-backed; inspection example; unit-tested |
+| `TMP` air temperature | `temperature_c` | `temperature_quality_code`, `TMP__qc_*` | `+9999` / `9999` become null; valid values are scaled from tenths of degrees C | Not repeated | `part-03-mandatory-data-section.md`; `FIELD_RULES["TMP"]` | upstream-traceable fixture-backed; inspection example; unit-tested |
 | `DEW` dew point temperature | `dew_point_c` | `dew_point_quality_code`, `DEW__qc_*` | `+9999` / `9999` become null; valid values are scaled from tenths of degrees C | Not repeated | `part-03-mandatory-data-section.md`; `FIELD_RULES["DEW"]` | upstream-traceable fixture-backed; unit-tested |
 | `SLP` sea-level pressure | `sea_level_pressure_hpa` | `sea_level_pressure_quality_code`, `SLP__qc_*` | `99999` becomes null; valid values are scaled from tenths of hPa | Not repeated | `part-03-mandatory-data-section.md`; `FIELD_RULES["SLP"]` | upstream-traceable fixture-backed; unit-tested |
 
-## Additional Implemented Families (Secondary to JOSS Evaluation)
+## Additional Implemented Families (Secondary to JOSS)
 
-This section is **not** the primary reviewed surface. Do not read it as a second
-acceptance checklist for the JOSS submission. These families remain implemented
-and documented so users can see what the parser recognizes, but reviewer
-evaluation should focus on the core table above. The tracked fixtures are small
-and do not exhaustively demonstrate every additional family, repeat suffix,
-domain value, or edge case. Each entry carries an evidence label to mark the
-narrower support honestly. Treat this section as transparent secondary
+This section is **not** the primary submission surface. These families remain
+implemented and documented so users can see what the parser recognizes, while
+the core evidence remains concentrated in the table above. The tracked fixtures
+are small and do not exhaustively demonstrate every additional family, repeat
+suffix, domain value, or edge case. Each entry carries an evidence label to
+mark the narrower support. Treat this section as transparent secondary
 inventory, not a claim of broad real-data validation.
 
 | NOAA field / token family | Decoded output columns | Associated QC columns | Sentinel/null handling | Repeated naming | Provenance references | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | `REM` remarks | `remarks_type_code`, `remarks_text`, `remarks_type_codes`, `remarks_text_blocks_json` | None beyond parsed text availability | Empty or non-structured remarks become null in parsed remark columns; raw `REM` remains available in source columns | Multiple structured blocks are represented in `remarks_type_codes` and JSON text-block list | `part-04-additional-data-section.md`; `src/noaa_spec/cleaning.py` remark parser | upstream-traceable fixture-backed; unit-tested |
 | `EQD` / `QNN` quality metadata forms | `eqd_original_value_*`, `eqd_reason_code_*`, `eqd_parameter_code_*`, `eqd_units_code_*`; `qnn_element_ids`, `qnn_source_flags`, `qnn_data_values` | EQD reason/unit code columns; QNN source flags | Empty tokens become null; allowed reason/unit/parameter code checks are applied for recognized EQD forms | `Q01`-`Q99`, `P01`-`P99`, `R01`-`R99`, `C01`-`C99`, `D01`-`D99`, `N01`-`N99` retain the two-digit suffix | `part-04-additional-data-section.md`; `EQD_*` rules in `constants.py` and QNN parser in `cleaning.py` | upstream-traceable fixture-backed for selected forms; unit-tested |
-| Liquid precipitation `AA1`-`AA4` | `precip_period_hours_{n}`, `precip_amount_{n}`, `precip_condition_code_{n}` | `precip_quality_code_{n}`, `AA{n}__part2__qc_*` | Period `99`, amount `9999`, and condition `9` become null; amount scales by 0.1 | `{n}=1..4` | `part-04-additional-data-section.md`; `FIELD_RULE_PREFIXES["AA"]` | upstream-traceable fixture-backed for `AA1`; fixture-backed for selected repeats; reviewer example; unit-tested |
+| Liquid precipitation `AA1`-`AA4` | `precip_period_hours_{n}`, `precip_amount_{n}`, `precip_condition_code_{n}` | `precip_quality_code_{n}`, `AA{n}__part2__qc_*` | Period `99`, amount `9999`, and condition `9` become null; amount scales by 0.1 | `{n}=1..4` | `part-04-additional-data-section.md`; `FIELD_RULE_PREFIXES["AA"]` | upstream-traceable fixture-backed for `AA1`; fixture-backed for selected repeats; inspection example; unit-tested |
 | Other precipitation/snow accumulation `AB`, `AC`, `AD`, `AE`, `AG`, `AH`, `AI`, `AJ`, `AK`, `AL`, `AM`, `AN`, `AO`, `AP` | Public patterns such as `precip_monthly_total_{n}`, `precip_24h_max_{n}`, `precip_5_to_45_min_amount_mm_{n}`, `precip_60_to_180_min_amount_mm_{n}`, `snow_depth_{n}`, `snow_accum_depth_cm_{n}`, `hpd_gauge_value_mm_{n}` | Matching `*_quality_code_{n}` columns where NOAA supplies quality parts; `__qc_*` sidecars for numeric parts | Family-specific all-9 missing markers become null; documented scales/ranges are enforced where implemented | Supported repeat ranges in `constants.py`: `AH1`-`AH6`, `AI1`-`AI6`, `AL1`-`AL4`, `AO1`-`AO4`; single or prefix families as implemented | `part-04-additional-data-section.md`; precipitation/snow rules in `FIELD_RULE_PREFIXES` | unit-tested; selected committed fixtures where present |
 | Cloud layer and sky cover `GA1`-`GA6`, `GD1`-`GD6`, `GE1`, `GF1`, `GG1`-`GG6` | `cloud_layer_coverage_{n}`, `cloud_layer_base_height_m_{n}`, `cloud_layer_type_code_{n}`, `sky_cover_summation_*_{n}`, `convective_cloud_code`, `cloud_base_height_upper_m`, `cloud_total_coverage`, `cloud_lowest_base_height_m`, `below_station_cloud_top_height_m_{n}` | Matching cloud `*_quality_code*` columns and numeric `GA{n}__part*__qc_*`, `GF1__part*__qc_*`, `GG{n}__part*__qc_*` sidecars | Cloud coverage/type missing codes and base-height sentinels become null; range/domain checks apply to implemented parts | `GA1`-`GA6`, `GD1`-`GD6`, `GG1`-`GG6`; `GE1` and `GF1` singleton | `part-15-cloud-and-solar-data.md`; `FIELD_RULE_PREFIXES["GA"]`, `["GD"]`, `["GG"]`, `FIELD_RULES["GE1"]`, `["GF1"]` | upstream-traceable fixture-backed for selected `GA`/`GD`/`GE`/`GF`; unit-tested |
 | Present and past weather `AT1`-`AT8`, `AU1`-`AU9`, `AW1`-`AW4`, `AX1`-`AX6`, `AY1`-`AY2`, `AZ1`-`AZ2`, `MV1`-`MV7`, `MW1`-`MW7` | Public patterns such as `daily_present_weather_type_code_{n}`, `weather_precip_code_{n}`, `automated_present_weather_code_{n}`, `past_weather_condition_code_{n}`, `present_weather_vicinity_code_{n}`, `present_weather_code_{n}` | Matching `*_quality_code_{n}` columns where supplied; some source-derived quality columns remain as `MW{n}__part2` / `AY{n}__part2` when no friendlier public name is defined | Family-specific missing weather codes become null; documented code domains are enforced for implemented code tables | Ranges listed at left | `part-05-weather-occurrence-data.md` and `part-28-weather-occurrence-data-extended.md`; weather code tables and family rules in `constants.py` | fixture-backed for selected families; unit-tested |

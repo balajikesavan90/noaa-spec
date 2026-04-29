@@ -10,7 +10,7 @@ The boundary is deliberately precise:
 
 ## Docker Verification
 
-Docker is the repository-provided reviewer path.
+Docker is the repository-provided reproducibility path.
 
 ```bash
 docker build -f Dockerfile -t noaa-spec-review .
@@ -35,9 +35,9 @@ It then compares each generated CSV checksum to the tracked expected output
 hashes in `reproducibility/checksums.sha256`. That file is the canonical
 checksum manifest for tracked reproducibility artifacts.
 
-The Dockerfile defines a tested reviewer container and pins the `python:3.12-slim` base image by digest. It is still not a fully immutable archived runtime because it refreshes Debian package metadata and upgrades bootstrap packaging tools during the image build.
+The Dockerfile defines a tested reproducibility container and pins the `python:3.12-slim` base image by digest. It is still not a fully immutable archived runtime because it refreshes Debian package metadata and upgrades bootstrap packaging tools during the image build.
 
-After verification, reviewers should inspect the core raw fixture and expected cleaned output side by side:
+After verification, a useful first inspection is the core raw fixture and expected cleaned output side by side:
 
 - `reproducibility/minimal/station_raw.csv`
 - `reproducibility/minimal/station_cleaned_expected.csv`
@@ -49,7 +49,7 @@ After verification, reviewers should inspect the core raw fixture and expected c
 
 The cleaned CSV is wider than a single analysis table because NOAA-Spec preserves decoded measurements, NOAA quality codes, validation sidecars, and row-level usability summaries. Width depends on which optional NOAA encoded fields are present in the input. Start with `docs/first_output_guide.md` for a compact first view before reading the full CSV.
 
-The static curated examples under `artifacts/curated_examples/` are optional appendix material only. They are not part of this checksum-backed reproducibility contract, not required by the Docker reviewer path, and not part of the core acceptance path.
+The static curated examples under `artifacts/curated_examples/` are optional appendix material only. They are not part of this checksum-backed reproducibility contract, not required by the Docker reproducibility path, and not part of the core validation path.
 
 ## Primary Fixture
 
@@ -98,7 +98,7 @@ Compare the generated checksum with the matching
 
 ## Traceable Fixtures
 
-These are the fixtures with upstream NOAA retrieval traceability in the repository. They are still small and reviewer-checkable, but unlike the older curated station slices they record NOAA/NCEI source URLs, retrieval dates, observed upstream checksums, and exact extraction commands.
+These are the fixtures with upstream NOAA retrieval traceability in the repository. They are still small and directly inspectable, but unlike the older curated station slices they record NOAA/NCEI source URLs, retrieval dates, observed upstream checksums, and exact extraction commands.
 
 Tracked fixtures:
 
@@ -123,7 +123,7 @@ Compare the generated checksum with the matching
 
 ## Additional Station Fixtures
 
-These 4-row fixtures are committed real-station slices that broaden deterministic input/output checks without changing the core reviewer claim. Their expected outputs were generated with the same `noaa-spec clean` CLI. The exact upstream retrieval dates and original NOAA URL/year-file metadata were not retained when these slices were curated; see [reproducibility/FIXTURE_PROVENANCE.md](reproducibility/FIXTURE_PROVENANCE.md).
+These 4-row fixtures are committed real-station slices that broaden deterministic input/output checks without changing the core contribution boundary. Their expected outputs were generated with the same `noaa-spec clean` CLI. The exact upstream retrieval dates and original NOAA URL/year-file metadata were not retained when these slices were curated; see [reproducibility/FIXTURE_PROVENANCE.md](reproducibility/FIXTURE_PROVENANCE.md).
 
 | Fixture | Station | Coverage note |
 | --- | --- | --- |

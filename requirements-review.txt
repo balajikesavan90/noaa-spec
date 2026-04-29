@@ -1,4 +1,4 @@
-# Pinned dependencies for the Docker reviewer verification path only.
+# Pinned dependencies for the Docker reproducibility verification path only.
 # Standard local installs use project metadata with `python -m pip install -e .`.
 iniconfig==2.3.0
 numpy==2.4.2
