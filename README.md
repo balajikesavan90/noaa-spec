@@ -250,6 +250,23 @@ claim that the small fixtures exercise every NOAA field. See [REPRODUCIBILITY.md
 [reproducibility/FIXTURE_PROVENANCE.md](reproducibility/FIXTURE_PROVENANCE.md),
 and [docs/evidence_matrix.md](docs/evidence_matrix.md).
 
+To run a bundled fixture manually after Docker or local install, use:
+
+```bash
+noaa-spec clean \
+  reproducibility/minimal/station_raw.csv \
+  /tmp/noaa-spec-minimal.csv
+diff -u \
+  reproducibility/minimal/station_cleaned_expected.csv \
+  /tmp/noaa-spec-minimal.csv
+sha256sum /tmp/noaa-spec-minimal.csv
+```
+
+For any other bundled fixture, replace `minimal` with the fixture directory
+name, for example `minimal_second` or `real_provenance_example`. The `diff`
+command should produce no output. The checksum should match the corresponding
+`station_cleaned_expected.csv` entry in `reproducibility/checksums.sha256`.
+
 ## Run Tests
 
 ```bash
