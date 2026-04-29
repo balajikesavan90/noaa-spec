@@ -85,7 +85,7 @@ def _assert_public_example_script_matches_expected(
     output_path = tmp_path / output_name
 
     subprocess.run(
-        [sys.executable, str(script_path), "--out", str(output_path)],
+        [sys.executable, str(script_path), str(output_path)],
         check=True,
         cwd=repo_root,
     )

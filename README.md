@@ -192,8 +192,11 @@ Existing NOAA parsers are useful for exposing NOAA records and parsed structures
 
 ## Local Install (Convenience Path)
 
-The Docker commands above are the primary reviewer path. For local use, Python
-3.11 or 3.12 is required.
+The Docker commands above are the primary reviewer path. The local convenience
+path works on macOS, Linux, and Windows, but the virtual-environment commands
+are platform-specific. Python 3.11 or 3.12 is required.
+
+macOS or Linux:
 
 ```bash
 python3.12 -m venv .venv
@@ -202,15 +205,27 @@ python -m pip install --upgrade pip setuptools wheel
 python -m pip install -e .
 ```
 
-Use `python3.11` instead of `python3.12` if that is your supported local interpreter. After activation, `python` refers to the virtual-environment interpreter.
+Use `python3.11` instead of `python3.12` if that is your supported local
+interpreter.
+
+Windows PowerShell:
+
+```powershell
+py -3.12 -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -e .
+```
+
+Use `py -3.11` instead of `py -3.12` if that is your supported local
+interpreter. After activation, `python` refers to the virtual-environment
+interpreter.
 
 If the console script is not on `PATH`, use:
 
 ```bash
 python -m noaa_spec.cli clean INPUT.csv OUTPUT.csv
 ```
-
-The positional output path is the canonical form. `noaa-spec clean INPUT.csv --out OUTPUT.csv` remains supported as a legacy alternate, but reviewer documentation uses `noaa-spec clean INPUT.csv OUTPUT.csv`.
 
 ## Reproducibility Fixtures
 

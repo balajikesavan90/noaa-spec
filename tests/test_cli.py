@@ -31,24 +31,6 @@ def test_cli_clean_writes_canonical_csv(
     assert output_csv.read_text(encoding="utf-8") == expected_csv.read_text(encoding="utf-8")
 
 
-def test_cli_clean_accepts_legacy_out_flag(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    repo_root = Path(__file__).resolve().parents[1]
-    input_csv = repo_root / "reproducibility" / "minimal" / "station_raw.csv"
-    output_csv = tmp_path / "station_cleaned.csv"
-
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        ["prog", "clean", str(input_csv), "--out", str(output_csv)],
-    )
-    cli.main()
-
-    assert output_csv.exists()
-
-
 def test_cli_clean_preserves_quality_code_when_sentinel_is_null(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -73,14 +55,19 @@ def test_cli_clean_preserves_quality_code_when_sentinel_is_null(
 
 def test_cli_clean_requires_output_path(
     monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     input_csv = repo_root / "reproducibility" / "minimal" / "station_raw.csv"
 
     monkeypatch.setattr(sys, "argv", ["prog", "clean", str(input_csv)])
 
-    with pytest.raises(SystemExit, match="Provide an output path"):
+    with pytest.raises(SystemExit) as excinfo:
         cli.main()
+
+    assert excinfo.value.code == 2
+    captured = capsys.readouterr()
+    assert "the following arguments are required: output_csv" in captured.err
 
 
 def test_cli_clean_exposes_raw_line_structural_validation(

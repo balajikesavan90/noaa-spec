@@ -31,9 +31,10 @@ def _parse_args() -> argparse.Namespace:
         description="Run the tracked public NOAA-Spec cleaning example."
     )
     parser.add_argument(
-        "--out",
+        "output_csv",
         type=Path,
         default=None,
+        nargs="?",
         help="Optional output path for the cleaned CSV",
     )
     return parser.parse_args()
@@ -42,7 +43,7 @@ def _parse_args() -> argparse.Namespace:
 def main() -> None:
     args = _parse_args()
     raw_path = PROJECT_ROOT / RAW_RELPATH
-    cleaned_path = args.out or (Path(tempfile.gettempdir()) / DEFAULT_OUT)
+    cleaned_path = args.output_csv or (Path(tempfile.gettempdir()) / DEFAULT_OUT)
     cleaned_path.parent.mkdir(parents=True, exist_ok=True)
 
     raw = pd.read_csv(raw_path, dtype=str)

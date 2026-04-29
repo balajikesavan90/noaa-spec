@@ -93,19 +93,8 @@ def _parse_args() -> argparse.Namespace:
     clean_parser.add_argument("input_csv", type=Path, help="Input NOAA raw CSV path.")
     clean_parser.add_argument(
         "output_csv",
-        nargs="?",
         type=Path,
         help="Output path for the cleaned CSV.",
-    )
-    clean_parser.add_argument(
-        "--out",
-        dest="output_csv_flag",
-        type=Path,
-        default=None,
-        help=(
-            "Legacy alternate output path form. The canonical reviewer form is "
-            "the positional OUTPUT.csv argument."
-        ),
     )
     clean_parser.add_argument(
         "--verbose",
@@ -126,14 +115,7 @@ def main() -> None:
     if not args.verbose:
         cleaning_logger.setLevel(logging.ERROR)
 
-    output_path = args.output_csv_flag or args.output_csv
-    if output_path is None:
-        raise SystemExit(
-            "Provide an output path as OUTPUT.csv. "
-            "--out OUTPUT.csv remains supported as a legacy alternate."
-        )
-
-    written_path = _clean_csv_to_csv(args.input_csv, output_path)
+    written_path = _clean_csv_to_csv(args.input_csv, args.output_csv)
     print(f"Wrote cleaned CSV to {written_path.resolve()}")
 
 
