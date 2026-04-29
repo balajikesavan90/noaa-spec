@@ -12,8 +12,10 @@ noaa-spec clean INPUT.csv OUTPUT.csv
 
 The command writes an observation-level cleaned CSV with documented NOAA
 sentinels normalized to empty null cells, NOAA quality codes preserved in
-explicit columns, and deterministic row/order serialization. The value is not
-parsing alone; it is making a bounded set of NOAA cleaning decisions explicit,
+explicit columns, and deterministic row/order serialization. If the input CSV
+includes a `raw_line` or `RAW_LINE` column, the cleaner also performs raw
+record/header structural validation on that column. The value is not parsing
+alone; it is making a bounded set of NOAA cleaning decisions explicit,
 testable, provenance-aware, and checksum-stable so downstream researchers can
 start from the same documented interpretation rather than divergent local
 scripts. NOAA-Spec does not download NOAA data, orchestrate station batches,

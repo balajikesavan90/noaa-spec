@@ -22,6 +22,7 @@ from .constants import (
     KNOWN_IDENTIFIERS,
     LEGACY_EQD_MSD_PATTERN,
     LEGACY_EQD_PARAMETER_CODES,
+    CIG_PUBLIC_OUTPUT_MAX_M,
     QNN_ELEMENT_IDENTIFIERS,
     REM_TYPE_CODES,
     QUALITY_FLAGS,
@@ -30,6 +31,7 @@ from .constants import (
     QC_REASON_ENUM,
     USABILITY_METRIC_INDICATORS,
     REPORT_TYPE_CODES,
+    VIS_PUBLIC_OUTPUT_MAX_M,
     FieldPartRule,
     get_expected_part_count,
     get_field_registry_entry,
@@ -659,10 +661,10 @@ def _expand_parsed(
                 continue
         scale = part_rule.scale if part_rule else None
         scaled = value * scale if scale is not None else value
-        if prefix == "CIG" and idx == 1 and scaled is not None and scaled > 22000:
-            scaled = 22000.0
-        if prefix == "VIS" and idx == 1 and scaled is not None and scaled > 160000:
-            scaled = 160000.0
+        if prefix == "CIG" and idx == 1 and scaled is not None and scaled > CIG_PUBLIC_OUTPUT_MAX_M:
+            scaled = CIG_PUBLIC_OUTPUT_MAX_M
+        if prefix == "VIS" and idx == 1 and scaled is not None and scaled > VIS_PUBLIC_OUTPUT_MAX_M:
+            scaled = VIS_PUBLIC_OUTPUT_MAX_M
         payload[key] = scaled
     
     # Add QC signals for numeric parts in multi-part fields

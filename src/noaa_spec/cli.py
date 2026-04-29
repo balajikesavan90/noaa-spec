@@ -32,9 +32,10 @@ def _parse_args() -> argparse.Namespace:
             "Clean a NOAA ISD / Global Hourly raw CSV into a deterministic "
             "observation-level cleaned CSV with normalized documented sentinels, "
             "preserved QC context, and checksum-stable output for the documented "
-            "supported fields. The public "
-            "cleaned CSV uses STATION and DATE as the reviewer-visible identifier "
-            "columns."
+            "supported fields. When the input includes a `raw_line` or `RAW_LINE` "
+            "source column, the cleaner also performs raw record/header structural "
+            "validation on that column. The public cleaned CSV uses STATION and DATE "
+            "as the reviewer-visible identifier columns."
         ),
         epilog=(
             "Primary reviewer workflow: noaa-spec clean INPUT.csv OUTPUT.csv"
@@ -51,7 +52,8 @@ def _parse_args() -> argparse.Namespace:
         description=(
             "Read a NOAA ISD / Global Hourly CSV, replace sentinel-coded values "
             "with nulls, preserve QC columns, and write a deterministic "
-            "cleaned CSV."
+            "cleaned CSV. Raw fixed-width record/header validation is applied only "
+            "when the input supplies a raw_line or RAW_LINE source column."
         ),
     )
     clean_parser.add_argument("input_csv", type=Path, help="Input NOAA raw CSV path.")

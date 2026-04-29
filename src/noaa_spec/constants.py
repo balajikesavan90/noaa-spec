@@ -846,6 +846,15 @@ QC_REASON_ENUM = frozenset(
 #   - usable_metric_fraction: Float [0, 1] - usable_metric_count / total *__qc_pass columns
 USABILITY_METRIC_INDICATORS = ["qc_pass"]
 
+# NOAA-documented decoded maxima for the mandatory CIG/VIS value fields.
+# ISD documents ceiling height as capped at 22000 ("Unlimited = 22000") and
+# visibility distance as capped at 160000 ("Values greater than 160000 are
+# entered as 160000"). The cleaner preserves that published interpretation in
+# decoded public output rather than treating larger encoded values as ordinary
+# unconstrained observations.
+CIG_PUBLIC_OUTPUT_MAX_M = 22000.0
+VIS_PUBLIC_OUTPUT_MAX_M = 160000.0
+
 
 # Field rules below encode representative NOAA token structure: part arity,
 # sentinel values, scales, quality-code parts, and fixed-width checks. The
