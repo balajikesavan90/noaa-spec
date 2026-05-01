@@ -443,7 +443,7 @@ def _write_summary(rows: list[dict[str, str]], output_path: Path, input_path: Pa
         "",
         f"Static appendix examples selected from the committed candidate pool `{input_path}`.",
         "",
-        "The curated examples are optional context. They are not part of the Docker reproducibility path, the checksum-backed reproducibility contract, or the core `noaa-spec clean` validation path. The committed candidate pool is a compact source table retained only to explain where these illustrative appendix rows came from.",
+        "The curated examples are optional context. They are not part of the Docker reviewer workflow, the checksum-backed reproducibility contract, or the core `noaa-spec clean` validation path. The committed candidate pool is a compact source table retained only to explain where these illustrative appendix rows came from.",
         "",
         f"Selected rows: {len(rows)}",
         "",

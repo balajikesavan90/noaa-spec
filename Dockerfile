@@ -1,4 +1,7 @@
-FROM python:3.12-slim@sha256:804ddf3251a60bbf9c92e73b7566c40428d54d0e79d3428194edf40da6521286
+# Reviewer path: pin a specific Python patch release for a stable tested build path.
+# Digest pinning can be added for archival reproduction, but this Dockerfile is a
+# tested execution path rather than a guarantee of immutable upstream package state.
+FROM python:3.12.11-slim-bookworm
 
 WORKDIR /app
 

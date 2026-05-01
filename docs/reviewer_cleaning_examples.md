@@ -13,4 +13,7 @@ These examples illustrate the cleaning policy. They do not claim that other NOAA
 
 The same edge-case classes are exercised by tracked fixture outputs and regression tests where the corresponding fields appear. The point is the boundary of the core contribution: for the core mandatory families, `noaa-spec clean` turns documented field semantics into deterministic cleaned CSV output instead of leaving each downstream script to rediscover those decisions. Broader additional-family coverage remains implemented and tested, but secondary to the core JOSS-facing surface and not uniformly upstream-traceable.
 
-The broader 18-row curated example appendix remains available under `artifacts/curated_examples/` as optional context only. It is not part of the Docker reproducibility path, the checksum-backed reproducibility contract, or the core validation path.
+The broader 18-row curated example appendix remains available under
+`artifacts/curated_examples/` as optional context only. It is not part of the
+Docker reviewer workflow, the checksum-backed reproducibility contract, or the
+core validation path.

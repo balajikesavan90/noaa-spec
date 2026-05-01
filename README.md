@@ -23,9 +23,9 @@ split datasets into analysis domains, produce releases, or run analyses.
 
 ## Reproducibility Verification
 
-Use the repository-defined, tested Docker environment. This is the primary
-reproducibility path; local installation below is a convenience path for users
-who do not want Docker.
+Use the repository-defined Docker workflow. This is the primary tested
+execution path for reviewers; local installation below is a convenience path
+for users who do not want Docker.
 
 ```bash
 docker build -f Dockerfile -t noaa-spec-review .
@@ -42,7 +42,15 @@ Output directory: /tmp/noaa-spec-reproducibility
 
 The canonical checksum list is `reproducibility/checksums.sha256`.
 
-The Dockerfile pins the `python:3.12-slim` base image by digest, but it still refreshes Debian package metadata and upgrades bootstrap packaging tools during build. Treat it as a tested reproducibility environment, not an immutable archived runtime. `requirements-review.txt` pins the Docker verification Python dependency path only; it is not required for standard local installation.
+The Docker workflow is intended to provide a tested execution path for
+reviewers. It is not claimed to be a bitwise archival environment. Debian
+package metadata may be refreshed during image build. Reproducibility claims
+are limited to the repository-controlled workflow: given the tracked inputs,
+specification rules, and pinned Python dependencies, the canonical outputs and
+checksums should remain stable. Long-term archival builds should use the tagged
+release plus archived artifacts or DOIs. `requirements-review.txt` pins the
+Docker verification Python dependency path only; it is not required for
+standard local installation.
 
 ## Traceable Fixtures
 
@@ -191,9 +199,10 @@ Existing NOAA parsers are useful for exposing NOAA records and parsed structures
 
 ## Local Install (Convenience Path)
 
-The Docker commands above are the primary reproducibility path. The local convenience
-path works on macOS, Linux, and Windows, but the virtual-environment commands
-are platform-specific. Python 3.11 or 3.12 is required.
+The Docker commands above are the primary tested reviewer path for workflow
+reproducibility. The local convenience path works on macOS, Linux, and
+Windows, but the virtual-environment commands are platform-specific. Python
+3.11 or 3.12 is required.
 
 macOS or Linux:
 

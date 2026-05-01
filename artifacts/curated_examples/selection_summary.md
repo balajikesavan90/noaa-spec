@@ -2,7 +2,11 @@
 
 Static appendix examples selected from the committed candidate pool `artifacts/curated_examples/candidate_pool.csv`.
 
-The curated examples are optional context. They are not part of the Docker reproducibility path, the checksum-backed reproducibility contract, or the core `noaa-spec clean` validation path. The committed candidate pool is a compact source table retained only to explain where these illustrative appendix rows came from.
+The curated examples are optional context. They are not part of the Docker
+reviewer workflow, the checksum-backed reproducibility contract, or the core
+`noaa-spec clean` validation path. The committed candidate pool is a compact
+source table retained only to explain where these illustrative appendix rows
+came from.
 
 Selected rows: 18
 

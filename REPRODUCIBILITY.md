@@ -1,6 +1,8 @@
 # Reproducibility
 
-This document describes the tracked reproducibility checks for the JOSS-facing NOAA-Spec claim: deterministic cleaned CSV output from the public `noaa-spec clean` CLI.
+This document describes the tracked reproducibility checks for the JOSS-facing
+NOAA-Spec claim: deterministic cleaned CSV output from the public
+`noaa-spec clean` CLI.
 
 The boundary is deliberately precise:
 
@@ -10,7 +12,8 @@ The boundary is deliberately precise:
 
 ## Docker Verification
 
-Docker is the repository-provided reproducibility path.
+Docker is the repository-provided tested execution path for reviewer workflow
+reproducibility.
 
 ```bash
 docker build -f Dockerfile -t noaa-spec-review .
@@ -35,7 +38,13 @@ It then compares each generated CSV checksum to the tracked expected output
 hashes in `reproducibility/checksums.sha256`. That file is the canonical
 checksum manifest for tracked reproducibility artifacts.
 
-The Dockerfile defines a tested reproducibility container and pins the `python:3.12-slim` base image by digest. It is still not a fully immutable archived runtime because it refreshes Debian package metadata and upgrades bootstrap packaging tools during the image build.
+The Docker workflow is intended to provide a tested execution path for
+reviewers. It is not claimed to be a bitwise archival environment. Debian
+package metadata may be refreshed during image build. Reproducibility claims
+are limited to the repository-controlled workflow: given the tracked inputs,
+specification rules, and pinned Python dependencies, the canonical outputs and
+checksums should remain stable. Long-term archival builds should use the tagged
+release plus archived artifacts or DOIs.
 
 After verification, a useful first inspection is the core raw fixture and expected cleaned output side by side:
 
@@ -49,7 +58,10 @@ After verification, a useful first inspection is the core raw fixture and expect
 
 The cleaned CSV is wider than a single analysis table because NOAA-Spec preserves decoded measurements, NOAA quality codes, validation sidecars, and row-level usability summaries. Width depends on which optional NOAA encoded fields are present in the input. Start with `docs/first_output_guide.md` for a compact first view before reading the full CSV.
 
-The static curated examples under `artifacts/curated_examples/` are optional appendix material only. They are not part of this checksum-backed reproducibility contract, not required by the Docker reproducibility path, and not part of the core validation path.
+The static curated examples under `artifacts/curated_examples/` are optional
+appendix material only. They are not part of this checksum-backed
+reproducibility contract, not required by the Docker reviewer workflow, and not
+part of the core validation path.
 
 ## Primary Fixture
 

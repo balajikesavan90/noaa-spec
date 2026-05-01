@@ -11,7 +11,7 @@ This directory contains the tracked artifacts behind the public reproducibility 
 - `checksums.sha256` is the canonical checksum manifest for tracked reproducibility artifacts.
 - `station_03041099999_aonach_mor/`, `station_01116099999_stokka/`, and `station_94368099999_hamilton_island/` contain 4-row committed station fixtures that broaden deterministic input/output checks without adding large data files.
 - `FIXTURE_PROVENANCE.md` records the fixture source and selection boundary, including the fact that exact upstream retrieval dates were not retained for the curated station slices.
-- `run_pipeline_example.py` is a maintainer helper for rerunning the minimal fixture; the public reproducibility workflow remains the `noaa-spec clean` CLI documented in `../REPRODUCIBILITY.md`.
+- `run_pipeline_example.py` is a maintainer helper for rerunning the minimal fixture; the public workflow reproducibility path remains the `noaa-spec clean` CLI documented in `../REPRODUCIBILITY.md`.
 
 The active reproducibility workflow is documented in [../REPRODUCIBILITY.md](../REPRODUCIBILITY.md). Use that document for the exact commands and `checksums.sha256` for checksum targets.
 The in-repo fixtures are intentionally small and serve as deterministic reproducibility checks: `clean(committed_input) = committed_output`. The three traceable fixture directories add upstream URL/date/checksum traceability; the older curated station fixtures do not replay upstream acquisition.
