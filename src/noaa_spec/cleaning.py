@@ -44,6 +44,58 @@ from .constants import (
     to_internal_column,
 )
 
+STRICT_PARSE_METADATA_COLUMNS = frozenset(
+    {
+        "STATION",
+        "NAME",
+        "DATE",
+        "TIME",
+        "SOURCE",
+        "LATITUDE",
+        "LONGITUDE",
+        "ELEVATION",
+        "REPORT_TYPE",
+        "CALL_SIGN",
+        "QUALITY_CONTROL",
+        "RAW_LINE",
+        "raw_line",
+    }
+)
+
+
+def _classify_strict_identifier_column(column: str) -> tuple[str, bool]:
+    """Classify a parseable column for strict-mode reporting.
+
+    Some NOAA identifiers are supported through prefix-family rules rather than
+    explicit membership in KNOWN_IDENTIFIERS. Strict-mode reporting must reflect
+    actual parser support rather than only the static allowlist.
+    """
+    section_identifier_valid = is_valid_section_identifier_token(column)
+    if section_identifier_valid is False:
+        return "malformed_section_identifier", False
+
+    eqd_valid = is_valid_eqd_identifier(column)
+    if eqd_valid is False:
+        return "malformed_identifier", False
+
+    repeated_valid = is_valid_repeated_identifier(column)
+    if repeated_valid is False:
+        return "malformed_identifier", False
+
+    field_rule = get_field_rule(column)
+    if field_rule is not None:
+        supported_by_static_allowlist = (
+            column in KNOWN_IDENTIFIERS
+            or eqd_valid is True
+            or repeated_valid is True
+        )
+        return (
+            "supported_prefix_family" if not supported_by_static_allowlist else "supported",
+            not supported_by_static_allowlist,
+        )
+
+    return "unsupported_identifier", False
+
 
 @dataclass(frozen=True)
 class ParsedField:
@@ -1514,7 +1566,10 @@ def clean_noaa_dataframe(
     cleaned = df.copy()
     strict_skip_summary = {
         "malformed_section_identifier_columns": [],
+        "malformed_identifier_columns": [],
         "unknown_identifier_columns": [],
+        "unsupported_identifier_columns": [],
+        "supported_prefix_family_identifiers": [],
     }
     rejected_mask = pd.Series(False, index=cleaned.index)
     raw_line_col = "raw_line" if "raw_line" in cleaned.columns else ("RAW_LINE" if "RAW_LINE" in cleaned.columns else None)
@@ -1591,6 +1646,8 @@ def clean_noaa_dataframe(
         # Skip columns already processed by priority parsing
         if column in processed_columns:
             continue
+        if column in STRICT_PARSE_METADATA_COLUMNS:
+            continue
 
         series = cleaned[column]
         if not pd.api.types.is_object_dtype(series) and not pd.api.types.is_string_dtype(series):
@@ -1603,23 +1660,24 @@ def clean_noaa_dataframe(
         # Evaluate this only for columns that actually look parseable so metadata
         # columns like STATION/DATE do not emit parse warnings.
         if strict_mode:
-            section_identifier_valid = is_valid_section_identifier_token(column)
-            if section_identifier_valid is False:
+            classification, supported_by_prefix_family = _classify_strict_identifier_column(column)
+            if supported_by_prefix_family:
+                strict_skip_summary["supported_prefix_family_identifiers"].append(column)
+            if classification == "malformed_section_identifier":
                 strict_skip_summary["malformed_section_identifier_columns"].append(column)
                 logger.warning(
                     f"[PARSE_STRICT] Skipping malformed section identifier token: {column}"
                 )
                 continue
-
-            known_identifier = (
-                column in KNOWN_IDENTIFIERS
-                or is_valid_eqd_identifier(column) is True
-                or is_valid_repeated_identifier(column) is True
-            )
-            if not known_identifier:
-                # Skip expansion for unknown identifiers, keep raw column.
+            if classification == "malformed_identifier":
+                strict_skip_summary["malformed_identifier_columns"].append(column)
+                logger.warning(f"[PARSE_STRICT] Skipping malformed identifier: {column}")
+                continue
+            if classification == "unsupported_identifier":
+                # Keep legacy key for backward compatibility with existing reports.
                 strict_skip_summary["unknown_identifier_columns"].append(column)
-                logger.warning(f"[PARSE_STRICT] Skipping unknown identifier: {column}")
+                strict_skip_summary["unsupported_identifier_columns"].append(column)
+                logger.warning(f"[PARSE_STRICT] Skipping unsupported identifier: {column}")
                 continue
 
         parsed_rows = []
@@ -1698,11 +1756,19 @@ def clean_noaa_dataframe(
 
     if strict_mode:
         malformed_columns = strict_skip_summary["malformed_section_identifier_columns"]
-        unknown_columns = strict_skip_summary["unknown_identifier_columns"]
-        skipped_columns = tuple(malformed_columns + unknown_columns)
+        malformed_identifier_columns = strict_skip_summary["malformed_identifier_columns"]
+        unsupported_columns = strict_skip_summary["unsupported_identifier_columns"]
+        skipped_columns = tuple(
+            malformed_columns + malformed_identifier_columns + unsupported_columns
+        )
         cleaned.attrs["strict_parse_summary"] = {
             "malformed_section_identifier_columns": tuple(malformed_columns),
-            "unknown_identifier_columns": tuple(unknown_columns),
+            "malformed_identifier_columns": tuple(malformed_identifier_columns),
+            "unsupported_identifier_columns": tuple(unsupported_columns),
+            "unknown_identifier_columns": tuple(unsupported_columns),
+            "supported_prefix_family_identifiers": tuple(
+                strict_skip_summary["supported_prefix_family_identifiers"]
+            ),
             "skipped_encoded_columns": skipped_columns,
             "skipped_encoded_column_count": len(skipped_columns),
         }

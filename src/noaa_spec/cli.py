@@ -12,6 +12,12 @@ import pandas as pd
 from . import __version__
 from .cleaning import clean_noaa_dataframe
 from .deterministic_io import write_deterministic_csv
+from .validation import (
+    DEFAULT_VALIDATION_COUNT,
+    DEFAULT_VALIDATION_SEED,
+    default_build_id,
+    run_validation_workflow,
+)
 
 
 def _clean_csv_to_csv(input_csv: Path, output_csv: Path) -> Path:
@@ -37,16 +43,27 @@ def _print_strict_parse_summary(cleaned: pd.DataFrame) -> None:
         return
 
     malformed_columns = list(summary.get("malformed_section_identifier_columns", ()))
-    unknown_columns = list(summary.get("unknown_identifier_columns", ()))
+    malformed_identifier_columns = list(summary.get("malformed_identifier_columns", ()))
+    unsupported_columns = list(
+        summary.get(
+            "unsupported_identifier_columns",
+            summary.get("unknown_identifier_columns", ()),
+        )
+    )
     details: list[str] = []
     if malformed_columns:
         details.append(
             "malformed section identifier token(s): "
             + ", ".join(sorted(malformed_columns))
         )
-    if unknown_columns:
+    if malformed_identifier_columns:
         details.append(
-            "unsupported identifier(s): " + ", ".join(sorted(unknown_columns))
+            "malformed identifier(s): "
+            + ", ".join(sorted(malformed_identifier_columns))
+        )
+    if unsupported_columns:
+        details.append(
+            "unsupported identifier(s): " + ", ".join(sorted(unsupported_columns))
         )
 
     noun = "column" if skipped_count == 1 else "columns"
@@ -103,20 +120,172 @@ def _parse_args() -> argparse.Namespace:
         help="Show detailed [PARSE_STRICT] validation warnings during cleaning.",
     )
 
+    validate_parser = subparsers.add_parser(
+        "validate-100-stations",
+        help="Run deterministic operational validation over a stratified station sample.",
+        description=(
+            "Select a deterministic file-size-stratified station sample, run the "
+            "existing NOAA-Spec cleaning workflow against each selected station, "
+            "and write reviewer-facing manifests, checksums, and summary artifacts."
+        ),
+    )
+    validate_parser.add_argument(
+        "--input-root",
+        required=True,
+        type=Path,
+        help="Directory containing downloaded station files.",
+    )
+    validate_parser.add_argument(
+        "--output-root",
+        type=Path,
+        default=None,
+        help=(
+            "Destination directory for validation artifacts. Defaults to "
+            "artifacts/validation_100_station/build_<build_id>."
+        ),
+    )
+    validate_parser.add_argument(
+        "--count",
+        type=int,
+        default=DEFAULT_VALIDATION_COUNT,
+        help="Number of stations to select. Default: 100.",
+    )
+    validate_parser.add_argument(
+        "--strategy",
+        default="size-stratified",
+        choices=("size-stratified",),
+        help="Sampling strategy. Default: size-stratified.",
+    )
+    validate_parser.add_argument(
+        "--seed",
+        type=int,
+        default=DEFAULT_VALIDATION_SEED,
+        help="Deterministic selection seed. Default: 20260430.",
+    )
+    validate_parser.add_argument(
+        "--continue-on-error",
+        action="store_true",
+        default=False,
+        help="Continue after station-level failures and preserve partial results.",
+    )
+    validate_parser.add_argument(
+        "--build-id",
+        default=None,
+        help="Optional build identifier recorded in manifests.",
+    )
+
+    bundle_parser = subparsers.add_parser(
+        "build-validation-bundle",
+        help="Build a reviewer-facing 100-station validation bundle with archived raw inputs.",
+        description=(
+            "Select a deterministic file-size-stratified station sample from a local "
+            "station corpus, copy the selected raw inputs into the output bundle, run "
+            "the existing NOAA-Spec cleaning workflow against those frozen inputs, and "
+            "write reviewer-facing manifests, checksums, and summary artifacts."
+        ),
+    )
+    bundle_parser.add_argument(
+        "--source-root",
+        required=True,
+        type=Path,
+        help="Directory containing the local station corpus used for selection.",
+    )
+    bundle_parser.add_argument(
+        "--output-root",
+        type=Path,
+        default=None,
+        help=(
+            "Destination directory for bundle artifacts. Defaults to "
+            "artifacts/validation_100_station/build_<build_id>."
+        ),
+    )
+    bundle_parser.add_argument(
+        "--count",
+        type=int,
+        default=DEFAULT_VALIDATION_COUNT,
+        help="Number of stations to select. Default: 100.",
+    )
+    bundle_parser.add_argument(
+        "--strategy",
+        default="size-stratified",
+        choices=("size-stratified",),
+        help="Sampling strategy. Default: size-stratified.",
+    )
+    bundle_parser.add_argument(
+        "--seed",
+        type=int,
+        default=DEFAULT_VALIDATION_SEED,
+        help="Deterministic selection seed. Default: 20260430.",
+    )
+    bundle_parser.add_argument(
+        "--continue-on-error",
+        action="store_true",
+        default=False,
+        help="Continue after station-level failures and preserve partial results.",
+    )
+    bundle_parser.add_argument(
+        "--build-id",
+        default=None,
+        help="Optional build identifier recorded in manifests.",
+    )
+
     return parser.parse_args()
 
 
 def main() -> None:
     args = _parse_args()
-    if args.command != "clean":
-        raise ValueError(f"Unsupported public command: {args.command}")
+    if args.command == "clean":
+        cleaning_logger = logging.getLogger("noaa_spec.cleaning")
+        if not args.verbose:
+            cleaning_logger.setLevel(logging.ERROR)
 
-    cleaning_logger = logging.getLogger("noaa_spec.cleaning")
-    if not args.verbose:
-        cleaning_logger.setLevel(logging.ERROR)
+        written_path = _clean_csv_to_csv(args.input_csv, args.output_csv)
+        print(f"Wrote cleaned CSV to {written_path.resolve()}")
+        return
 
-    written_path = _clean_csv_to_csv(args.input_csv, args.output_csv)
-    print(f"Wrote cleaned CSV to {written_path.resolve()}")
+    if args.command == "validate-100-stations":
+        output_root = args.output_root
+        build_id = args.build_id or default_build_id()
+        if output_root is None:
+            output_root = Path("artifacts") / "validation_100_station" / f"build_{build_id}"
+        result = run_validation_workflow(
+            source_root=args.input_root,
+            output_root=output_root,
+            count=args.count,
+            strategy=args.strategy,
+            seed=args.seed,
+            continue_on_error=args.continue_on_error,
+            build_id=build_id,
+            command=" ".join(sys.argv),
+            selected_by="noaa-spec validate-100-stations",
+        )
+        print(f"Wrote validation artifacts to {result['output_root']}")
+        if result["failed"]:
+            raise SystemExit(1)
+        return
+
+    if args.command == "build-validation-bundle":
+        output_root = args.output_root
+        build_id = args.build_id or default_build_id()
+        if output_root is None:
+            output_root = Path("artifacts") / "validation_100_station" / f"build_{build_id}"
+        result = run_validation_workflow(
+            source_root=args.source_root,
+            output_root=output_root,
+            count=args.count,
+            strategy=args.strategy,
+            seed=args.seed,
+            continue_on_error=args.continue_on_error,
+            build_id=build_id,
+            command=" ".join(sys.argv),
+            selected_by="noaa-spec build-validation-bundle",
+        )
+        print(f"Wrote validation artifacts to {result['output_root']}")
+        if result["failed"]:
+            raise SystemExit(1)
+        return
+
+    raise ValueError(f"Unsupported public command: {args.command}")
 
 
 if __name__ == "__main__":

@@ -5098,21 +5098,26 @@ class TestA1UnknownIdentifierAllowlist:
     """
 
     def test_unknown_identifier_no_expansion_strict(self, caplog):
-        """NAME column with commas stays as single column in strict mode."""
-        df = pd.DataFrame({"NAME": ["value1,value2,value3"]})
+        """Unsupported but well-formed identifiers stay raw in strict mode."""
+        df = pd.DataFrame({"HL1": ["value1,value2,value3"]})
         result = clean_noaa_dataframe(df, strict_mode=True)
         
-        # Should NOT create NAME__part* columns
-        assert "NAME__part1" not in result.columns
-        assert "NAME__part2" not in result.columns
-        assert "NAME__part3" not in result.columns
+        # Should NOT create HL1__part* columns
+        assert "HL1__part1" not in result.columns
+        assert "HL1__part2" not in result.columns
+        assert "HL1__part3" not in result.columns
         
-        # Should keep raw NAME column
-        assert "NAME" in result.columns
-        assert result["NAME"].iloc[0] == "value1,value2,value3"
+        # Should keep raw HL1 column
+        assert "HL1" in result.columns
+        assert result["HL1"].iloc[0] == "value1,value2,value3"
+
+        summary = result.attrs["strict_parse_summary"]
+        assert summary["unsupported_identifier_columns"] == ("HL1",)
+        assert summary["unknown_identifier_columns"] == ("HL1",)
+        assert summary["malformed_identifier_columns"] == ()
         
         # Should log warning
-        assert "[PARSE_STRICT] Skipping unknown identifier: NAME" in caplog.text
+        assert "[PARSE_STRICT] Skipping unsupported identifier: HL1" in caplog.text
 
     def test_unknown_identifier_expansion_permissive(self):
         """Unknown identifier expands in permissive mode."""
@@ -5133,6 +5138,42 @@ class TestA1UnknownIdentifierAllowlist:
         assert "wind_speed_ms" in result.columns
         assert result["wind_direction_deg"].iloc[0] == 180.0
         assert result["wind_speed_ms"].iloc[0] == 5.0
+
+    @pytest.mark.parametrize(
+        ("column", "raw"),
+        [
+            ("AJ1", "1200,1,1,120000,1,1"),
+            ("AG1", "1,998"),
+            ("GJ1", "0100,1"),
+        ],
+    )
+    def test_prefix_family_supported_identifiers_are_not_reported_unknown(
+        self,
+        column: str,
+        raw: str,
+    ):
+        df = pd.DataFrame({column: [raw]})
+
+        strict_result = clean_noaa_dataframe(df, strict_mode=True)
+        permissive_result = clean_noaa_dataframe(df, strict_mode=False)
+
+        pd.testing.assert_frame_equal(strict_result, permissive_result)
+        assert "__parse_error" not in strict_result.columns or strict_result["__parse_error"].isna().all()
+
+        summary = strict_result.attrs["strict_parse_summary"]
+        assert column not in summary["unknown_identifier_columns"]
+        assert column not in summary["unsupported_identifier_columns"]
+        assert column in summary["supported_prefix_family_identifiers"]
+
+    def test_metadata_name_column_is_not_classified_as_identifier(self, caplog):
+        df = pd.DataFrame({"NAME": ["value1,value2,value3"]})
+
+        result = clean_noaa_dataframe(df, strict_mode=True)
+
+        assert "NAME" in result.columns
+        assert result["NAME"].iloc[0] == "value1,value2,value3"
+        assert result.attrs["strict_parse_summary"]["skipped_encoded_column_count"] == 0
+        assert "NAME" not in caplog.text
 
 
 class TestControlRecordLengthValidation:
@@ -5436,6 +5477,10 @@ class TestA2MalformedIdentifierFormat:
         
         # Should log warning
         assert "[PARSE_STRICT]" in caplog.text and "Q01A" in caplog.text
+        summary = result.attrs["strict_parse_summary"]
+        assert summary["malformed_identifier_columns"] == ("Q01A",)
+        assert summary["unsupported_identifier_columns"] == ()
+        assert summary["unknown_identifier_columns"] == ()
 
     def test_eqd_helper_lookup_rejects_Q01A(self, caplog):
         assert get_field_rule("Q01A") is None

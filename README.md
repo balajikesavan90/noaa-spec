@@ -21,6 +21,13 @@ start from the same documented interpretation rather than divergent local
 scripts. NOAA-Spec does not download NOAA data, orchestrate station batches,
 split datasets into analysis domains, produce releases, or run analyses.
 
+The 100-station validation bundle is intended for external DOI archival. The
+repository contains the workflow and small tracked fixtures; the generated
+100-station raw inputs and outputs are not committed to the source repository.
+See [docs/validation_100_station.md](docs/validation_100_station.md). This
+workflow complements the small tracked fixtures, is not the main quickstart
+path, and does not expand the repository's core claim boundary.
+
 ## Reproducibility Verification
 
 Use the repository-defined Docker workflow. This is the primary tested

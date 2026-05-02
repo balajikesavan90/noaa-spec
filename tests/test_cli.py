@@ -141,3 +141,94 @@ def test_cli_clean_reports_skipped_unsupported_encoded_field(
     captured = capsys.readouterr()
     assert "strict parsing left 1 encoded NOAA-looking column unexpanded" in captured.err
     assert "unsupported identifier(s): ZZZ" in captured.err
+
+
+def test_cli_clean_reports_malformed_identifier_bucket(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    input_csv = tmp_path / "malformed_field_input.csv"
+    output_csv = tmp_path / "malformed_field_output.csv"
+    input_csv.write_text(
+        textwrap.dedent(
+            """\
+            STATION,DATE,Q01A,TMP
+            12345678901,2000-01-01T00:00:00,"abc,def","+0010,1"
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["prog", "clean", str(input_csv), str(output_csv)],
+    )
+    cli.main()
+
+    captured = capsys.readouterr()
+    assert "strict parsing left 1 encoded NOAA-looking column unexpanded" in captured.err
+    assert "malformed identifier(s): Q01A" in captured.err
+
+
+def test_cli_clean_does_not_warn_for_name_metadata_column_with_commas(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    input_csv = tmp_path / "name_metadata_input.csv"
+    output_csv = tmp_path / "name_metadata_output.csv"
+    input_csv.write_text(
+        textwrap.dedent(
+            """\
+            STATION,DATE,NAME,TMP
+            12345678901,2000-01-01T00:00:00,"TEST STATION, NORTH","+0010,1"
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["prog", "clean", str(input_csv), str(output_csv)],
+    )
+    cli.main()
+
+    captured = capsys.readouterr()
+    assert "Skipping unknown identifier: NAME" not in captured.err
+
+    cleaned = pd.read_csv(output_csv, low_memory=False)
+    assert cleaned.loc[0, "NAME"] == "TEST STATION, NORTH"
+
+
+def test_cli_clean_does_not_warn_for_supported_prefix_family_identifier(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    input_csv = tmp_path / "supported_family_input.csv"
+    output_csv = tmp_path / "supported_family_output.csv"
+    input_csv.write_text(
+        textwrap.dedent(
+            """\
+            STATION,DATE,AJ1
+            12345678901,2000-01-01T00:00:00,"1200,1,1,120000,1,1"
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["prog", "clean", str(input_csv), str(output_csv)],
+    )
+    cli.main()
+
+    captured = capsys.readouterr()
+    assert "strict parsing left" not in captured.err
+
+    cleaned = pd.read_csv(output_csv, low_memory=False)
+    assert "snow_depth_1" in cleaned.columns
