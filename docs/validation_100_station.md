@@ -78,6 +78,8 @@ The output directory contains:
 
 The selection manifest records the auditable deterministic sample and the copied raw-input provenance. The run manifest records environment metadata and the reproducibility boundary. The results table records per-station status, row counts, runtime, raw checksums, and output checksums. The checksum file covers the key generated artifacts so the validation package can be archived externally.
 
+Strict-parse flags in the per-station quality reports are diagnostic reviewer-facing evidence, not silent cleaning behavior. Unsupported optional identifiers are reported explicitly when encountered. In the 100-station bundle, skipped optional identifiers did not cause station-level failures or row loss, and the `HL1` investigation artifact documents the observed exclusion rather than silently ignoring it.
+
 ## Relationship to the tracked fixtures
 
 The repository’s small tracked fixtures remain the semantic verification layer and the normal quick reviewer path. The archived 100-station workflow complements them by showing that the same cleaning code path executes successfully across a broader stratified operational sample without turning this repository into a downloader or claiming NOAA-wide exhaustiveness.

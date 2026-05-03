@@ -12,6 +12,7 @@ import pandas as pd
 from . import __version__
 from .cleaning import clean_noaa_dataframe
 from .deterministic_io import write_deterministic_csv
+from .investigation import inspect_identifier_bundle
 from .validation import (
     DEFAULT_VALIDATION_COUNT,
     DEFAULT_VALIDATION_SEED,
@@ -229,6 +230,45 @@ def _parse_args() -> argparse.Namespace:
         help="Optional build identifier recorded in manifests.",
     )
 
+    inspect_parser = subparsers.add_parser(
+        "inspect-identifier",
+        help="Inspect a reviewer-facing validation bundle for an identifier without changing cleaning behavior.",
+        description=(
+            "Scan validation-bundle raw inputs for a specific identifier, preserve a "
+            "small set of provenance-rich examples, compare the observation against "
+            "current parser/spec metadata, and write diagnostic Markdown + JSON reports."
+        ),
+    )
+    inspect_parser.add_argument(
+        "--bundle-root",
+        required=True,
+        type=Path,
+        help="Validation bundle root containing raw_inputs/ and optional station_results.csv.",
+    )
+    inspect_parser.add_argument(
+        "--identifier",
+        required=True,
+        help="Identifier to inspect, for example HL1.",
+    )
+    inspect_parser.add_argument(
+        "--max-stations",
+        type=int,
+        default=10,
+        help="Maximum number of stations to include in example excerpts. Default: 10.",
+    )
+    inspect_parser.add_argument(
+        "--max-rows-per-station",
+        type=int,
+        default=5,
+        help="Maximum number of example rows per station. Default: 5.",
+    )
+    inspect_parser.add_argument(
+        "--output",
+        required=True,
+        type=Path,
+        help="Markdown output path. A JSON sibling with the same stem is also written.",
+    )
+
     return parser.parse_args()
 
 
@@ -283,6 +323,18 @@ def main() -> None:
         print(f"Wrote validation artifacts to {result['output_root']}")
         if result["failed"]:
             raise SystemExit(1)
+        return
+
+    if args.command == "inspect-identifier":
+        result = inspect_identifier_bundle(
+            bundle_root=args.bundle_root,
+            identifier=args.identifier,
+            output_path=args.output,
+            max_stations=args.max_stations,
+            max_rows_per_station=args.max_rows_per_station,
+        )
+        print(f"Wrote identifier investigation to {result['markdown_report']}")
+        print(f"Wrote identifier investigation JSON to {result['json_report']}")
         return
 
     raise ValueError(f"Unsupported public command: {args.command}")

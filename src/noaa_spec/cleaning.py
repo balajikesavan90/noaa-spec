@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 import json
 import logging
 import re
-from typing import Iterable
+from typing import Any, Iterable
 
 import pandas as pd
 
@@ -62,6 +63,10 @@ STRICT_PARSE_METADATA_COLUMNS = frozenset(
     }
 )
 
+STRICT_TOKEN_REJECTION_SAMPLE_MAX_CHARS = 80
+STRICT_TOKEN_REJECTION_SAMPLE_MAX_EXAMPLES = 5
+STRICT_TOKEN_REJECTION_SAMPLE_MAX_PER_BUCKET = 3
+
 
 def _classify_strict_identifier_column(column: str) -> tuple[str, bool]:
     """Classify a parseable column for strict-mode reporting.
@@ -103,6 +108,93 @@ class ParsedField:
     raw_parts: list[str]
     values: list[float | None]
     quality: str | None
+
+
+def _truncate_strict_sample(value: object, *, max_chars: int = STRICT_TOKEN_REJECTION_SAMPLE_MAX_CHARS) -> str | None:
+    if value is None:
+        return None
+    text = str(value)
+    if len(text) <= max_chars:
+        return text
+    return text[: max_chars - 3] + "..."
+
+
+def _init_strict_token_rejection_summary() -> dict[str, Any]:
+    return {
+        "token_rejection_count": 0,
+        "token_rejections_by_identifier": Counter(),
+        "token_rejections_by_reason": Counter(),
+        "token_rejections_by_identifier_part": Counter(),
+        "token_rejection_examples": [],
+        "_token_rejection_example_bucket_counts": Counter(),
+    }
+
+
+def _record_strict_token_rejection(
+    strict_summary: dict[str, Any] | None,
+    *,
+    identifier: str,
+    part_index: int,
+    reason: str,
+    actual_width: int | None = None,
+    expected_width: int | None = None,
+    raw_token: str | None = None,
+    event_context: dict[str, object] | None = None,
+) -> None:
+    if strict_summary is None:
+        return
+
+    identifier_part_key = f"{identifier}.part_{part_index}"
+    strict_summary["token_rejection_count"] += 1
+    strict_summary["token_rejections_by_identifier"][identifier] += 1
+    strict_summary["token_rejections_by_reason"][reason] += 1
+    strict_summary["token_rejections_by_identifier_part"][identifier_part_key] += 1
+
+    examples = strict_summary["token_rejection_examples"]
+    bucket_counts = strict_summary["_token_rejection_example_bucket_counts"]
+    if len(examples) >= STRICT_TOKEN_REJECTION_SAMPLE_MAX_EXAMPLES:
+        return
+
+    bucket_keys = (
+        f"identifier:{identifier}",
+        f"reason:{reason}",
+        f"identifier_part:{identifier_part_key}",
+    )
+    if any(
+        bucket_counts[bucket_key] >= STRICT_TOKEN_REJECTION_SAMPLE_MAX_PER_BUCKET
+        for bucket_key in bucket_keys
+    ):
+        return
+
+    context = event_context or {}
+    example = {
+        "station_id": context.get("station_id"),
+        "source_file": context.get("source_file"),
+        "row_index": context.get("row_index"),
+        "identifier": identifier,
+        "part_index": part_index,
+        "reason": reason,
+        "actual_width": actual_width,
+        "expected_width": expected_width,
+        "token_sample": _truncate_strict_sample(raw_token),
+        "raw_section_sample": _truncate_strict_sample(context.get("raw_section_sample")),
+        "row_sample": _truncate_strict_sample(context.get("row_sample")),
+    }
+    examples.append(example)
+    for bucket_key in bucket_keys:
+        bucket_counts[bucket_key] += 1
+
+
+def _finalize_strict_token_rejection_summary(strict_summary: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "token_rejection_count": int(strict_summary["token_rejection_count"]),
+        "token_rejections_by_identifier": dict(sorted(strict_summary["token_rejections_by_identifier"].items())),
+        "token_rejections_by_reason": dict(sorted(strict_summary["token_rejections_by_reason"].items())),
+        "token_rejections_by_identifier_part": dict(
+            sorted(strict_summary["token_rejections_by_identifier_part"].items())
+        ),
+        "token_rejection_examples": list(strict_summary["token_rejection_examples"]),
+    }
 
 
 # Cleaned-column naming contract:
@@ -486,6 +578,8 @@ def _expand_parsed(
     allow_quality: bool,
     strict_mode: bool = True,
     arity_mismatch: bool = False,
+    strict_summary: dict[str, Any] | None = None,
+    event_context: dict[str, object] | None = None,
 ) -> dict[str, object]:
     """Expand multi-part parsed field into column dictionary with QC signals.
 
@@ -627,6 +721,16 @@ def _expand_parsed(
                                 f"[PARSE_STRICT] Rejected {prefix} part {idx}: "
                                 "token contains leading/trailing whitespace"
                             )
+                            _record_strict_token_rejection(
+                                strict_summary,
+                                identifier=prefix,
+                                part_index=idx,
+                                reason="token_whitespace_mismatch",
+                                actual_width=len(raw_part),
+                                expected_width=expected_width,
+                                raw_token=raw_part,
+                                event_context=event_context,
+                            )
                             malformed_parts.add(idx)
                             payload[key] = None
                             continue
@@ -640,6 +744,16 @@ def _expand_parsed(
                             f"[PARSE_STRICT] Rejected {prefix} part {idx}: "
                             f"token width {len(test_value)}, expected {expected_width}"
                         )
+                        _record_strict_token_rejection(
+                            strict_summary,
+                            identifier=prefix,
+                            part_index=idx,
+                            reason="token_width_mismatch",
+                            actual_width=len(test_value),
+                            expected_width=expected_width,
+                            raw_token=raw_part,
+                            event_context=event_context,
+                        )
                         malformed_parts.add(idx)
                         payload[key] = None
                         continue
@@ -650,6 +764,14 @@ def _expand_parsed(
                         logger.warning(
                             f"[PARSE_STRICT] Rejected {prefix} part {idx}: "
                             f"token format mismatch (pattern validation failed)"
+                        )
+                        _record_strict_token_rejection(
+                            strict_summary,
+                            identifier=prefix,
+                            part_index=idx,
+                            reason="token_pattern_mismatch",
+                            raw_token=raw_part,
+                            event_context=event_context,
                         )
                         malformed_parts.add(idx)
                         payload[key] = None
