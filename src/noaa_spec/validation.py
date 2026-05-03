@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import hashlib
@@ -47,6 +48,11 @@ SUMMARY_NON_EXHAUSTIVE_LANGUAGE = (
 SUMMARY_SELECTION_LANGUAGE = (
     "The sample is deterministic and size-stratified, not manually selected for "
     "favorable outcomes."
+)
+STRICT_TOKEN_DIAGNOSTIC_LANGUAGE = (
+    "Strict token-level validation rejections are diagnostic. They identify "
+    "optional-section payloads that did not match declared token-width expectations. "
+    "They did not cause station-level failure or row loss in this validation run."
 )
 
 
@@ -220,6 +226,7 @@ def run_validation_workflow(
     _write_json(run_manifest_path, run_manifest)
 
     summary_path = output_root / "summary.md"
+    bundle_strict_summary = _aggregate_bundle_strict_parse_summary(results_rows)
     _write_summary(
         summary_path=summary_path,
         run_manifest=run_manifest,
@@ -228,6 +235,12 @@ def run_validation_workflow(
         total_input_rows=total_input_rows,
         total_output_rows=total_output_rows,
         total_runtime=total_runtime,
+        bundle_strict_summary=bundle_strict_summary,
+    )
+    _write_strict_parse_summary_report(
+        output_root=output_root,
+        run_manifest=run_manifest,
+        bundle_strict_summary=bundle_strict_summary,
     )
 
     archive_manifest_path = output_root / "archive_manifest.json"
@@ -600,6 +613,154 @@ def _merge_copied_metadata_into_selection_rows(
     return merged
 
 
+def _bundle_example_sort_key(example: dict[str, Any]) -> tuple[str, str, str, str, str]:
+    return (
+        str(example.get("station_id") or ""),
+        str(example.get("identifier") or ""),
+        str(example.get("part_index") or ""),
+        str(example.get("reason") or ""),
+        str(example.get("row_index") or ""),
+    )
+
+
+def _aggregate_bundle_strict_parse_summary(results_rows: list[dict[str, Any]]) -> dict[str, Any]:
+    token_rejections_by_identifier: Counter[str] = Counter()
+    token_rejections_by_identifier_part: Counter[str] = Counter()
+    token_rejections_by_reason: Counter[str] = Counter()
+    token_rejections_by_station: Counter[str] = Counter()
+    affected_stations: set[str] = set()
+    token_rejection_examples: list[dict[str, Any]] = []
+    total_token_rejection_count = 0
+
+    for row in results_rows:
+        if row.get("status") != "success":
+            continue
+        strict_summary = row.get("strict_parse_summary") or {}
+        station_id = str(row.get("station_id") or "")
+        token_count = int(strict_summary.get("token_rejection_count", 0) or 0)
+        if token_count > 0:
+            affected_stations.add(station_id)
+            token_rejections_by_station[station_id] += token_count
+        total_token_rejection_count += token_count
+        token_rejections_by_identifier.update(strict_summary.get("token_rejections_by_identifier", {}))
+        token_rejections_by_identifier_part.update(
+            strict_summary.get("token_rejections_by_identifier_part", {})
+        )
+        token_rejections_by_reason.update(strict_summary.get("token_rejections_by_reason", {}))
+        for example in strict_summary.get("token_rejection_examples", ()):
+            normalized = dict(example)
+            if not normalized.get("station_id"):
+                normalized["station_id"] = station_id
+            token_rejection_examples.append(normalized)
+
+    top_affected_stations = [
+        {"station_id": station_id, "token_rejection_count": count}
+        for station_id, count in sorted(
+            token_rejections_by_station.items(),
+            key=lambda item: (-item[1], item[0]),
+        )[:10]
+    ]
+    capped_examples = sorted(token_rejection_examples, key=_bundle_example_sort_key)[:10]
+    return {
+        "token_validation_rejections": {
+            "total_token_rejection_count": total_token_rejection_count,
+            "affected_station_count": len(affected_stations),
+            "token_rejections_by_identifier": dict(
+                sorted(token_rejections_by_identifier.items())
+            ),
+            "token_rejections_by_identifier_part": dict(
+                sorted(token_rejections_by_identifier_part.items())
+            ),
+            "token_rejections_by_reason": dict(sorted(token_rejections_by_reason.items())),
+            "top_affected_stations": top_affected_stations,
+            "token_rejection_examples": capped_examples,
+            "diagnostic_note": STRICT_TOKEN_DIAGNOSTIC_LANGUAGE,
+        }
+    }
+
+
+def _write_strict_parse_summary_report(
+    *,
+    output_root: Path,
+    run_manifest: dict[str, Any],
+    bundle_strict_summary: dict[str, Any],
+) -> None:
+    report = bundle_strict_summary["token_validation_rejections"]
+    json_path = output_root / "strict_parse_summary_report.json"
+    markdown_path = output_root / "strict_parse_summary_report.md"
+
+    payload = {
+        "artifact_id": "strict_parse_summary_report",
+        "schema_version": "1.0.0",
+        "build_id": run_manifest["build_id"],
+        "created_utc": _now_utc_isoformat(),
+        **bundle_strict_summary,
+    }
+    _write_json(json_path, payload)
+
+    def _render_count_lines(mapping: dict[str, Any]) -> list[str]:
+        if not mapping:
+            return ["- None observed."]
+        return [f"- {key}: {mapping[key]}" for key in sorted(mapping)]
+
+    lines = [
+        "# Strict Parse Summary Report",
+        "",
+        "## Token validation rejections",
+        (
+            "Strict token-level validation detected width/shape mismatches in optional "
+            "section payloads. These diagnostics did not cause station-level failures "
+            "or row loss."
+        ),
+        "",
+        f"- Total token rejections: {report['total_token_rejection_count']}",
+        f"- Affected stations: {report['affected_station_count']}",
+        "",
+        "### By identifier",
+        *_render_count_lines(report["token_rejections_by_identifier"]),
+        "",
+        "### By identifier and part",
+        *_render_count_lines(report["token_rejections_by_identifier_part"]),
+        "",
+        "### By reason",
+        *_render_count_lines(report["token_rejections_by_reason"]),
+        "",
+        "### Top affected stations",
+    ]
+    if report["top_affected_stations"]:
+        lines.extend(
+            [
+                f"- {entry['station_id']}: {entry['token_rejection_count']}"
+                for entry in report["top_affected_stations"]
+            ]
+        )
+    else:
+        lines.append("- None observed.")
+
+    lines.extend(["", "### Examples"])
+    if report["token_rejection_examples"]:
+        for example in report["token_rejection_examples"]:
+            lines.append(
+                "- "
+                + ", ".join(
+                    [
+                        f"station_id={example.get('station_id')}",
+                        f"identifier={example.get('identifier')}",
+                        f"part_index={example.get('part_index')}",
+                        f"reason={example.get('reason')}",
+                        f"actual_width={example.get('actual_width')}",
+                        f"expected_width={example.get('expected_width')}",
+                        f"row_index={example.get('row_index')}",
+                        f"token_sample={example.get('token_sample')}",
+                    ]
+                )
+            )
+    else:
+        lines.append("- None observed.")
+
+    markdown_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def _process_station_candidate(
     *,
     candidate: StationCandidate,
@@ -630,8 +791,10 @@ def _process_station_candidate(
             if "__parse_error" in cleaned.columns
             else 0
         )
-        warnings_count = parse_error_rows + int(
-            strict_summary.get("skipped_encoded_column_count", 0)
+        warnings_count = (
+            parse_error_rows
+            + int(strict_summary.get("skipped_encoded_column_count", 0))
+            + int(strict_summary.get("token_rejection_count", 0))
         )
         _write_json(
             quality_report_path,
@@ -665,6 +828,7 @@ def _process_station_candidate(
             "quality_report_path": _relative_to_root(quality_report_path, output_root),
             "domain_outputs_generated": False,
             "warnings_count": warnings_count,
+            "strict_parse_summary": strict_summary,
             "error_type": "",
             "error_message": "",
         }
@@ -682,6 +846,7 @@ def _process_station_candidate(
             "quality_report_path": "",
             "domain_outputs_generated": False,
             "warnings_count": 0,
+            "strict_parse_summary": {},
             "error_type": exc.__class__.__name__,
             "error_message": str(exc),
         }
@@ -751,6 +916,7 @@ def _write_summary(
     total_input_rows: int,
     total_output_rows: int,
     total_runtime: float,
+    bundle_strict_summary: dict[str, Any],
 ) -> None:
     selected_rows = [row for row in selection_rows if row["selection_status"] == "selected"]
     succeeded = [row for row in results_rows if row["status"] == "success"]
@@ -762,6 +928,7 @@ def _write_summary(
         label: sum(1 for row in selected_rows if row["size_stratum"] == label)
         for label in ("q1", "q2", "q3", "q4")
     }
+    token_summary = bundle_strict_summary["token_validation_rejections"]
 
     lines = [
         "# 100-Station Validation Summary",
@@ -812,6 +979,11 @@ def _write_summary(
         f"- Total runtime (seconds): {total_runtime:.6f}",
         f"- Checksum file: {summary_path.parent / 'checksums.txt'}",
         "",
+        "## Strict token diagnostics",
+        f"- Strict token rejection count: {token_summary['total_token_rejection_count']}",
+        f"- Affected station count: {token_summary['affected_station_count']}",
+        f"- {STRICT_TOKEN_DIAGNOSTIC_LANGUAGE}",
+        "",
         "## Failure summary",
     ]
 
@@ -831,6 +1003,8 @@ def _write_summary(
             "- `station_selection_manifest.csv`",
             "- `run_manifest.json`",
             "- `station_results.csv`",
+            "- `strict_parse_summary_report.json`",
+            "- `strict_parse_summary_report.md`",
             "- `checksums.txt`",
             "- `summary.md`",
             "- `archive_manifest.json`",

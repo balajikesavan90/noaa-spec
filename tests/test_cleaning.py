@@ -7174,6 +7174,32 @@ class TestA4TokenWidthValidation:
         assert result["wind_speed_ms"].iloc[0] == 5.0
         assert result["temperature_c"].iloc[0] == 25.0
 
+    def test_token_width_rejection_records_structured_summary_event(self):
+        df = pd.DataFrame(
+            {
+                "STATION": ["12345678901"],
+                "SA1": ["215,1"],
+            }
+        )
+
+        result = clean_noaa_dataframe(df, strict_mode=True)
+
+        summary = result.attrs["strict_parse_summary"]
+        assert summary["token_rejection_count"] == 1
+        assert summary["token_rejections_by_identifier"] == {"SA1": 1}
+        assert summary["token_rejections_by_reason"] == {"token_width_mismatch": 1}
+        assert summary["token_rejections_by_identifier_part"] == {"SA1.part_1": 1}
+        example = summary["token_rejection_examples"][0]
+        assert example["station_id"] == "12345678901"
+        assert example["row_index"] == 0
+        assert example["identifier"] == "SA1"
+        assert example["part_index"] == 1
+        assert example["actual_width"] == 3
+        assert example["expected_width"] == 4
+        assert example["token_sample"] == "215"
+        assert example["raw_section_sample"] == "215,1"
+        assert example["row_sample"] is None
+
 
 # ── QC Signals and Row-level Metrics ─────────────────────────────────────
 

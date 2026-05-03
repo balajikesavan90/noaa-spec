@@ -66,6 +66,7 @@ STRICT_PARSE_METADATA_COLUMNS = frozenset(
 STRICT_TOKEN_REJECTION_SAMPLE_MAX_CHARS = 80
 STRICT_TOKEN_REJECTION_SAMPLE_MAX_EXAMPLES = 5
 STRICT_TOKEN_REJECTION_SAMPLE_MAX_PER_BUCKET = 3
+STRICT_TOKEN_REJECTION_LOG_LIMIT = 10
 
 
 def _classify_strict_identifier_column(column: str) -> tuple[str, bool]:
@@ -127,6 +128,8 @@ def _init_strict_token_rejection_summary() -> dict[str, Any]:
         "token_rejections_by_identifier_part": Counter(),
         "token_rejection_examples": [],
         "_token_rejection_example_bucket_counts": Counter(),
+        "_token_rejection_log_emitted_count": 0,
+        "_token_rejection_suppressed_log_count": 0,
     }
 
 
@@ -185,6 +188,23 @@ def _record_strict_token_rejection(
         bucket_counts[bucket_key] += 1
 
 
+def _log_strict_token_rejection(
+    strict_summary: dict[str, Any] | None,
+    message: str,
+) -> None:
+    if strict_summary is None:
+        logger.warning(message)
+        return
+    emitted_count = int(strict_summary["_token_rejection_log_emitted_count"])
+    if emitted_count < STRICT_TOKEN_REJECTION_LOG_LIMIT:
+        logger.warning(message)
+        strict_summary["_token_rejection_log_emitted_count"] = emitted_count + 1
+        return
+    strict_summary["_token_rejection_suppressed_log_count"] = (
+        int(strict_summary["_token_rejection_suppressed_log_count"]) + 1
+    )
+
+
 def _finalize_strict_token_rejection_summary(strict_summary: dict[str, Any]) -> dict[str, Any]:
     return {
         "token_rejection_count": int(strict_summary["token_rejection_count"]),
@@ -194,6 +214,9 @@ def _finalize_strict_token_rejection_summary(strict_summary: dict[str, Any]) -> 
             sorted(strict_summary["token_rejections_by_identifier_part"].items())
         ),
         "token_rejection_examples": list(strict_summary["token_rejection_examples"]),
+        "token_rejection_suppressed_log_count": int(
+            strict_summary["_token_rejection_suppressed_log_count"]
+        ),
     }
 
 
@@ -717,7 +740,8 @@ def _expand_parsed(
                     if part_rule and part_rule.kind == "numeric":
                         # Reject space-padded numeric tokens in strict mode.
                         if raw_part != raw_part.strip():
-                            logger.warning(
+                            _log_strict_token_rejection(
+                                strict_summary,
                                 f"[PARSE_STRICT] Rejected {prefix} part {idx}: "
                                 "token contains leading/trailing whitespace"
                             )
@@ -740,7 +764,8 @@ def _expand_parsed(
                         # Preserve raw token width for fixed-width categorical/quality tokens.
                         test_value = raw_part
                     if len(test_value) != expected_width:
-                        logger.warning(
+                        _log_strict_token_rejection(
+                            strict_summary,
                             f"[PARSE_STRICT] Rejected {prefix} part {idx}: "
                             f"token width {len(test_value)}, expected {expected_width}"
                         )
@@ -761,7 +786,8 @@ def _expand_parsed(
                 if 'pattern' in width_rules:
                     pattern = width_rules['pattern']
                     if not pattern.fullmatch(part_stripped):
-                        logger.warning(
+                        _log_strict_token_rejection(
+                            strict_summary,
                             f"[PARSE_STRICT] Rejected {prefix} part {idx}: "
                             f"token format mismatch (pattern validation failed)"
                         )
@@ -940,7 +966,14 @@ def _compute_qc_signals(
     return True, "PASS", None
 
 
-def clean_value_quality(raw: str, prefix: str, strict_mode: bool = True) -> dict[str, object]:
+def clean_value_quality(
+    raw: str,
+    prefix: str,
+    strict_mode: bool = True,
+    *,
+    strict_summary: dict[str, Any] | None = None,
+    event_context: dict[str, object] | None = None,
+) -> dict[str, object]:
     """Parse and validate a comma-encoded 2-part NOAA value/quality field.
 
     Applies range validation (pre-scale), quality code checking, and sentinel detection
@@ -1025,6 +1058,8 @@ def clean_value_quality(raw: str, prefix: str, strict_mode: bool = True) -> dict
             allow_quality=True,
             strict_mode=strict_mode,
             arity_mismatch=arity_mismatch,
+            strict_summary=strict_summary,
+            event_context=event_context,
         )
     if not _is_value_quality_field(prefix, len(parsed.parts)):
         return _expand_parsed(
@@ -1033,6 +1068,8 @@ def clean_value_quality(raw: str, prefix: str, strict_mode: bool = True) -> dict
             allow_quality=True,
             strict_mode=strict_mode,
             arity_mismatch=arity_mismatch,
+            strict_summary=strict_summary,
+            event_context=event_context,
         )
     part_rule = field_rule.parts.get(1) if field_rule else None
     entry = get_field_registry_entry(prefix, 1, suffix="value")
@@ -1064,9 +1101,20 @@ def clean_value_quality(raw: str, prefix: str, strict_mode: bool = True) -> dict
                 expected_width = width_rules['width']
                 raw_part = parsed.raw_parts[0] if parsed.raw_parts else parsed.parts[0]
                 if raw_part != raw_part.strip():
-                    logger.warning(
+                    _log_strict_token_rejection(
+                        strict_summary,
                         f"[PARSE_STRICT] Rejected {prefix} part 1: "
                         "token contains leading/trailing whitespace"
+                    )
+                    _record_strict_token_rejection(
+                        strict_summary,
+                        identifier=prefix,
+                        part_index=1,
+                        reason="token_whitespace_mismatch",
+                        actual_width=len(raw_part),
+                        expected_width=expected_width,
+                        raw_token=raw_part,
+                        event_context=event_context,
                     )
                     qc_pass, qc_status, qc_reason = _compute_qc_signals(
                         is_sentinel=False,
@@ -1083,9 +1131,20 @@ def clean_value_quality(raw: str, prefix: str, strict_mode: bool = True) -> dict
                     }
                 test_value = part_stripped.lstrip('+-')
                 if len(test_value) != expected_width:
-                    logger.warning(
+                    _log_strict_token_rejection(
+                        strict_summary,
                         f"[PARSE_STRICT] Rejected {prefix} part 1: "
                         f"token width {len(test_value)}, expected {expected_width}"
+                    )
+                    _record_strict_token_rejection(
+                        strict_summary,
+                        identifier=prefix,
+                        part_index=1,
+                        reason="token_width_mismatch",
+                        actual_width=len(test_value),
+                        expected_width=expected_width,
+                        raw_token=raw_part,
+                        event_context=event_context,
                     )
                     qc_pass, qc_status, qc_reason = _compute_qc_signals(
                         is_sentinel=False,
@@ -1104,9 +1163,18 @@ def clean_value_quality(raw: str, prefix: str, strict_mode: bool = True) -> dict
             if 'pattern' in width_rules:
                 pattern = width_rules['pattern']
                 if not pattern.fullmatch(part_stripped):
-                    logger.warning(
+                    _log_strict_token_rejection(
+                        strict_summary,
                         f"[PARSE_STRICT] Rejected {prefix} part 1: "
                         f"token format mismatch (pattern validation failed)"
+                    )
+                    _record_strict_token_rejection(
+                        strict_summary,
+                        identifier=prefix,
+                        part_index=1,
+                        reason="token_pattern_mismatch",
+                        raw_token=raw_part,
+                        event_context=event_context,
                     )
                     qc_pass, qc_status, qc_reason = _compute_qc_signals(
                         is_sentinel=False,
@@ -1693,6 +1761,7 @@ def clean_noaa_dataframe(
         "unsupported_identifier_columns": [],
         "supported_prefix_family_identifiers": [],
     }
+    strict_token_summary = _init_strict_token_rejection_summary()
     rejected_mask = pd.Series(False, index=cleaned.index)
     raw_line_col = "raw_line" if "raw_line" in cleaned.columns else ("RAW_LINE" if "RAW_LINE" in cleaned.columns else None)
     if raw_line_col is not None:
@@ -1804,14 +1873,38 @@ def clean_noaa_dataframe(
 
         parsed_rows = []
         normalized_values = series.fillna("").astype(str)
-        for is_rejected, value in zip(rejected_mask.to_numpy(dtype=bool), normalized_values, strict=False):
+        station_series = cleaned["STATION"] if "STATION" in cleaned.columns else None
+        row_sample_series = cleaned[raw_line_col] if raw_line_col is not None else None
+        for row_index, (is_rejected, value) in enumerate(
+            zip(rejected_mask.to_numpy(dtype=bool), normalized_values, strict=False)
+        ):
             if is_rejected:
                 parsed_rows.append({})
                 continue
             if value == "":
                 parsed_rows.append({})
                 continue
-            payload = clean_value_quality(value, column, strict_mode=strict_mode)
+            source_row_index = normalized_values.index[row_index]
+            event_context = {
+                "station_id": (
+                    None if station_series is None else station_series.iloc[row_index]
+                ),
+                "source_file": None,
+                "row_index": int(source_row_index)
+                if isinstance(source_row_index, int)
+                else source_row_index,
+                "raw_section_sample": value,
+                "row_sample": (
+                    None if row_sample_series is None else row_sample_series.iloc[row_index]
+                ),
+            }
+            payload = clean_value_quality(
+                value,
+                column,
+                strict_mode=strict_mode,
+                strict_summary=strict_token_summary if strict_mode else None,
+                event_context=event_context,
+            )
             parsed_rows.append(payload)
 
         expanded = pd.DataFrame(parsed_rows, index=cleaned.index)
@@ -1883,6 +1976,15 @@ def clean_noaa_dataframe(
         skipped_columns = tuple(
             malformed_columns + malformed_identifier_columns + unsupported_columns
         )
+        suppressed_token_logs = int(
+            strict_token_summary["_token_rejection_suppressed_log_count"]
+        )
+        if suppressed_token_logs > 0:
+            logger.warning(
+                "[PARSE_STRICT] Suppressed "
+                f"{suppressed_token_logs} additional token-level rejection warning(s); "
+                "see strict_parse_summary for aggregated diagnostics"
+            )
         cleaned.attrs["strict_parse_summary"] = {
             "malformed_section_identifier_columns": tuple(malformed_columns),
             "malformed_identifier_columns": tuple(malformed_identifier_columns),
@@ -1893,6 +1995,7 @@ def clean_noaa_dataframe(
             ),
             "skipped_encoded_columns": skipped_columns,
             "skipped_encoded_column_count": len(skipped_columns),
+            **_finalize_strict_token_rejection_summary(strict_token_summary),
         }
 
     return cleaned

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 import sys
 
@@ -8,27 +9,32 @@ import pandas as pd
 import pytest
 
 import noaa_spec.cli as cli
-from noaa_spec.validation import (
-    _scan_station_candidates,
-    _select_candidates,
-    _station_id_from_path,
-)
+from noaa_spec.validation import _scan_station_candidates, _select_candidates, _station_id_from_path
 
 
-def _write_station_csv(directory: Path, station_id: str, row_count: int) -> Path:
+def _write_station_csv(
+    directory: Path,
+    station_id: str,
+    row_count: int,
+    extra_fields: dict[str, str] | None = None,
+) -> Path:
     path = directory / f"{station_id}.csv"
-    rows = ["STATION,DATE,TMP,VIS,WND,SLP"]
+    extra_fields = extra_fields or {}
+    header = ["STATION", "DATE", "TMP", "VIS", "WND", "SLP", *extra_fields.keys()]
+    rows = [",".join(header)]
     for index in range(row_count):
+        base_values = [
+            station_id,
+            f"2000-01-{(index % 28) + 1:02d}T00:00:00",
+            '"+0010,1"',
+            '"010000,1,N,1"',
+            '"090,1,N,0010,1"',
+            '"10123,1"',
+        ]
         rows.append(
             ",".join(
-                [
-                    station_id,
-                    f"2000-01-{(index % 28) + 1:02d}T00:00:00",
-                    '"+0010,1"',
-                    '"010000,1,N,1"',
-                    '"090,1,N,0010,1"',
-                    '"10123,1"',
-                ]
+                base_values
+                + [f'"{value}"' for value in extra_fields.values()]
             )
         )
     path.write_text("\n".join(rows) + "\n", encoding="utf-8")
@@ -164,6 +170,8 @@ def test_validate_command_writes_expected_artifacts(
     assert "station_results.csv" in checksums_text
     assert "run_manifest.json" in checksums_text
     assert "summary.md" in checksums_text
+    assert "strict_parse_summary_report.json" in checksums_text
+    assert "strict_parse_summary_report.md" in checksums_text
     assert "archive_manifest.json" in checksums_text
 
     archive_manifest = pd.read_json(output_root / "archive_manifest.json", typ="series")
@@ -173,3 +181,65 @@ def test_validate_command_writes_expected_artifacts(
     assert "does not prove correctness over the full NOAA corpus" in summary_text
     assert "inspectable and rerunnable without relying on live NOAA availability" in summary_text
     assert "not manually selected for favorable outcomes" in summary_text
+
+
+def test_validation_bundle_reports_strict_token_diagnostics(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    input_root = tmp_path / "input"
+    output_root = tmp_path / "output"
+    input_root.mkdir()
+    for index in range(8):
+        station_id = f"{20000000000 + index}"
+        extra_fields = {"SA1": "215,1"} if index == 0 else None
+        _write_station_csv(input_root, station_id, row_count=index + 1, extra_fields=extra_fields)
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "prog",
+            "build-validation-bundle",
+            "--source-root",
+            str(input_root),
+            "--output-root",
+            str(output_root),
+            "--count",
+            "8",
+            "--seed",
+            "20260430",
+            "--build-id",
+            "strict-token-build",
+        ],
+    )
+    cli.main()
+
+    quality_reports = sorted((output_root / "quality_reports").glob("*_quality_report.json"))
+    station_payload = None
+    for path in quality_reports:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if int(payload["strict_parse_summary"]["token_rejection_count"]) > 0:
+            station_payload = payload
+            break
+
+    assert station_payload is not None
+    strict_summary = station_payload["strict_parse_summary"]
+    assert strict_summary["token_rejection_count"] == 1
+    assert strict_summary["token_rejections_by_identifier"] == {"SA1": 1}
+    assert strict_summary["token_rejections_by_reason"] == {"token_width_mismatch": 1}
+    assert strict_summary["token_rejections_by_identifier_part"] == {"SA1.part_1": 1}
+    assert strict_summary["token_rejection_examples"][0]["identifier"] == "SA1"
+    assert strict_summary["token_rejection_examples"][0]["part_index"] == 1
+    assert strict_summary["token_rejection_examples"][0]["expected_width"] == 4
+
+    strict_report_md = (output_root / "strict_parse_summary_report.md").read_text(encoding="utf-8")
+    strict_report_json = json.loads(
+        (output_root / "strict_parse_summary_report.json").read_text(encoding="utf-8")
+    )
+    summary_text = (output_root / "summary.md").read_text(encoding="utf-8")
+    canonical_frame = pd.read_csv(output_root / "canonical_cleaned" / f"{station_payload['station_id']}_cleaned.csv")
+
+    assert "## Token validation rejections" in strict_report_md
+    assert strict_report_json["token_validation_rejections"]["total_token_rejection_count"] == 1
+    assert strict_report_json["token_validation_rejections"]["affected_station_count"] == 1
+    assert "Strict token-level validation rejections are diagnostic." in summary_text
+    assert "They did not cause station-level failure or row loss in this validation run." in summary_text
+    assert int(station_payload["input_rows"]) == int(station_payload["output_rows"]) == len(canonical_frame)
